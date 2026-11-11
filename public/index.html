@@ -36,39 +36,114 @@
   <main id="app" tabindex="-1"></main>
 
 
-<section style="
-  margin:25px 16px;
-  padding:25px 18px;
-  text-align:center;
-  background:#0b2a1d;
-  color:white;
-  border-radius:16px;
-">
-  <h2>Découvrez IKA SO sur Android</h2>
 
-  <p>
-    Téléchargez gratuitement notre application
-    et retrouvez l'immobilier partout avec vous.
-  </p>
+<section class="ikaso-download">
+  <div class="ikaso-download-content">
+    <span class="ikaso-label">APPLICATION MOBILE OFFICIELLE</span>
 
-  <a href="/downloads/ika-so.apk"
-     download="IKA-SO.apk"
-     style="
-       display:inline-block;
-       background:#d6ad55;
-       color:#102719;
-       padding:15px 24px;
-       border-radius:10px;
-       font-weight:bold;
-       text-decoration:none;
-     ">
-    📲 Télécharger IKA SO
-  </a>
+    <h2>
+      L'immobilier au Mali,<br>
+      <span>dans votre poche.</span>
+    </h2>
 
-  <p style="font-size:12px;margin-top:12px;">
-    Application Android gratuite
-  </p>
+    <p>
+      Téléchargez gratuitement IKA SÔ et découvrez
+      nos annonces immobilières partout où vous êtes.
+    </p>
+
+    <div class="ikaso-benefits">
+      <span>✓ Annonces immobilières</span>
+      <span>✓ Maisons, terrains et appartements</span>
+      <span>✓ Contact direct avec les agences</span>
+    </div>
+
+    <a class="ikaso-download-button"
+       href="/downloads/ika-so.apk"
+       download="IKA-SO.apk">
+      <span>↓</span>
+      <span>
+        Télécharger IKA SÔ
+        <small>Android · Gratuit</small>
+      </span>
+    </a>
+  </div>
 </section>
+
+<style>
+.ikaso-download {
+  margin: 30px 16px !important;
+  padding: 35px 25px !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg,#073b28,#126744) !important;
+  color: white !important;
+  overflow: hidden;
+}
+
+.ikaso-download-content {
+  max-width: 600px;
+  margin: auto;
+}
+
+.ikaso-download .ikaso-label {
+  color: #e9bd55 !important;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+}
+
+.ikaso-download h2 {
+  color: white !important;
+  font-size: clamp(26px,6vw,38px) !important;
+  line-height: 1.2 !important;
+  margin: 20px 0 14px !important;
+}
+
+.ikaso-download h2 span {
+  color: #e9bd55 !important;
+}
+
+.ikaso-download p {
+  color: #e4eee8 !important;
+  font-size: 15px !important;
+  line-height: 1.7 !important;
+}
+
+.ikaso-benefits {
+  display: grid;
+  gap: 12px;
+  margin: 22px 0;
+  color: white;
+  font-size: 14px;
+}
+
+.ikaso-download-button {
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 16px !important;
+  border-radius: 13px !important;
+  background: #e9bd55 !important;
+  color: #073b28 !important;
+  text-decoration: none !important;
+  font-weight: 800;
+  font-size: 16px;
+}
+
+.ikaso-download-button > span:first-child {
+  font-size: 28px;
+}
+
+.ikaso-download-button small {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: 4px;
+}
+</style>
+
 
   
   <footer class="site-footer">
