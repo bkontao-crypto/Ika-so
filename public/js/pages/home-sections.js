@@ -129,11 +129,12 @@ function reveal(root) {
 const sectionHead = (kicker, title, text, link) => h("div", { class: "rx-sec-head" },
   h("div", null, h("span", { class: "rx-kicker" }, kicker), h("h2", null, title), text ? h("p", null, text) : null),
   link ? h("a", { class: "rx-link", href: link[0] }, link[1], " →") : null);
-const section = (id, ...children) => h("section", { class: "rx-sec" }, hosts.ads),
-partners,
-guides,
-downloadApp
-);
+
+
+const section = (id, ...children) =>
+  h("section", { class: "rx-sec rx-reveal", id }, ...children);
+
+
 
 export async function renderHome() {
   let hero = { ...DEFAULT_HERO };
@@ -232,7 +233,9 @@ export async function renderHome() {
   mount(app, heroEl, searchEl, catsEl,
     h("section", { class: "rx-sec" }, hosts.sponsored), h("section", { class: "rx-sec" }, hosts.latest),
     h("section", { class: "rx-sec" }, hosts.lands), h("section", { class: "rx-sec" }, hosts.homes),
-    hoods, h("section", { class: "rx-sec" }, hosts.agencies), how, trust, cta, h("section", { class: "rx-sec" }, hosts.ads), partners, guides);
+    hoods, h("section", { class: "rx-sec" }, hosts.agencies), how, trust, cta, h("section", { class: "rx-sec" }, 
+hosts.ads), partners, guides, downloadApp);
+
   reveal(app);
 
   // ---- Chargement des données réelles (une panne d'une source n'empêche jamais les autres) ----
