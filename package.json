@@ -1,0 +1,29 @@
+{
+  "name": "ika-so",
+  "version": "0.2.0",
+  "description": "Ika So : l'immobilier au Mali, plus accessible. Node.js, Express, PostgreSQL, CSS.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node --env-file=.env --watch server/index.js",
+    "migrate": "node server/migrate.js",
+    "check-env": "node scripts/check-env.mjs",
+    "stamp-sw": "node scripts/stamp-sw.mjs",
+    "stamp-sw:check": "node scripts/stamp-sw.mjs --check",
+    "files:orphans": "node scripts/cleanup-orphan-files.mjs",
+    "retention": "node scripts/retention.mjs",
+    "test": "node --test --test-concurrency=1 \"test/**/*.test.js\"",
+    "test:rules": "node --test test/rules.test.js",
+    "test:integration": "node --test test/integration-pg.test.js",
+    "check-seo-contrast": "python3 scripts/verification/seo-contrast.py"
+  },
+  "dependencies": {
+    "express": "5.1.0",
+    "mapbox-gl": "3.33.0",
+    "pg": "8.16.3"
+  }
+}

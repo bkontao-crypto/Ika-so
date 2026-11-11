@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>IKA SO Immobilier | Trouvez. Achetez. Louez. Vivez mieux.</title>
+  <meta name="description" content="Terrains et logements à Bamako : numéro contrôlé par code, annonces relues avant publication, contact direct par appel ou WhatsApp.">
+  <meta name="theme-color" content="#0b2a1d">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="stylesheet" href="/css/ika.css">
+  <link rel="stylesheet" href="/css/modern.css">
+  <link rel="stylesheet" href="/css/refonte.css">
+  <link rel="stylesheet" href="/css/mon-profil.css">
+  <link rel="stylesheet" href="/css/publier.css">
+</head>
+<body>
+  <a class="sr-only" href="#app">Aller au contenu</a>
+  <header class="site-header">
+    <div class="site-header-inner">
+      <a class="logo brand" href="#/" aria-label="IKA SO, accueil">
+        <img class="brand-logo" src="/media/logo-ika-so.webp" width="210" height="94" alt="IKA SO Immobilier">
+      </a>
+      <form class="header-search" id="quickSearch" role="search">
+        <svg viewBox="0 0 24 24" width="19" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
+        <input id="quickSearchInput" type="search" placeholder="Rechercher un bien, un quartier..." aria-label="Recherche rapide">
+        <button class="search-go" type="submit" aria-label="Rechercher"><svg viewBox="0 0 24 24" width="17"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
+      </form>
+      <nav class="main-nav" id="nav-desktop" aria-label="Navigation principale"></nav>
+      <div class="header-actions" id="account"></div>
+    </div>
+  </header>
+  <div id="status-banner"></div>
+  <div id="backbar" class="backbar" hidden></div>
+  <main id="app" tabindex="-1"></main>
+  <footer class="site-footer">
+    <div class="site-footer-inner">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <div class="logo"><span class="logo-word">IKA <span class="logo-gold">SO</span><small>L'immobilier simplement</small></span></div>
+          <p>La plateforme immobilière du Mali : terrains, maisons, appartements, studios, locaux commerciaux et bureaux, avec des numéros vérifiés par code et des annonces relues avant publication.</p>
+        </div>
+        <nav class="foot-col" aria-label="Rechercher">
+          <h3>Rechercher</h3>
+          <ul>
+            <li><a href="#/annonces?t=Vente">Acheter</a></li>
+            <li><a href="#/annonces?t=Location">Louer</a></li>
+            <li><a href="#/annonces?category=Terrain">Terrains</a></li>
+            <li><a href="#/carte">Carte immobilière</a></li>
+            <li><a href="/quartiers">Quartiers</a></li>
+          </ul>
+        </nav>
+        <nav class="foot-col" aria-label="Professionnels">
+          <h3>Professionnels</h3>
+          <ul>
+            <li><a href="#/publier">Publier une annonce</a></li>
+            <li><a href="#/annonceurs">Annonceurs</a></li>
+            <li><a href="/agences">Agences vérifiées</a></li>
+            <li><a href="#/devenir-annonceur">Devenir annonceur</a></li>
+            <li><a href="#/partenaires">Partenaires</a></li>
+          </ul>
+        </nav>
+        <nav class="foot-col" aria-label="Aide et confiance">
+          <h3>Confiance</h3>
+          <ul>
+            <li><a href="#/confiance">Centre de confiance</a></li>
+            <li><a href="/guides">Guides et conseils</a></li>
+            <li><a href="#/reclamations">Réclamations</a></li>
+            <li><a href="#/boite">Messages</a></li>
+            <li><a href="/mentions-legales">Mentions légales</a></li>
+          </ul>
+        </nav>
+      </div>
+      <div class="foot-bottom">
+        <p class="foot-copy">© <span id="year"></span> IKA SO Immobilier. Tous droits réservés.</p>
+        <nav class="foot-links" aria-label="Pied de page">
+          <a href="#/">Accueil</a><a href="#/favoris">Favoris</a><a href="#/profil">Mon compte</a>
+        </nav>
+      </div>
+    </div>
+  </footer>
+  <nav class="bottom-nav" id="nav-bottom" aria-label="Navigation mobile"></nav>
+  <noscript><p class="banner">Ika So a besoin de JavaScript pour fonctionner.</p></noscript>
+  <script type="module" src="/js/app.js"></script>
+</body>
+</html>

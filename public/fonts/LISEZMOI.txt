@@ -1,0 +1,13 @@
+Polices auto-hébergées d'IKA SO
+================================
+La politique de sécurité du site (CSP) interdit les polices externes (Google Fonts, etc.).
+Pour obtenir les polices des maquettes, déposez ici ces deux fichiers (format WOFF2, version « variable ») :
+
+  Outfit-Variable.woff2            titres        (licence SIL OFL)
+  PlusJakartaSans-Variable.woff2   texte courant (licence SIL OFL)
+
+Sources : fonts.google.com (bouton « Download family »), ou le paquet npm @fontsource-variable/outfit
+et @fontsource-variable/plus-jakarta-sans (fichiers *-latin-wght-normal.woff2, à renommer comme ci-dessus).
+
+Sans ces fichiers, le site fonctionne normalement avec les polices du système.
+Après dépôt : npm run stamp-sw, puis vider le cache du navigateur (ou fermer/rouvrir l'application installée).
