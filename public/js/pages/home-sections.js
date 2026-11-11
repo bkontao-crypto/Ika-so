@@ -29,6 +29,90 @@ const GUIDES = [
 ];
 const initials = (name) => (String(name || "IK").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "IK").toUpperCase();
 
+
+  // ---- Téléchargement de l'application IKA SO ----
+  const downloadApp = h("section", {
+    class: "ikaso-app-download",
+    style: {
+      margin: "30px 16px",
+      padding: "28px 22px",
+      borderRadius: "22px",
+      background: "linear-gradient(145deg, #073b28, #126744)",
+      color: "#ffffff",
+      boxSizing: "border-box",
+      overflow: "hidden"
+    }
+  },
+    h("span", {
+      style: {
+        color: "#e9bd55",
+        fontSize: "11px",
+        fontWeight: "800",
+        letterSpacing: "1.5px"
+      }
+    }, "APPLICATION MOBILE OFFICIELLE"),
+
+    h("h2", {
+      style: {
+        color: "#ffffff",
+        fontSize: "28px",
+        lineHeight: "1.25",
+        margin: "18px 0"
+      }
+    }, "L'immobilier au Mali, ", 
+       h("span", { style: { color: "#e9bd55" } },
+         "dans votre poche.")),
+
+    h("p", {
+      style: {
+        color: "#e5eee8",
+        fontSize: "15px",
+        lineHeight: "1.7"
+      }
+    }, "Téléchargez gratuitement IKA SÔ et retrouvez toutes nos annonces immobilières sur votre smartphone."),
+
+    h("div", {
+      style: {
+        margin: "22px 0",
+        lineHeight: "2",
+        fontSize: "14px",
+        color: "#ffffff"
+      }
+    },
+      h("div", null, "✓ Annonces immobilières"),
+      h("div", null, "✓ Maisons, terrains et appartements"),
+      h("div", null, "✓ Contact direct avec les agences")
+    ),
+
+    h("a", {
+      href: "/downloads/ika-so.apk",
+      download: "IKA-SO.apk",
+      style: {
+        display: "block",
+        padding: "17px 10px",
+        borderRadius: "13px",
+        background: "#e9bd55",
+        color: "#103b29",
+        textAlign: "center",
+        textDecoration: "none",
+        fontWeight: "800",
+        fontSize: "16px"
+      }
+    },
+      "↓ Télécharger IKA SÔ",
+      h("small", {
+        style: {
+          display: "block",
+          fontSize: "11px",
+          marginTop: "5px",
+          fontWeight: "500"
+        }
+      }, "ANDROID · GRATUIT")
+    )
+  );
+
+
+
 /** Apparition progressive : une seule observation, désactivée si l'utilisateur réduit les animations. */
 function reveal(root) {
   const nodes = root.querySelectorAll(".rx-reveal");
@@ -45,7 +129,11 @@ function reveal(root) {
 const sectionHead = (kicker, title, text, link) => h("div", { class: "rx-sec-head" },
   h("div", null, h("span", { class: "rx-kicker" }, kicker), h("h2", null, title), text ? h("p", null, text) : null),
   link ? h("a", { class: "rx-link", href: link[0] }, link[1], " →") : null);
-const section = (id, ...children) => h("section", { class: "rx-sec rx-reveal", id }, ...children);
+const section = (id, ...children) => h("section", { class: "rx-sec" }, hosts.ads),
+partners,
+guides,
+downloadApp
+);
 
 export async function renderHome() {
   let hero = { ...DEFAULT_HERO };
