@@ -2,6 +2,7 @@ import { createAccounts } from "./accounts.js";
 import { createAnalytics } from "./analytics.js";
 import { createStats } from "./stats.js";
 import { createOwnerCenter } from "./owner-center.js";
+import { createOwnerDelegations } from "./owner-delegations.js";
 import { createAdvertiserProfiles } from "./advertiser-profile.js";
 import { createAdvertiserCenter } from "./advertiser-center.js";
 import { createAdvertiserApplications } from "./advertiser-applications.js";
@@ -9,8 +10,13 @@ import { createEngagement } from "./engagement.js";
 import { createGeo } from "./geo.js";
 import { createImports } from "./imports.js";
 import { createListings } from "./listings.js";
+import { createProperties } from "./properties.js";
 import { selectProvider } from "../payments/providers.js";
 import { createModeration } from "./moderation.js";
+import { createModerationAudit } from "./moderation-audit.js";
+import { createCrm } from "./crm.js";
+import { createWhatsApp } from "./whatsapp.js";
+import { createSuperadminSettings } from "./superadmin-settings.js";
 import { createPayments } from "./payments.js";
 import { createNotifier } from "../lib/notifier.js";
 import { createReviews } from "./reviews.js";
@@ -31,9 +37,14 @@ export function createServices({ db, config, sendSms, paymentProvider, notifiers
   const accounts = createAccounts(ctx);
   const trust = createTrust(ctx, accounts);
   const listings = createListings(ctx, accounts, trust);
+  const properties = createProperties(ctx);
   const engagement = createEngagement(ctx, accounts);
   const imports = createImports(ctx, accounts, listings);
   const moderation = createModeration(ctx, accounts, engagement);
+const moderationAudit = createModerationAudit(ctx);
+const crm = createCrm(ctx);
+const whatsapp = createWhatsApp(ctx);
+const superadminSettings = createSuperadminSettings(ctx);
   const seo = createSeo(ctx, listings);
   const rights = createRights(ctx, accounts);
   const notifier = givenNotifier ?? createNotifier({ db, config });
@@ -49,9 +60,10 @@ export function createServices({ db, config, sendSms, paymentProvider, notifiers
   const partners = createPartners({ db, accounts });
   const places = createPlaces({ db, accounts });
   const ownerCenter = createOwnerCenter({ db, accounts, logger });
+  const ownerDelegations = createOwnerDelegations({ db, accounts });
   const advertiserCenter = createAdvertiserCenter({ db, accounts });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
-  return { accounts, listings, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications };
+  return { superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

@@ -58,6 +58,14 @@ export function getConfig(env = process.env) {
       infobipApiKey: get("INFOBIP_API_KEY"),
       infobipFrom: get("INFOBIP_FROM"),
     },
+    // WhatsApp Business (Meta Cloud API) : secrets lus dans l'environnement, jamais dans le code. Vide = désactivé.
+    whatsapp: {
+      token: get("WHATSAPP_TOKEN"),
+      phoneNumberId: get("WHATSAPP_PHONE_NUMBER_ID"),
+      verifyToken: get("WHATSAPP_VERIFY_TOKEN"),
+      appSecret: get("WHATSAPP_APP_SECRET"),
+      apiVersion: get("WHATSAPP_API_VERSION", "v21.0"),
+    },
     // E-mail (alertes facultatives, désactivées par défaut) : « brevo » ou « resend ». Vide = aucun e-mail envoyé.
     email: {
       provider: get("EMAIL_PROVIDER"),

@@ -1,3 +1,6 @@
+## 2026-11-11 — V0.2 (Étape 1)
+- docs/etape-1 + test/etape1-docs.test.js ; aucun code applicatif modifié.
+
 ## 2026-11-11 — quartiers et pays gérés par le Superadmin
 Migration 058 (`ika_zones`, colonne `country_code` sur les annonces, 10 quartiers d'origine repris). Service `server/services/places.js`, routes `/api/places` (public) et `/api/staff/owner/zones|countries…` (SUPERADMIN), module « Quartiers & pays » dans Owner Control. Les listes sont rechargées en mémoire à chaque changement et chaque minute. Branchés : formulaire d'annonce (Pays puis Quartier), modification, filtres et recherche, carte, pages serveur « Quartiers », importation CSV, position d'une annonce. Le formulaire exige maintenant 20 caractères de description (règle serveur déjà existante, jusque-là signalée seulement après l'envoi). **À faire : `npm run migrate`.**
 

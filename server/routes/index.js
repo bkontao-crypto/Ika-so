@@ -3,12 +3,26 @@ import { Router } from "express";
 import { AppError } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
+import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
 
 const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
 export function buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }) {
-  const { accounts, listings, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+
+  // Contrôle d'accès Owner Center avec délégation (DEC-003)
+  async function requireOwnerModule(req, module) {
+    const userId = requireUser(req);
+    const ok = await services.ownerDelegations.canAccess(userId, module);
+    if (!ok) {
+      const err = new Error("Accès refusé à ce module.");
+      err.status = 403;
+      throw err;
+    }
+    return userId;
+  }
+
+  const { accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -150,7 +164,34 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     );
   });
 
-  router.get("/listings/:id", async (req, res) => {
+
+  // ---------- Insights CRM (E10) ----------
+  router.get("/me/crm/insights", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    const userId = requireUser(req);
+    const stats = await crm.stats(userId);
+    const leads = await crm.list(userId, { limit: 200 });
+    const bySourceConv = {};
+    for (const l of leads) {
+      const src = l.source || "unknown";
+      if (!bySourceConv[src]) bySourceConv[src] = { total: 0, won: 0 };
+      bySourceConv[src].total++;
+      if (l.status === "WON") bySourceConv[src].won++;
+    }
+    const conversionBySource = Object.fromEntries(
+      Object.entries(bySourceConv).map(([k, v]) => [k, v.total ? Math.round(v.won / v.total * 100) : 0])
+    );
+    const toRelaunch = leads.filter(l =>
+      (l.score || 0) >= 50 && ["NEW", "CONTACTED"].includes(l.status)
+    ).slice(0, 10);
+    res.json({
+      ...stats,
+      conversionBySource,
+      toRelaunch: toRelaunch.map(l => ({ id: l.id, score: l.score, status: l.status, source: l.source, contact_name: l.contact_name })),
+    });
+  });
+
+router.get("/listings/:id", async (req, res) => {
     const listing = await listings.getPublic(id(req));
     track(req, "listing_view", { listingId: listing?.id ?? id(req), userId: req.user?.id });
     res.json(listing);
@@ -173,6 +214,180 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     limiter.hit(`geo:${userId}`, 60, 60 * 60_000);
     res.json(await geo.remove(userId, id(req), { confirm: req.body?.confirm }));
   });
+
+  // ---------- CRM leads (E07) ----------
+  router.get("/me/crm/leads", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await crm.list(requireUser(req), {
+      status: clean(req.query.status, 20) || undefined,
+      limit: Number(req.query.limit) || 100,
+      offset: Number(req.query.offset) || 0,
+    }));
+  });
+  router.get("/me/crm/stats", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await crm.stats(requireUser(req)));
+  });
+
+  // ---------- Rappel leads chauds non traités (E08) ----------
+  router.post("/me/crm/remind-hot", async (req, res) => {
+    const userId = requireUser(req);
+    const leads = await crm.list(userId, { status: "NEW", limit: 50 });
+    const hot = leads.filter(l => (l.score || 0) >= 80);
+    if (hot.length && notifier?.notify) {
+      await notifier.notify(userId, {
+        title: `${hot.length} lead(s) chaud(s) en attente`,
+        body: `Vous avez ${hot.length} lead(s) prioritaire(s) non traité(s).`,
+        channels: ["email", "sms", "whatsapp"],
+      }).catch(() => {});
+    }
+    res.json({ reminded: hot.length });
+  });
+
+  router.post("/me/crm/leads", async (req, res) => {
+    const userId = requireUser(req);
+    const created = await crm.create(userId, {
+      listingId: clean(req.body?.listingId, 80),
+      contactName: clean(req.body?.contactName, 120),
+      contactPhone: clean(req.body?.contactPhone, 40),
+      contactEmail: clean(req.body?.contactEmail, 120),
+      source: clean(req.body?.source, 30) || "manual",
+      status: clean(req.body?.status, 20) || "NEW",
+      notes: clean(req.body?.notes, 2000),
+    });
+    // Notification nouveau lead (E08)
+    if (created && notifier?.notify) {
+      const isHot = (created.score || 0) >= 80;
+      await notifier.notify(userId, {
+        title: isHot ? "Lead chaud" : "Nouveau lead",
+        body: isHot
+          ? `Un lead prioritaire (${created.score}) vient d'arriver.`
+          : "Un nouveau lead a été ajouté à votre CRM.",
+        channels: ["email", "sms", "whatsapp"],
+      }).catch(() => {});
+    }
+    res.status(201).json(created);
+  });
+  router.get("/me/crm/leads/:id", async (req, res) => {
+    const row = await crm.get(requireUser(req), id(req));
+    if (!row) return res.status(404).json({ error: "Lead introuvable" });
+    res.json(row);
+  });
+  router.put("/me/crm/leads/:id", async (req, res) => {
+    const updated = await crm.update(requireUser(req), id(req), {
+      contactName: clean(req.body?.contactName, 120),
+      contactPhone: clean(req.body?.contactPhone, 40),
+      contactEmail: clean(req.body?.contactEmail, 120),
+      status: clean(req.body?.status, 20),
+      notes: clean(req.body?.notes, 2000),
+      listingId: clean(req.body?.listingId, 80),
+    });
+    if (!updated) return res.status(404).json({ error: "Lead introuvable" });
+    res.json(updated);
+  });
+
+
+  // ---------- WhatsApp Business (E07) ----------
+  router.get("/webhooks/whatsapp", (req, res) => {
+    const challenge = whatsapp.verifyWebhook(
+      req.query["hub.mode"],
+      req.query["hub.verify_token"],
+      req.query["hub.challenge"]
+    );
+    if (challenge) return res.status(200).send(challenge);
+    res.sendStatus(403);
+  });
+
+  router.post("/webhooks/whatsapp", async (req, res) => {
+    // Signature Meta (X-Hub-Signature-256) vérifiée sur le texte exact reçu, avant tout traitement.
+    const sig = whatsapp.verifySignature(req.rawBody, req.headers["x-hub-signature-256"]);
+    if (sig === "not_configured") return res.sendStatus(503);
+    if (sig !== "ok") return res.sendStatus(401);
+    // Répondre vite à Meta
+    res.sendStatus(200);
+    try {
+      const messages = whatsapp.parseIncoming(req.body);
+      for (const msg of messages) {
+        logger?.info?.("WhatsApp incoming", { from: msg.from, type: msg.type });
+        if (!msg.from || !msg.text) continue;
+        // Association automatique : chercher un lead avec ce numéro
+        const phone = msg.from.replace(/\D/g, "");
+        const rows = await services.db.query(
+          `select id, advertiser_id, notes from ika_crm_leads
+           where regexp_replace(contact_phone, '\\D', '', 'g') = $1
+           order by updated_at desc limit 1`,
+          [phone]
+        ).catch(() => []);
+        if (rows[0]) {
+          const lead = rows[0];
+          const note = (lead.notes ? lead.notes + "\n" : "") +
+            `[WhatsApp reçu] ${msg.text.slice(0, 300)}`;
+          await crm.update(lead.advertiser_id, lead.id, { notes: note, status: "CONTACTED" }).catch(() => {});
+        }
+      }
+    } catch (e) {
+      logger?.error?.("WhatsApp webhook error", e);
+    }
+  });
+
+  router.post("/me/crm/leads/:id/whatsapp", async (req, res) => {
+    const userId = requireUser(req);
+    const lead = await crm.get(userId, id(req));
+    if (!lead) return res.status(404).json({ error: "Lead introuvable" });
+
+  router.get("/me/whatsapp/templates", async (req, res) => {
+    requireUser(req);
+    if (!whatsapp.isConfigured()) return res.status(503).json({ error: "WhatsApp non configuré" });
+    try {
+      const data = await whatsapp.listTemplates();
+      res.json(data.data || data);
+    } catch (e) {
+      res.status(e.status || 500).json({ error: e.message });
+    }
+  });
+
+  router.post("/me/crm/leads/:id/whatsapp-template", async (req, res) => {
+    const userId = requireUser(req);
+    const lead = await crm.get(userId, id(req));
+    if (!lead) return res.status(404).json({ error: "Lead introuvable" });
+    if (!lead.contact_phone) return res.status(400).json({ error: "Pas de téléphone" });
+    if (!whatsapp.isConfigured()) return res.status(503).json({ error: "WhatsApp non configuré" });
+    const name = clean(req.body?.template, 80);
+    if (!name) return res.status(400).json({ error: "Nom de template requis" });
+    const out = await whatsapp.sendTemplate(lead.contact_phone, name, clean(req.body?.language, 10) || "fr", req.body?.components || []);
+    await crm.update(userId, id(req), {
+      notes: (lead.notes ? lead.notes + "\n" : "") + `[Template WhatsApp] ${name}`,
+    }).catch(() => {});
+    res.json({ ok: true, messageId: out.messages?.[0]?.id });
+  });
+
+    if (!lead.contact_phone) return res.status(400).json({ error: "Pas de téléphone sur ce lead" });
+    if (!whatsapp.isConfigured()) return res.status(503).json({ error: "WhatsApp Business non configuré" });
+    const text = clean(req.body?.text, 1000) || "Bonjour, suite à votre intérêt sur Ika So.";
+    const out = await whatsapp.sendText(lead.contact_phone, text);
+    // Journaliser dans les notes du lead
+    await crm.update(userId, id(req), {
+      notes: (lead.notes ? lead.notes + "\n" : "") + `[WhatsApp envoyé] ${text.slice(0, 200)}`,
+    }).catch(() => {});
+    res.json({ ok: true, messageId: out.messages?.[0]?.id });
+  });
+
+  // ---------- Biens (DEC-004) ----------
+  router.get("/me/properties", async (req, res) => {
+    res.json(await services.properties.mine(requireUser(req)));
+  });
+  router.post("/me/properties", async (req, res) => {
+    const userId = requireUser(req);
+    const title = String(req.body?.title || "").trim();
+    if (!title) return res.status(400).json({ error: "Titre requis" });
+    res.json(await services.properties.create(userId, req.body));
+  });
+  router.get("/me/properties/:id", async (req, res) => {
+    const row = await services.properties.get(requireUser(req), id(req));
+    if (!row) return res.status(404).json({ error: "Bien introuvable" });
+    res.json(row);
+  });
+
   // Fiche imprimable (HTML, propriétaire seulement, jamais mise en cache ni indexée).
   router.get("/me/listings/:id/fiche", async (req, res) => {
     const { geo: shape, listing } = await geo.fiche(requireUser(req), id(req));
@@ -199,7 +414,12 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   router.post("/listings", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`create:${userId}`, 10, 60 * 60_000);
-    const created = await listings.create(userId, readDraft(req.body));
+    const draft = readDraft(req.body);
+    const created = await listings.create(userId, draft);
+    const propertyId = clean(req.body?.propertyId, 80) || clean(req.body?.property_id, 80);
+    if (propertyId && created?.id) {
+      await services.properties.linkListing(userId, propertyId, created.id).catch(() => {});
+    }
     track(req, "listing_created", { userId, listingId: created?.id });
     res.status(201).json(created);
   });
@@ -207,6 +427,10 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   router.put("/listings/:id", async (req, res) => {
     const userId = requireUser(req);
     const out = await listings.update(userId, id(req), readDraft(req.body));
+    const propertyId = clean(req.body?.propertyId, 80) || clean(req.body?.property_id, 80);
+    if (propertyId) {
+      await services.properties.linkListing(userId, propertyId, id(req)).catch(() => {});
+    }
     track(req, "listing_updated", { userId, listingId: id(req) });
     res.json(out);
   });
@@ -231,9 +455,21 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     const userId = requireUser(req);
     limiter.hit(`contact:${userId}`, 30, 10 * 60_000);
     const whatsapp = req.body?.kind === "WHATSAPP";
-    const out = await listings.recordContact(userId, id(req), whatsapp ? "WHATSAPP" : "CALL");
+    const source = whatsapp ? "WHATSAPP" : "CALL";
+    const out = await listings.recordContact(userId, id(req), source);
     track(req, "contact_clicked", { userId, listingId: id(req), metadata: { from: "listing" } });
     track(req, whatsapp ? "whatsapp_clicked" : "phone_clicked", { userId, listingId: id(req), metadata: { from: "listing" } });
+    // Création automatique d'un lead pour le propriétaire de l'annonce
+    const listing = await listings.get(id(req)).catch(() => null);
+    const ownerId = listing?.ownerId || listing?.userId || listing?.owner_id;
+    if (ownerId) {
+      await crm.create(ownerId, {
+        listingId: id(req),
+        source,
+        status: "NEW",
+        notes: `Contact depuis la fiche annonce (${source})`,
+      }).catch(() => {});
+    }
     res.json(out);
   });
 
@@ -363,9 +599,19 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     const userId = requireUser(req);
     limiter.hit(`pcontact:${userId}`, 30, 10 * 60_000);
     const whatsapp = req.body?.kind === "WHATSAPP";
-    const out = await advertiserProfiles.recordContact(userId, id(req), whatsapp ? "WHATSAPP" : "CALL");
+    const source = whatsapp ? "WHATSAPP" : "CALL";
+    const out = await advertiserProfiles.recordContact(userId, id(req), source);
     track(req, "contact_clicked", { userId, advertiserId: id(req), metadata: { from: "profile" } });
     track(req, whatsapp ? "whatsapp_clicked" : "phone_clicked", { userId, advertiserId: id(req), metadata: { from: "profile" } });
+    // Création automatique d'un lead CRM pour l'annonceur contacté
+    await crm.create(id(req), {
+      source,
+      status: "NEW",
+      notes: `Contact depuis le profil public (${source})`,
+      contactName: null,
+      contactPhone: null,
+      contactEmail: null,
+    }).catch(() => {});
     res.json(out);
   });
   router.post("/advertisers/:id/report", async (req, res) => {
@@ -396,7 +642,11 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     const userId = requireUser(req);
     limiter.hit(`nprefs:${userId}`, 20, 60 * 60_000);
     await accounts.requireActive(userId);
-    res.json(await notifier.setPrefs(userId, { email: req.body?.email === true, sms: req.body?.sms === true }));
+    res.json(await notifier.setPrefs(userId, {
+      email: req.body?.email === true,
+      sms: req.body?.sms === true,
+      whatsapp: req.body?.whatsapp === true,
+    }));
   });
 
   // ---------- Droits des personnes (Loi n° 2013-015) ----------
@@ -496,6 +746,40 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     res.json(await imports.importCsv(userId, String(req.body?.csv ?? ""), { dryRun: req.body?.dryRun === true }));
   });
 
+
+  // ---------- Personnalisation Superadmin (E09) ----------
+  router.get("/staff/superadmin-settings", async (req, res) => {
+    await accounts.requireStaff(requireUser(req), "SUPERADMIN");
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await superadminSettings.getAll());
+  });
+  router.get("/staff/superadmin-settings/:key", async (req, res) => {
+    await accounts.requireStaff(requireUser(req), "SUPERADMIN");
+    const value = await superadminSettings.get(req.params.key);
+    if (value == null) return res.status(404).json({ error: "Réglage introuvable" });
+    res.json({ key: req.params.key, value });
+  });
+  router.put("/staff/superadmin-settings/:key", async (req, res) => {
+    const staffId = requireUser(req);
+    await accounts.requireStaff(staffId, "SUPERADMIN");
+    const value = req.body?.value ?? req.body;
+    const out = await superadminSettings.set(staffId, req.params.key, value);
+    await moderationAudit.log(staffId, {
+      action: "superadmin_settings_update",
+      targetType: "settings",
+      targetId: null,
+      details: { key: req.params.key, value },
+    }).catch(() => {});
+    res.json(out);
+  });
+
+  // Lecture publique des réglages d'affichage (pour le frontend)
+  router.get("/superadmin-settings/public", async (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=60");
+    const all = await superadminSettings.getAll();
+    res.json(superadminSettings.publicView(all.main));
+  });
+
   // ---------- Paiements (mise à la une) ----------
   router.get("/offers", async (req, res) => res.json(await payments.offers()));
   router.post("/payments/checkout", async (req, res) => {
@@ -517,7 +801,28 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   // Appelé par le fournisseur, pas par un navigateur : pas de session, la signature fait foi.
   router.post("/payments/webhook", async (req, res) => {
     limiter.hit(`hook:${req.ip}`, 120, 60_000);
-    res.json(await payments.webhook(req.rawBody, req.headers));
+    const result = await payments.webhook(req.rawBody, req.headers);
+    // Notification best-effort après paiement réussi (E08)
+    if (result?.status === "succeeded" || result?.paid) {
+      const userId = result.userId || result.user_id;
+      if (userId && notifier?.notify) {
+        const receipt = formatReceiptEmail({
+          reference: result.reference || result.id,
+          amountXof: result.amountXof || result.amount,
+          offerName: result.offerName || result.offer,
+          date: result.paidAt || result.createdAt,
+          invoiceUrl: result.invoiceUrl,
+          userName: result.userName,
+        });
+        await notifier.notify(userId, {
+          title: receipt.subject,
+          body: receipt.text,
+          html: receipt.html,
+          channels: ["email", "sms", "whatsapp"],
+        }).catch(() => {});
+      }
+    }
+    res.json(result);
   });
   router.get("/staff/offers", async (req, res) => res.json(await payments.adminOffers(requireUser(req))));
   router.post("/staff/offers/:id", async (req, res) => res.json(await payments.setOffer(requireUser(req), id(req), { priceXof: req.body?.priceXof, active: req.body?.active === true })));
@@ -544,7 +849,21 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   // Partenaires : liste publique (actifs) ; ajout, modification, masquage, retrait et logo réservés aux administrateurs.
   // ---------- Quartiers et pays : lecture publique, gestion SUPERADMIN (contrôlé dans le service) ----------
   router.get("/places", async (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await places.listPublic()); });
-  router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await places.listForOwner(requireUser(req))); });
+  
+  // ---------- Délégations Owner Center (DEC-003) ----------
+  router.get("/staff/owner/delegations", async (req, res) => {
+    res.json(await services.ownerDelegations.list(requireUser(req)));
+  });
+  router.post("/staff/owner/delegations", async (req, res) => {
+    const { userId, module } = req.body ?? {};
+    res.json(await services.ownerDelegations.grant(requireUser(req), userId, module));
+  });
+  router.post("/staff/owner/delegations/revoke", async (req, res) => {
+    const { userId, module } = req.body ?? {};
+    res.json(await services.ownerDelegations.revoke(requireUser(req), userId, module));
+  });
+
+router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await places.listForOwner(requireUser(req))); });
   router.post("/staff/owner/zones", async (req, res) => res.status(201).json(await places.createZone(requireUser(req), req.body ?? {})));
   router.post("/staff/owner/zones/bulk", async (req, res) => res.status(201).json(await places.createZones(requireUser(req), { countryCode: clean(req.body?.countryCode, 2), lines: clean(req.body?.lines, 30000) })));
   router.put("/staff/owner/zones/:id", async (req, res) => res.json(await places.updateZone(requireUser(req), id(req), req.body ?? {})));
@@ -564,9 +883,21 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
 
   // ---------- Centre de contrôle (droits vérifiés par chaque service) ----------
   router.get("/staff/queue", async (req, res) => res.json(await moderation.queue(requireUser(req))));
+  // ---------- Journal d'audit de modération (E09) ----------
+  router.get("/staff/moderation-audit", async (req, res) => {
+    await accounts.requireStaff(requireUser(req), "ADMIN");
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await moderationAudit.list({
+      targetType: req.query.targetType || undefined,
+      targetId: req.query.targetId || undefined,
+      actorId: req.query.actorId || undefined,
+      limit: Number(req.query.limit) || 50,
+      offset: Number(req.query.offset) || 0,
+    }));
+  });
   // ---------- Owner Control Center v2 : tableau de bord, journal des mouvements, traçage (SUPERADMIN, contrôlé dans le service) ----------
   const feedQuery = (q) => ({ sources: clean(q.sources, 400), categories: clean(q.categories, 200), q: clean(q.q, 80), actor: clean(q.actor, 80), from: clean(q.from, 40), to: clean(q.to, 40), before: clean(q.before, 40), limit: q.limit });
-  router.get("/staff/owner/dashboard", async (req, res) => res.json(await ownerCenter.dashboard(requireUser(req), { days: Number(req.query.days) || 30 })));
+  router.get("/staff/owner/dashboard", async (req, res) => res.json(await ownerCenter.dashboard(await requireOwnerModule(req, "dashboard"), { days: Number(req.query.days) || 30 })));
   router.get("/staff/owner/activity/catalog", async (req, res) => res.json(await ownerCenter.catalog(requireUser(req))));
   router.get("/staff/owner/activity/summary", async (req, res) => res.json(await ownerCenter.summary(requireUser(req), { days: Number(req.query.days) || 7 })));
   router.get("/staff/owner/activity/trace", async (req, res) => res.json(await ownerCenter.trace(requireUser(req), { type: clean(req.query.type, 10), id: clean(req.query.id, 80), before: clean(req.query.before, 40), limit: req.query.limit })));
@@ -579,28 +910,28 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     res.setHeader("Cache-Control", "no-store");
     res.send(csv);
   });
-  router.get("/staff/owner/activity", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.feed(requireUser(req), feedQuery(req.query ?? {}))); });
+  router.get("/staff/owner/activity", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.feed(await requireOwnerModule(req, "activity"), feedQuery(req.query ?? {}))); });
   router.get("/staff/owner/security-log", async (req, res) => res.json(await ownerCenter.securityLogStatus(requireUser(req))));
   router.put("/staff/owner/security-log", async (req, res) => res.json(await ownerCenter.setSecurityLog(requireUser(req), req.body?.enabled === true)));
-  router.get("/staff/owner/overview", async (req, res) => res.json(await stats.ownerOverview(requireUser(req))));
-  router.get("/staff/owner/crm", async (req, res) => res.json(await stats.crmOverview(requireUser(req), { limit: Number(req.query.limit) || 50 })));
-  router.get("/staff/owner/report.pdf", async (req, res) => {
+  router.get("/staff/owner/overview", async (req, res) => res.json(await stats.ownerOverview(await requireOwnerModule(req, "overview"))));
+  router.get("/staff/owner/crm", async (req, res) => res.json(await stats.crmOverview(await requireOwnerModule(req, "crm"), { limit: Number(req.query.limit) || 50 })));
+  router.get("/staff/owner/report.pdf", async (req, res) => { await requireOwnerModule(req, "report.pdf");
     const pdf = await stats.reportPdf(requireUser(req));
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", "attachment; filename=owner-report.pdf");
     res.send(pdf);
   });
-  router.get("/staff/owner/premium-funnel", async (req, res) => res.json(await stats.premiumFunnel(requireUser(req), req.query.days)));
-  router.get("/staff/owner/regions", async (req, res) => res.json(await stats.regionsOverview(requireUser(req))));
+  router.get("/staff/owner/premium-funnel", async (req, res) => res.json(await stats.premiumFunnel(await requireOwnerModule(req, "premium-funnel"), req.query.days)));
+  router.get("/staff/owner/regions", async (req, res) => res.json(await stats.regionsOverview(await requireOwnerModule(req, "regions"))));
   router.get("/staff/owner/offers", async (req, res) => res.json(await stats.manageOffers(requireUser(req), "list")));
   router.post("/staff/owner/offers", async (req, res) => res.status(201).json(await stats.manageOffers(requireUser(req), "create", req.body ?? {})));
   router.post("/staff/owner/offers/toggle", async (req, res) => res.json(await stats.manageOffers(requireUser(req), "toggle", req.body ?? {})));
   router.get("/staff/owner/restores", async (req, res) => res.json(await stats.listRestores(requireUser(req))));
   router.post("/staff/owner/restores", async (req, res) => res.status(201).json(await stats.logRestore(requireUser(req), req.body?.backupId, req.body?.note)));
-  router.get("/staff/owner/subscriptions", async (req, res) => res.json(await stats.subscriptionsOverview(requireUser(req))));
+  router.get("/staff/owner/subscriptions", async (req, res) => res.json(await stats.subscriptionsOverview(await requireOwnerModule(req, "subscriptions"))));
   router.post("/staff/owner/ai/write", async (req, res) => res.json(await stats.aiWriteAssist(requireUser(req), req.body ?? {})));
   router.get("/staff/owner/ai", async (req, res) => res.json(await stats.aiAssist(requireUser(req))));
-  router.get("/staff/owner/report", async (req, res) => res.json(await stats.fullReport(requireUser(req))));
+  router.get("/staff/owner/report", async (req, res) => res.json(await stats.fullReport(await requireOwnerModule(req, "report"))));
   router.get("/staff/owner/logo", async (req, res) => res.json(await stats.getLogo(requireUser(req))));
   router.put("/staff/owner/logo", async (req, res) => res.json(await stats.saveLogo(requireUser(req), req.body?.logoUrl)));
   router.get("/staff/owner/newsletters", async (req, res) => res.json(await stats.listNewsletters(requireUser(req))));
@@ -616,17 +947,17 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     const out = await stats.broadcastNotification(requireUser(req), req.body ?? {});
     res.status(201).json(out);
   });
-  router.get("/staff/owner/pipeline", async (req, res) => res.json(await stats.crmPipeline(requireUser(req))));
-  router.post("/staff/owner/pipeline", async (req, res) => res.status(201).json(await stats.createPipelineItem(requireUser(req), req.body ?? {})));
-  router.post("/staff/owner/pipeline/:id/stage", async (req, res) => res.json(await stats.updatePipelineStage(requireUser(req), id(req), String(req.body?.stage || ""))));
+  router.get("/staff/owner/pipeline", async (req, res) => res.json(await stats.crmPipeline(await requireOwnerModule(req, "pipeline"))));
+  router.post("/staff/owner/pipeline", async (req, res) => res.status(201).json(await stats.createPipelineItem(await requireOwnerModule(req, "pipeline"), req.body ?? {})));
+  router.post("/staff/owner/pipeline/:id/stage", async (req, res) => res.json(await stats.updatePipelineStage(await requireOwnerModule(req, "pipeline"), id(req), String(req.body?.stage || ""))));
   router.get("/staff/owner/languages", async (req, res) => res.json(await stats.getLanguages(requireUser(req))));
   router.post("/staff/owner/languages/toggle", async (req, res) => res.json(await stats.toggleLanguage(requireUser(req), req.body?.code)));
   router.get("/staff/owner/redirects", async (req, res) => res.json(await stats.getRedirects(requireUser(req))));
   router.post("/staff/owner/redirects", async (req, res) => res.status(201).json(await stats.createRedirect(requireUser(req), req.body ?? {})));
   router.get("/staff/owner/categories", async (req, res) => res.json(await stats.getCategories(requireUser(req))));
   router.post("/staff/owner/categories/toggle", async (req, res) => res.json(await stats.toggleCategory(requireUser(req), req.body?.code)));
-  router.get("/staff/owner/trends", async (req, res) => res.json(await stats.trends(requireUser(req), { days: Number(req.query.days) || 90 })));
-  router.get("/staff/owner/charts", async (req, res) => res.json(await stats.chartData(requireUser(req), { days: Number(req.query.days) || 30 })));
+  router.get("/staff/owner/trends", async (req, res) => res.json(await stats.trends(await requireOwnerModule(req, "trends"), { days: Number(req.query.days) || 90 })));
+  router.get("/staff/owner/charts", async (req, res) => res.json(await stats.chartData(await requireOwnerModule(req, "charts"), { days: Number(req.query.days) || 30 })));
   router.post("/staff/owner/visits/:id/status", async (req, res) => {
     const out = await stats.updateVisitStatus(requireUser(req), id(req), String(req.body?.status || ""));
     res.json(out);
@@ -645,7 +976,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   router.get("/staff/owner/incidents", async (req, res) => res.json(await stats.listIncidents(requireUser(req))));
   router.post("/staff/owner/incidents", async (req, res) => res.status(201).json(await stats.createIncident(requireUser(req), req.body ?? {})));
   router.post("/staff/owner/incidents/:id/resolve", async (req, res) => res.json(await stats.resolveIncident(requireUser(req), id(req))));
-  router.get("/staff/owner/complaints", async (req, res) => res.json(await stats.complaintsOverview(requireUser(req))));
+  router.get("/staff/owner/complaints", async (req, res) => res.json(await stats.complaintsOverview(await requireOwnerModule(req, "complaints"))));
   router.post("/staff/owner/backup/auto", async (req, res) => res.json(await stats.autoBackupNow(requireUser(req))));
   router.post("/staff/owner/incidents/check", async (req, res) => res.json(await stats.autoCheckIncidentsNow(requireUser(req))));
   router.get("/staff/owner/backups", async (req, res) => res.json(await stats.listBackups(requireUser(req))));
@@ -655,11 +986,11 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   router.put("/staff/owner/settings", async (req, res) => res.json(await stats.saveSettings(requireUser(req), req.body ?? {})));
   router.put("/staff/owner/campaigns/:id", async (req, res) => res.json(await stats.updateCampaign(requireUser(req), id(req), req.body ?? {})));
   router.post("/staff/owner/campaigns/:id/status", async (req, res) => res.json(await stats.setCampaignStatus(requireUser(req), id(req), clean(req.body?.status, 12))));
-  router.get("/staff/owner/marketing", async (req, res) => res.json(await stats.marketingOverview(requireUser(req))));
-  router.post("/staff/owner/campaigns", async (req, res) => res.status(201).json(await stats.createCampaign(requireUser(req), req.body ?? {})));
-  router.get("/staff/owner/monitoring", async (req, res) => res.json(await stats.advancedMonitoring(requireUser(req))));
-  router.get("/staff/owner/health", async (req, res) => res.json(await stats.health(requireUser(req))));
-  router.get("/staff/owner/agencies", async (req, res) => res.json(await stats.agenciesOverview(requireUser(req))));
+  router.get("/staff/owner/marketing", async (req, res) => res.json(await stats.marketingOverview(await requireOwnerModule(req, "marketing"))));
+  router.post("/staff/owner/campaigns", async (req, res) => res.status(201).json(await stats.createCampaign(await requireOwnerModule(req, "campaigns"), req.body ?? {})));
+  router.get("/staff/owner/monitoring", async (req, res) => res.json(await stats.advancedMonitoring(await requireOwnerModule(req, "monitoring"))));
+  router.get("/staff/owner/health", async (req, res) => res.json(await stats.health(await requireOwnerModule(req, "health"))));
+  router.get("/staff/owner/agencies", async (req, res) => res.json(await stats.agenciesOverview(await requireOwnerModule(req, "agencies"))));
   router.get("/staff/owner/listings.csv", async (req, res) => {
     const csv = await stats.listingsReportCsv(requireUser(req));
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
@@ -701,28 +1032,44 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     const action = clean(req.body?.action);
     const out = await moderation.decide(staffId, id(req), action, clean(req.body?.reason, 500));
     if (action === "APPROVE") track(req, "listing_published", { userId: staffId, listingId: id(req) });
+    await moderationAudit.log(staffId, { action: `listing_${action.toLowerCase()}`, targetType: "listing", targetId: id(req), details: { reason: clean(req.body?.reason, 500) } }).catch(() => {});
     res.json(out);
   });
-  router.post("/staff/listings/:id/feature", async (req, res) =>
-    res.json(await moderation.setFeatured(requireUser(req), id(req), Boolean(req.body?.on))),
-  );
-  router.post("/staff/reports/:id/dismiss", async (req, res) =>
-    res.json(await moderation.dismissReport(requireUser(req), id(req))),
-  );
+  router.post("/staff/listings/:id/feature", async (req, res) => {
+    const staffId = requireUser(req);
+    const on = Boolean(req.body?.on);
+    const out = await moderation.setFeatured(staffId, id(req), on);
+    await moderationAudit.log(staffId, { action: on ? "listing_feature" : "listing_unfeature", targetType: "listing", targetId: id(req) }).catch(() => {});
+    res.json(out);
+  });
+  router.post("/staff/reports/:id/dismiss", async (req, res) => {
+    const staffId = requireUser(req);
+    const out = await moderation.dismissReport(staffId, id(req));
+    await moderationAudit.log(staffId, { action: "report_dismiss", targetType: "report", targetId: id(req) }).catch(() => {});
+    res.json(out);
+  });
   router.post("/staff/comments/:id/hide", async (req, res) => {
     const staffId = requireUser(req);
     const out = await moderation.hideComment(staffId, id(req));
     track(req, "comment_deleted", { userId: staffId, listingId: out.listingId });
+    await moderationAudit.log(staffId, { action: "comment_hide", targetType: "comment", targetId: id(req), details: { listingId: out.listingId } }).catch(() => {});
     res.json({ ok: true });
   });
-  router.post("/staff/accounts/:id/status", async (req, res) =>
-    res.json(
-      await moderation.setAccountStatus(requireUser(req), id(req), clean(req.body?.status), clean(req.body?.reason, 500)),
-    ),
-  );
-  router.post("/staff/accounts/:id/role", async (req, res) =>
-    res.json(await moderation.setStaffRole(requireUser(req), id(req), clean(req.body?.role))),
-  );
+  router.post("/staff/accounts/:id/status", async (req, res) => {
+    const staffId = requireUser(req);
+    const status = clean(req.body?.status);
+    const reason = clean(req.body?.reason, 500);
+    const out = await moderation.setAccountStatus(staffId, id(req), status, reason);
+    await moderationAudit.log(staffId, { action: "account_status", targetType: "user", targetId: id(req), details: { status, reason } }).catch(() => {});
+    res.json(out);
+  });
+  router.post("/staff/accounts/:id/role", async (req, res) => {
+    const staffId = requireUser(req);
+    const role = clean(req.body?.role);
+    const out = await moderation.setStaffRole(staffId, id(req), role);
+    await moderationAudit.log(staffId, { action: "account_role", targetType: "user", targetId: id(req), details: { role } }).catch(() => {});
+    res.json(out);
+  });
 
   router.get("/staff/trust", async (req, res) => {
     const staffId = requireUser(req);
@@ -733,12 +1080,31 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   router.post("/staff/proofs/:id/decision", async (req, res) => {
     const staffId = requireUser(req);
     const action = clean(req.body?.action);
-    const out = await trust.decideProof(staffId, id(req), { action, note: clean(req.body?.note, 500), agencyName: clean(req.body?.agencyName, 120) });
+    const note = clean(req.body?.note, 500);
+    const out = await trust.decideProof(staffId, id(req), { action, note, agencyName: clean(req.body?.agencyName, 120) });
     if (action === "ACCEPT") track(req, "verification_completed", { userId: out.ownerId, listingId: out.listingId });
+    await moderationAudit.log(staffId, {
+      action: action === "ACCEPT" ? "badge_grant" : "badge_reject",
+      targetType: out.listingId ? "listing" : "user",
+      targetId: out.listingId || out.ownerId || null,
+      details: { proofId: id(req), action, note, ownerId: out.ownerId, listingId: out.listingId }
+    }).catch(() => {});
     res.json({ ok: true });
   });
-  router.post("/staff/badges/revoke", async (req, res) =>
-    res.json(await trust.revokeBadge(requireUser(req), { listingId: clean(req.body?.listingId, 80), userId: clean(req.body?.userId, 80), reason: clean(req.body?.reason, 500) })));
+  router.post("/staff/badges/revoke", async (req, res) => {
+    const staffId = requireUser(req);
+    const listingId = clean(req.body?.listingId, 80);
+    const userId = clean(req.body?.userId, 80);
+    const reason = clean(req.body?.reason, 500);
+    const out = await trust.revokeBadge(staffId, { listingId, userId, reason });
+    await moderationAudit.log(staffId, {
+      action: "badge_revoke",
+      targetType: listingId ? "listing" : "user",
+      targetId: listingId || userId || null,
+      details: { listingId, userId, reason }
+    }).catch(() => {});
+    res.json(out);
+  });
   router.post("/staff/alerts/:id/close", async (req, res) => res.json(await trust.closeAlert(requireUser(req), id(req))));
   router.post("/staff/profiles/:id/images", async (req, res) => res.json(await advertiserProfiles.setImagesHidden(requireUser(req), id(req), req.body?.hidden !== false, clean(req.body?.reason, 300))));
   router.post("/staff/user-reports/:id/dismiss", async (req, res) => res.json(await engagement.dismissUserReports(requireUser(req), id(req))));

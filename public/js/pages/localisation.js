@@ -37,6 +37,11 @@ export async function localisationPage(id) {
   const mapBox = h("div", { class: "geo-box" });
   const info = h("p", { class: "geo-info", "aria-live": "polite" });
   const official = h("p", { class: "notice", hidden: !geo?.areaM2 });
+  const areaBadge = h("div", { class: "card", style: "margin:12px 0;padding:16px;text-align:center", hidden: true },
+    h("div", { class: "small muted" }, "Superficie (aperçu)"),
+    h("div", { class: "area-value", style: "font-size:1.8rem;font-weight:800;color:var(--leaf)" }, "—"),
+    h("div", { class: "small muted area-detail" }, "")
+  );
   const lat = h("input", { class: "input", inputmode: "decimal", placeholder: "Latitude, ex. 12.6392", "aria-label": "Latitude" });
   const lng = h("input", { class: "input", inputmode: "decimal", placeholder: "Longitude, ex. -8.0029", "aria-label": "Longitude" });
   const isPublic = h("input", { type: "checkbox", checked: !!geo?.isPublic });
@@ -55,10 +60,16 @@ export async function localisationPage(id) {
     if (shape === "point") { info.textContent = point ? `Repère placé : ${point.lat.toFixed(6)}, ${point.lng.toFixed(6)}.` : "Appuyez sur le plan pour placer le repère, ou utilisez votre position GPS."; return; }
     const p = map.preview();
     const crossing = selfIntersects(vertices);
+    const enough = vertices.length >= 3 && !crossing;
+    areaBadge.hidden = !enough;
+    if (enough) {
+      areaBadge.querySelector(".area-value").textContent = fmtM2(p.areaM2);
+      areaBadge.querySelector(".area-detail").textContent = `${fmtHa(p.areaM2)} · périmètre ${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(p.perimeterM)} m`;
+    }
     info.textContent = vertices.length < 3
       ? `${vertices.length} point(s) placé(s). Il en faut au moins 3 : appuyez sur le plan ou ajoutez votre position GPS à chaque angle.`
       : crossing ? "Le contour se croise : déplacez un point (glissez-le) ou annulez le dernier."
-        : `${vertices.length} points · aperçu : ${fmtM2(p.areaM2)} (${fmtHa(p.areaM2)}) · périmètre ${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(p.perimeterM)} m`;
+        : `${vertices.length} points · aperçu calculé`;
     info.classList.toggle("is-error", crossing);
   }
   refresh();
@@ -114,7 +125,7 @@ export async function localisationPage(id) {
       h("div", { class: "row" },
         btn("Ma position GPS", gps, "btn-primary"), btn("Annuler le dernier", () => map.undo()), removeBtn, btn("Tout effacer", () => map.clear()),
         btn("＋", () => map.zoom(1.6)), btn("−", () => map.zoom(1 / 1.6))),
-      mapBox, info,
+      mapBox, info, areaBadge,
       h("details", null, h("summary", null, "Saisir des coordonnées à la main"),
         h("div", { class: "row" }, lat, lng, btn("Ajouter", typed))),
       h("label", { class: "row" }, isPublic, h("span", null, "Afficher la position exacte aux visiteurs (sinon, seul le quartier est visible).")),
@@ -132,6 +143,8 @@ export async function cartePage() {
   const tabs = [];
   const count = h("p", { class: "results-count", "aria-live": "polite" });
   const mapHost = h("div", { class: "map-wrap" });
+  const mapLegend = h("p", { class: "small muted", style: "margin:8px 0 0" },
+    "Les marqueurs indiquent les biens localisés. Sans jeton Mapbox, un plan local de secours est utilisé.");
   const resultsHost = h("div");
   const syncTabs = () => tabs.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === f.transaction)));
   async function search() {
@@ -141,12 +154,27 @@ export async function cartePage() {
       qs.set("limit", "60");
       const items = await api(`/listings?${qs}`);
       count.textContent = `${items.length} bien${items.length > 1 ? "s" : ""} trouvé${items.length > 1 ? "s" : ""}`;
-      mount(mapHost, mapView(items));
+      mount(mapHost, mapView(items, (ids) => {
+        const list = Array.isArray(ids) ? ids : [ids];
+        resultsHost.querySelectorAll(".listing").forEach(el => el.classList.remove("is-highlighted"));
+        for (const id of list) {
+          const card = resultsHost.querySelector(`[data-listing-id="${id}"]`);
+          if (card) {
+            card.classList.add("is-highlighted");
+            card.scrollIntoView({ behavior: "smooth", block: "nearest" });
+            break;
+          }
+        }
+      }));
       const more = new URLSearchParams(Object.entries(f).filter(([, v]) => v));
       mount(resultsHost, items.length
         ? [h("div", { class: "listing-grid" }, items.slice(0, SHOWN).map((item) => listingCard(item, favorites))),
           h("p", { class: "section-desc" }, h("a", { class: "text-link", href: `#/annonces${more.toString() ? `?${more}` : ""}` }, "Voir toutes les annonces correspondantes →"))]
-        : h("div", { class: "empty-state" }, h("strong", null, "Aucun bien ne correspond à votre recherche."), "Essayez de modifier les filtres ou le budget."));
+        : h("div", { class: "card empty-state" },
+            h("div", { class: "mp-empty-ic" }, "🗺️"),
+            h("h3", null, "Aucun bien ne correspond"),
+            h("p", null, "Modifiez les filtres ou le budget. La carte affiche uniquement les biens dont la position a été renseignée.")
+          ));
     } catch (error) { mount(resultsHost, h("p", { class: "notice" }, error.message)); }
   }
   const searchCard = h("section", { class: "container search-block", id: "recherche" }, h("div", { class: "search-card" },
@@ -167,7 +195,7 @@ export async function cartePage() {
   const explorer = h("section", { class: "section container" },
     h("div", { class: "section-head" }, h("div", null, h("span", { class: "section-kicker" }, "Géolocalisation"), h("h1", { class: "section-title" }, "Explorer les biens sur la carte"),
       h("p", { class: "section-desc" }, "Repérez les biens par ville et par quartier."))),
-    count, mapHost, h("div", { class: "section-head", style: { "margin-top": "22px" } }, h("div", null, h("h2", { class: "section-title" }, "Résultats"))), resultsHost);
+    count, mapHost, mapLegend, h("div", { class: "section-head mt-22" }, h("div", null, h("h2", { class: "section-title" }, "Résultats"))), resultsHost);
 
   // --- Mes biens localisés (compte connecté) : fonctions d'origine conservées ---
   const mine = h("section", { class: "section container" });

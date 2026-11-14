@@ -5,10 +5,24 @@ import { field, select } from "/js/components/ui.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
-  const ownerSummary = h("span", { class: "small muted" });
+  const ownerSummary = h("div", { class: "card", style: "margin-top:16px" },
+    h("h3", { style: "margin:0 0 8px" }, "Annonceur"),
+    h("p", { class: "muted small" }, "Chargement…")
+  );
   if (item.ownerId) api(`/advertisers/${encodeURIComponent(item.ownerId)}`).then((p) => {
-    mount(ownerSummary, p.rating.count ? `Note ${String(p.rating.average).replace(".", ",")}/5 (${p.rating.count} avis) · ${p.trust.label}` : p.trust.label);
-  }).catch(() => undefined);
+    const pills = [];
+    if (p.rating?.count) pills.push(h("span", { class: "pill pill-gold" }, `★ ${String(p.rating.average).replace(".", ",")}/5 (${p.rating.count})`));
+    if (p.trust?.label) pills.push(h("span", { class: "pill pill-green" }, p.trust.label));
+    if (p.agencyVerified) pills.push(h("span", { class: "pill" }, "Agence vérifiée"));
+    ownerSummary.replaceChildren(
+      h("h3", { style: "margin:0 0 8px" }, p.name || "Annonceur"),
+      pills.length ? h("div", { class: "row wrap gap-sm", style: "margin-bottom:8px" }, ...pills) : null,
+      p.trust?.detail ? h("p", { class: "small muted" }, p.trust.detail) : null,
+      h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}`, style: "margin-top:8px" }, "Voir le profil")
+    );
+  }).catch(() => {
+    ownerSummary.replaceChildren(h("p", { class: "muted small" }, "Informations annonceur indisponibles."));
+  });
   let photo = 0;
   const main = h("img", { src: item.photos[0] ?? item.imageUrl, alt: item.title });
   const thumbs = h("div", { class: "thumbs" });

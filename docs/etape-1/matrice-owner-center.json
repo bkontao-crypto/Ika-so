@@ -1,0 +1,254 @@
+{
+  "version": "0.2",
+  "date": "2026-11-11",
+  "statut": "Proposition à confirmer (DEC-003)",
+  "regle": "Un admin n'accède à un module « delegable » que si le Superadmin le lui a attribué. Les modules « superadmin » ne sont jamais délégables. Modérateurs et utilisateurs : aucun accès à l'Owner Center. Refus par défaut, contrôlé côté serveur.",
+  "modules": [
+    {
+      "segment": "dashboard",
+      "label": "Tableau de bord",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "overview",
+      "label": "Vue d'ensemble",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "activity",
+      "label": "Activité",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "charts",
+      "label": "Graphiques",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "trends",
+      "label": "Tendances",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "regions",
+      "label": "Régions (lecture)",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "report",
+      "label": "Rapports",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "report.pdf",
+      "label": "Rapport PDF",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "premium-funnel",
+      "label": "Entonnoir Premium (lecture)",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "subscriptions",
+      "label": "Abonnements (lecture)",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "monitoring",
+      "label": "Surveillance",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "health",
+      "label": "État du service",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "agencies",
+      "label": "Agences (lecture)",
+      "access": "delegable",
+      "why": "Lecture de chiffres ; aucune action sensible."
+    },
+    {
+      "segment": "crm",
+      "label": "CRM",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "pipeline",
+      "label": "Pipeline de prospects",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "visits",
+      "label": "Visites",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "complaints",
+      "label": "Réclamations",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "incidents",
+      "label": "Incidents",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "marketing",
+      "label": "Marketing",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "campaigns",
+      "label": "Campagnes",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "newsletters",
+      "label": "Newsletters",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "broadcast",
+      "label": "Diffusion de messages",
+      "access": "delegable",
+      "why": "Opérations courantes de relation client ; chaque action est journalisée."
+    },
+    {
+      "segment": "categories",
+      "label": "Catégories",
+      "access": "delegable",
+      "why": "Référentiels : erreur visible mais réversible ; historique conservé."
+    },
+    {
+      "segment": "places",
+      "label": "Lieux",
+      "access": "delegable",
+      "why": "Référentiels : erreur visible mais réversible ; historique conservé."
+    },
+    {
+      "segment": "zones",
+      "label": "Quartiers et zones",
+      "access": "delegable",
+      "why": "Référentiels : erreur visible mais réversible ; historique conservé."
+    },
+    {
+      "segment": "languages",
+      "label": "Langues",
+      "access": "delegable",
+      "why": "Référentiels : erreur visible mais réversible ; historique conservé."
+    },
+    {
+      "segment": "redirects",
+      "label": "Redirections",
+      "access": "delegable",
+      "why": "Référentiels : erreur visible mais réversible ; historique conservé."
+    },
+    {
+      "segment": "listings.csv",
+      "label": "Export des annonces",
+      "access": "delegable",
+      "why": "Export contenant des données personnelles : motif obligatoire et consultation journalisée."
+    },
+    {
+      "segment": "export.csv",
+      "label": "Export de données",
+      "access": "delegable",
+      "why": "Export contenant des données personnelles : motif obligatoire et consultation journalisée."
+    },
+    {
+      "segment": "backup",
+      "label": "Sauvegarde manuelle",
+      "access": "superadmin",
+      "why": "Données complètes de la plateforme."
+    },
+    {
+      "segment": "backups",
+      "label": "Sauvegardes",
+      "access": "superadmin",
+      "why": "Données complètes de la plateforme."
+    },
+    {
+      "segment": "restores",
+      "label": "Restaurations",
+      "access": "superadmin",
+      "why": "Peut écraser les données de production."
+    },
+    {
+      "segment": "offers",
+      "label": "Offres et tarifs",
+      "access": "superadmin",
+      "why": "Effet financier direct."
+    },
+    {
+      "segment": "settings",
+      "label": "Réglages de la plateforme",
+      "access": "superadmin",
+      "why": "Modifie le comportement global."
+    },
+    {
+      "segment": "logo",
+      "label": "Logos et marque",
+      "access": "superadmin",
+      "why": "Identité de la plateforme."
+    },
+    {
+      "segment": "legal",
+      "label": "Pages légales",
+      "access": "superadmin",
+      "why": "Engagement juridique."
+    },
+    {
+      "segment": "seo",
+      "label": "Référencement",
+      "access": "superadmin",
+      "why": "Visibilité publique de toute la plateforme."
+    },
+    {
+      "segment": "ai",
+      "label": "Assistance IA",
+      "access": "superadmin",
+      "why": "Aide à la rédaction : à cadrer avant délégation."
+    },
+    {
+      "segment": "security-log",
+      "label": "Journal de sécurité",
+      "access": "superadmin",
+      "why": "Contient des traces de sécurité sensibles."
+    },
+    {
+      "segment": "countries",
+      "label": "Pays",
+      "access": "superadmin",
+      "why": "Active un pays entier de la plateforme."
+    },
+    {
+      "segment": "delegations",
+      "label": "Délégations Owner Center",
+      "access": "superadmin",
+      "why": "Attribue ou retire des droits d'accès : seul le Superadmin peut déléguer (DEC-003)."
+    }
+  ]
+}

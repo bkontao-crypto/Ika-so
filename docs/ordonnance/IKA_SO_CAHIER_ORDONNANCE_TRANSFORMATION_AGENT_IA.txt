@@ -1,0 +1,382 @@
+IKA SO — CAHIER D’ORDONNANCE DE TRANSFORMATION INTÉGRALE
+Document obligatoire destiné à l’agent IA développeur
+Version 1.0 — 11 novembre 2026 — Marché de lancement : Mali — Devise : FCFA
+
+================================================================
+0. ORDRE DE MISSION
+================================================================
+Transformer IKA SO en une plateforme immobilière moderne, dynamique,
+universelle, crédible et réellement opérationnelle. Le résultat attendu
+n’est pas une simple maquette : chaque fonctionnalité doit être étudiée,
+conçue, reliée à ses vraies sources de données et dépendances, développée,
+testée de bout en bout, documentée et livrée.
+
+RÈGLE ABSOLUE : À CHAQUE ÉTAPE, livrer ensemble :
+1) le projet mis à jour et exécutable dans l’état atteint ;
+2) le classeur Excel de suivi actualisé ;
+3) un rapport d’étape ;
+4) les preuves de tests et captures ;
+5) la liste des fichiers modifiés, migrations et procédures de retour arrière.
+Une étape sans ces livrables n’est pas considérée comme livrée. Ne jamais
+attendre la fin du projet pour remettre le classeur Excel à jour.
+
+Le résultat final doit être prêt à fonctionner : pas de boutons décoratifs,
+pas d’écrans isolés, pas de fausses données présentées comme réelles, pas de
+liens morts, pas de fonctionnalités annoncées mais non branchées.
+
+================================================================
+1. RÈGLES DE L’ART — NON NÉGOCIABLES
+================================================================
+- Auditer le dépôt et comprendre l’architecture avant toute modification.
+- Préserver les routes, API, données, règles métier, rôles, permissions,
+  intégrations et fonctions existantes, sauf décision documentée et validée.
+- Ne jamais remplacer une fonction opérationnelle par une interface statique.
+- Ne pas dupliquer authentification, paiement, messagerie, rôles ou services
+  métier déjà présents sans justification technique.
+- Toute migration de base doit être versionnée, testée sur copie, sauvegardée,
+  documentée et accompagnée d’un plan de rollback.
+- Appliquer les bonnes pratiques de sécurité, architecture, accessibilité,
+  performance, maintenabilité, tests, observabilité et documentation.
+- Ne jamais exposer secrets, tokens, mots de passe ou données privées dans
+  le code, les captures, les rapports ou le classeur Excel.
+
+Pour chaque fonctionnalité, identifier et consigner : besoin, cas d’usage,
+écran, route frontend, endpoint API, service métier, tables/champs, rôles,
+permissions, intégrations externes, validations, états de chargement/succès/
+vide/erreur, journalisation et tests. Une interface non reliée à la vraie
+source métier n’est pas une fonctionnalité livrée.
+
+================================================================
+2. QUESTIONS, RECHERCHES ET DÉCISIONS
+================================================================
+Ne pas multiplier les questions au propriétaire. D’abord inspecter le code,
+la documentation, les données et les configurations. Lorsqu’une information
+indispensable manque, effectuer une recherche web, consulter les documentations
+officielles, étudier les concurrents et comparer les solutions disponibles.
+Présenter les options, avantages, inconvénients, coûts, risques, dépendances
+et recommander la meilleure. Sourcer et dater les recherches.
+Ne demander au propriétaire que les arbitrages réellement indispensables
+(stratégie, dépense, fournisseur, politique commerciale, données légales ou
+choix irréversible). Consigner chaque arbitrage dans Excel. Continuer en
+parallèle les travaux qui ne dépendent pas de sa réponse. Ne jamais inventer
+un fait ou prétendre qu’une source a été vérifiée si ce n’est pas le cas.
+
+================================================================
+3. PHASE 0 — AUDIT INITIAL OBLIGATOIRE
+================================================================
+Auditer et cartographier :
+- structure du dépôt, frameworks, versions, scripts, build et déploiement ;
+- frontend, backend, API, base de données, stockage et variables d’environnement ;
+- migrations, tâches planifiées, webhooks, services externes et logs ;
+- authentification, sessions, récupération de compte et permissions ;
+- toutes les routes, pages, composants, endpoints et menus ;
+- toutes les fonctionnalités existantes et leur état réel ;
+- tous les profils, rôles, espaces, organisations et accès ;
+- toutes les interfaces, en desktop/tablette/mobile et en clair/sombre ;
+- Owner Center : routes, menus, actions, données, permissions et cohérence ;
+- logo, favicon, nom, slogan, images, liens externes et pied de page.
+
+Classer chaque fonction : opérationnelle, partielle, défaillante, interface
+seule, absente, obsolète ou à confirmer. Fournir une preuve (code, route,
+test, requête ou parcours reproduit). Ne pas supposer qu’une fonction existe
+simplement parce qu’elle est mentionnée dans une ancienne description.
+
+Livrables phase 0 : rapport d’audit, cartographie routes/pages/API/rôles,
+matrice des fonctions et dépendances, liste d’anomalies par gravité, captures
+clair/sombre et responsive, état des tests, sauvegarde restaurable et Excel
+initial. Aucun changement destructif avant cet état des lieux.
+
+================================================================
+4. VISION PRODUIT — IKA SO, ÉCOSYSTÈME IMMOBILIER
+================================================================
+Positionner IKA SO comme un parcours immobilier complet : rechercher,
+comparer, vérifier, visiter, louer, vendre, investir et gérer ses biens.
+Proposition de marque de travail : « IKA SO — L’immobilier, autrement.
+Rechercher. Vérifier. Investir. Réussir. » Le nom, slogan et éléments de
+marque restent personnalisables par le Superadmin.
+
+Adapter le produit aux besoins réels du Mali : mobile-first, faible débit,
+prix en FCFA, recherche par ville/commune/quartier, catégories immobilières
+locales, confiance, transparence, prévention des fraudes, contacts avec
+consentement, parcours réalistes pour particuliers, propriétaires,
+démarcheurs et agences. Concevoir une architecture extensible à d’autres
+pays, langues et devises sans complexité prématurée.
+
+================================================================
+5. SIMPLIFIER LES PROFILS : UN COMPTE, UN ESPACE DYNAMIQUE
+================================================================
+Étudier la fusion des profils en un compte utilisateur unique. Une personne
+peut être acheteur, locataire, propriétaire, vendeur ou annonceur avec le
+même compte. Les fonctions professionnelles peuvent être activées comme
+capacités ou espaces d’organisation, avec membres et droits internes.
+Ne pas confondre simplification de l’interface et suppression des permissions.
+
+Navigation cible de l’espace personnel, affichée selon les droits :
+- Tableau de bord et actions à faire ;
+- Mes recherches et alertes ;
+- Mes favoris et comparaisons ;
+- Mes annonces (brouillons, publication, modification, archivage, statistiques) ;
+- Mes biens / portefeuille ;
+- Contacts et messages ;
+- Visites et rendez-vous ;
+- Dossiers et documents ;
+- Transactions / locations si réellement prises en charge ;
+- Activité professionnelle / CRM si droits professionnels ;
+- Abonnement et facturation ;
+- Profil, préférences et sécurité.
+
+Les onglets non autorisés ne doivent pas être accessibles par URL directe.
+Les permissions backend restent la source de vérité. Construire une matrice
+des rôles existants et cible avant toute migration. Préserver comptes, annonces,
+historiques, organisations et relations. Tester les accès autorisés et refusés.
+
+OWNER CENTER : intégrer les fonctions propriétaires dans un espace cohérent :
+biens, annonces, demandes, visites, documents, performances et collaborateurs
+si pertinents. Toutes les actions doivent être reliées aux vraies données et
+services. Tester menu, URL directe, notifications, retours après action et
+permissions. Ne pas créer un doublon si un espace équivalent existe déjà.
+
+================================================================
+6. DESIGN ET NAVIGATION PUBLIQUE
+================================================================
+Navigation proposée : Accueil, Explorer, Carte, Professionnels, Guides
+(si contenus maintenables), Connexion/Mon espace et action « Publier une annonce ».
+Éviter les menus surchargés et regrouper les fonctions secondaires.
+
+Accueil : en-tête personnalisable, proposition de valeur, moteur de recherche
+visible, catégories, annonces issues de vraies données, exploration de zones
+si données disponibles, confiance expliquée, espace professionnel, contenus
+administrables et pied de page configurable. Ne pas inventer statistiques,
+avis, annonces, labels ou partenaires.
+
+Créer un design system : couleurs sémantiques, typographies, espacements,
+grilles, boutons, champs, cartes, tableaux, badges, alertes, modales,
+navigation, chargements, erreurs et états vides. Design premium, lisible,
+distinctif et adapté à l’immobilier. Éviter les effets qui ralentissent le site.
+
+Modes clair et sombre conçus séparément avec tokens sémantiques. Tester textes,
+fonds, bordures, ombres, cartes, formulaires, menus, tableaux, graphiques,
+cartes géographiques, notifications, hover, focus et disabled. Aucun contraste
+insuffisant, élément invisible ou couleur incohérente. Tester mobile, tablette,
+desktop, clavier et focus visible.
+
+================================================================
+7. MODULES MÉTIER À ÉTUDIER ET BRANCHER
+================================================================
+Ne pas reconstruire ce qui fonctionne déjà. Pour chaque module, auditer,
+réutiliser/corriger si possible, puis intégrer réellement.
+
+IKA SO MARKET : annonces vente/location/terrains et catégories pertinentes,
+filtres, tri, pagination, fiches détaillées, médias, contacts, statuts de
+publication, doublons, signalements et SEO.
+
+IKA SO MAP : carte synchronisée avec résultats, filtres géographiques,
+recherche par quartier/commune, marqueurs regroupés, mobile et faible débit.
+Comparer fournisseurs, couverture Mali, coûts, quotas, licences, confidentialité
+et solution de secours. Ne pas présenter une simple géolocalisation parcellaire
+existante comme un moteur cartographique complet si ce n’est pas le cas.
+
+IKA SO TRUST : niveaux explicites de vérification annonceur/agence/bien/
+documents, stockage protégé, historique, signalements et modération.
+Un document téléversé n’est pas automatiquement authentique. Ne jamais afficher
+« certifié » ou « titre vérifié » sans contrôle compétent et preuve.
+
+IKA SO PRO : portefeuille d’annonces, prospects, pipeline, tâches, historique,
+équipe, droits organisationnels et statistiques. Relier les leads aux annonces
+sources et éviter les doublons.
+
+IKA SO INVEST : comparaison, portefeuille et rendement indicatif avec
+hypothèses, dates et sources visibles. Ne pas présenter une estimation comme
+expertise officielle.
+
+IKA SO INTELLIGENCE : assistant de recherche en langage naturel, critères,
+résultats issus de la vraie base, comparaison, alertes et aide à rédiger.
+L’IA ne doit jamais inventer des biens ou divulguer des données privées.
+Prévoir coûts, quotas, consentement, journalisation et désactivation.
+
+Location/transaction : demandes, visites, candidatures, pièces, échanges,
+négociation et historique. Signature, paiements, dépôts, quittances ou gestion
+locative uniquement après étude juridique, fournisseur et opérationnelle.
+
+Notifications : e-mail/SMS/WhatsApp selon intégrations disponibles et autorisées,
+consentement, préférences, coûts, limites, désinscription, retries et journal
+des envois. Gérer erreurs et doublons.
+
+================================================================
+8. PERSONNALISATION DU SITE PAR LE SUPERADMIN
+================================================================
+Créer un centre de marque et contenus avec aperçu avant publication et
+historique. Le Superadmin doit pouvoir modifier sans code :
+- nom du site, nom court, slogan et textes de présentation ;
+- logo principal, logo accueil, variantes clair/sombre, favicon et icône ;
+- images de couverture, bannières, catégories et médias d’accueil ;
+- couleurs de marque et paramètres de thème autorisés ;
+- liens externes, réseaux sociaux, téléphone, e-mail et coordonnées ;
+- menus/liens autorisés, pied de page, pages institutionnelles et mentions ;
+- contenus éditoriaux, blocs d’accueil et appels à l’action ;
+- liens partenaires et leur activation ;
+- langue, devise et formats autorisés ;
+- SEO de base : titres, descriptions et image de partage ;
+- modèles de notifications approuvés.
+
+Les paramètres doivent être structurés, validés, versionnés et journalisés.
+Upload sécurisé, validation type/taille, aperçu, cache correctement invalidé,
+valeurs par défaut, sauvegarde/restauration et permissions fortes. Valider
+URL/protocoles et empêcher injection de scripts. Tester la propagation sur
+toutes les pages publiques et privées, Owner Center, administration et emails
+si applicables. Aucun secret dans ce centre.
+
+================================================================
+9. ADMINISTRATION, INTÉGRATIONS ET SÉCURITÉ
+================================================================
+Administration : utilisateurs, organisations, rôles, annonces, modération,
+signalements, documents, abonnements, paiements, branding, intégrations,
+journaux, statistiques et contenus selon les fonctions réellement nécessaires.
+Toute action sensible doit être autorisée côté serveur et journalisée.
+
+Registre des dépendances : base de données, stockage, cartes, géocodage,
+e-mail, SMS, WhatsApp, paiement, IA, analytics, CDN, hébergement et monitoring.
+Pour chacune : documentation officielle, fonctionnalité liée, configuration
+requise (sans valeur secrète), environnements test/prod, coûts, quotas,
+couverture, webhooks, signature, idempotence, données envoyées, consentement,
+rétention, stratégie de panne et preuve de test. Un bouton ne doit jamais
+simuler une intégration non configurée.
+
+Sécurité : authentification robuste, contrôle d’accès serveur, validation,
+protection injections/XSS/CSRF, limitation de débit, protection upload,
+journaux sans données sensibles, secrets hors dépôt, sauvegardes vérifiées,
+restauration testée, contrôle des documents et minimisation des données.
+Vérifier les obligations applicables au Mali avec des sources officielles ou
+professionnels compétents ; ne pas inventer une conformité.
+
+Performance/SEO : optimiser images/scripts/polices, pagination, requêtes,
+cache, états réseau, SEO, sitemap, URLs, monitoring et erreurs. Mesurer avant
+d’optimiser. Prévoir staging, rollback et vérification après déploiement.
+
+================================================================
+10. PLAN DE TRANSFORMATION ET GATES
+================================================================
+ÉTAPE 0 — Audit et sauvegarde : inventaires, routes, rôles, dépendances,
+captures, anomalies, tests de base et sauvegarde restaurable.
+Acceptation : application démarre, état initial prouvé, aucune modification
+destructive.
+
+ÉTAPE 1 — Architecture et UX : sitemap, parcours, matrice droits, maquettes,
+design system, comparatifs et décisions sourcées.
+Acceptation : chaque écran a un besoin, un parcours, une source et des droits.
+
+ÉTAPE 2 — Socle visuel : composants, navigation publique, responsive, thèmes,
+pages publiques principales.
+Acceptation : liens actifs, rendu clair/sombre contrôlé, aucune régression.
+
+ÉTAPE 3 — Compte unifié et Owner Center : espace personnel, onglets contextuels,
+permissions et migration si nécessaire.
+Acceptation : parcours rôles testés, Owner Center branché, aucune perte.
+
+ÉTAPE 4 — Marketplace : recherche, filtres, fiches, favoris, publication,
+gestion des annonces.
+Acceptation : données réelles, états vides/erreurs et cycle de vie testé.
+
+ÉTAPE 5 — Carte : fournisseur, géocodage, synchronisation, quotas et secours.
+Acceptation : résultats et marqueurs cohérents, confidentialité vérifiée.
+
+ÉTAPE 6 — Trust et modération : documents, statuts, workflows, signalements.
+Acceptation : statuts exacts, accès contrôlé, historique auditable.
+
+ÉTAPE 7 — Professionnels/CRM : prospects, pipeline, tâches, équipe, rapports.
+Acceptation : sources reliées, permissions organisationnelles testées.
+
+ÉTAPE 8 — Notifications/paiements : fournisseurs, webhooks, facturation,
+abonnements, gestion des erreurs.
+Acceptation : tests réels en environnement prévu, idempotence, aucun faux paiement.
+
+ÉTAPE 9 — Superadmin branding : nom, logos, slogan, images, liens, contenus,
+aperçu, historique et validation.
+Acceptation : changements visibles globalement sans modification du code.
+
+ÉTAPE 10 — Intelligence : assistant, comparaison, alertes, investissement
+selon faisabilité.
+Acceptation : données réelles, sources et limites visibles, coûts et vie privée maîtrisés.
+
+ÉTAPE 11 — Recette finale/production : QA, sécurité, performance, documentation,
+déploiement, rollback, archive et Excel final.
+Acceptation : aucune anomalie bloquante/critique ouverte, parcours critiques
+réussis, sauvegarde/restauration vérifiées.
+
+À chaque étape : projet mis à jour + classeur Excel mis à jour + CHANGELOG +
+rapport d’étape + captures/logs expurgés + tests + migrations/rollback éventuels.
+Créer une copie versionnée du classeur à chaque livraison et garder le fichier
+courant actualisé.
+
+================================================================
+11. RECETTE OBLIGATOIRE
+================================================================
+Fonctionnel : inscription, connexion, recherche, filtres, fiche, favoris,
+contact, annonce, documents, messages, visites, paiements si présents,
+administration, Owner Center et personnalisation Superadmin.
+
+Permissions : tester chaque action avec rôle autorisé et non autorisé, accès
+direct URL/API, séparation organisations et données privées.
+
+Visuel : toutes les pages critiques sur desktop/tablette/mobile et clair/sombre.
+Captures avant/après ; vérifier logos, images, couleurs, menus, tableaux,
+graphiques, formulaires, modales, cartes et états interactifs.
+
+Régression : rejouer les tests existants après chaque lot ; comparer routes et
+contrats API avant/après. Tester build, migrations, API, unitaires, intégration,
+E2E, performance, sécurité, accessibilité et restauration si disponibles.
+Ne jamais déclarer un test réussi s’il n’a pas été exécuté : inscrire « non testé ».
+
+Gravité anomalies : Bloquante, Critique, Majeure, Mineure, Cosmétique.
+Aucune mise en production avec anomalie bloquante ou critique ouverte.
+Toute exception doit être documentée et acceptée avec mesure compensatoire.
+
+================================================================
+12. CLASSEUR EXCEL — STRUCTURE ET DISCIPLINE
+================================================================
+Le classeur fourni est obligatoire et doit rester dans le dépôt. Onglets :
+1 Tableau de bord ; 2 Étapes ; 3 Fonctionnalités ; 4 Routes & interfaces ;
+5 Tests & recette ; 6 Anomalies ; 7 Décisions à arbitrer ;
+8 Dépendances ; 9 Livraisons ; 10 Journal.
+
+Statuts normalisés : À faire, En cours, Bloqué, À vérifier, Terminé,
+Non applicable. « Terminé » exige une preuve. Une ligne par tâche ou test.
+Indiquer dates, version, commit, responsable, preuve, anomalies et blocages.
+Ne pas écraser l’historique. Mettre à jour le dashboard et livrer une copie
+versionnée à chaque étape : par exemple IKA_SO_SUIVI_V0.1_ETAPE_0.xlsx.
+Aucun secret ni donnée personnelle inutile dans Excel.
+
+================================================================
+13. DÉFINITION DE « PRÊT À FONCTIONNER »
+================================================================
+Installation et lancement reproductibles ; build production réussi ; migrations
+documentées ; variables d’environnement expliquées sans secrets ; routes
+inventoriées ; fonctionnalités annoncées branchées ; aucun bouton/lien essentiel
+inactif ; rôles testés ; espace unifié et Owner Center cohérents ; pages critiques
+validées en clair/sombre et responsive ; personnalisation Superadmin démontrée ;
+intégrations testées ou clairement désactivées ; tests fonctionnels/régression/
+sécurité/performance exécutés ; sauvegarde/restauration/rollback documentés ;
+anomalies restantes connues ; guides utilisateur/professionnel/admin livrés ;
+Excel final cohérent avec le code.
+
+Livrer dépôt/commit final, archive propre, documentation, scripts, fichiers
+d’exemple et classeur Excel. Exclure .env, secrets, tokens, mots de passe et
+données privées réelles non anonymisées.
+
+================================================================
+14. RAPPORT FINAL OBLIGATOIRE
+================================================================
+Présenter état initial/final ; architecture réelle ; fonctions conservées,
+corrigées, ajoutées ou reportées ; profils unifiés et matrice de permissions ;
+état Owner Center ; résultats visuels clair/sombre/responsive ; démonstration
+branding Superadmin ; intégrations ; tests et taux de réussite ; anomalies et
+risques ; déploiement/rollback ; commits/migrations/livrables ; recommandations.
+
+CONSIGNE FINALE
+Lis avant de modifier. Comprends avant d’ajouter. Branche chaque fonction à sa
+source réelle. Vérifie chaque écran et chaque action. Préserve l’existant.
+Simplifie les profils sans supprimer les droits nécessaires. Recherche et
+compare avant de solliciter le propriétaire. Livre à CHAQUE étape le projet
+mis à jour, l’Excel actualisé, le rapport et les preuves.
+L’ambition : faire d’IKA SO une plateforme immobilière de référence au Mali,
+utile, fiable, sécurisée, performante et évolutive.

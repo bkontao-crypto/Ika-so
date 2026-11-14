@@ -1,0 +1,138 @@
+État des tests — Étape 0 — 2026-11-11
+Commande : node --test --test-concurrency=1 "test/**/*.test.js"
+Environnement : Node 22 ; npm install impossible (pas de réseau) : `express` remplacé par un substitut de vérification ; PostgreSQL absent (3 tests d'intégration ignorés).
+À REJOUER avec le vrai Express et PostgreSQL (décision DEC-002).
+
+== Totaux ==
+# tests 122
+# suites 0
+# pass 119
+# fail 0
+# cancelled 0
+# skipped 3
+# todo 0
+# duration_ms 1233.357199
+
+== Résultat de chaque groupe de tests ==
+ok 1 - une demande a un identifiant aléatoire (pas de collision dans la même milliseconde)
+ok 2 - une seule demande en cours par compte
+ok 3 - décision : réservée à l'équipe, action connue, motif obligatoire hors approbation
+ok 4 - décision : une demande déjà traitée ne se retraite pas
+ok 5 - approbation : statut, rôle affiché, journal et notification
+ok 6 - demande d'infos : statut dédié, motif transmis, rôle inchangé ; un échec de notification n'annule rien
+ok 7 - publication : USER non approuvé refusé, avec renvoi vers « Devenir annonceur »
+ok 8 - publication : USER approuvé et personnel acceptés ; compte restreint ou banni refusé même approuvé
+ok 9 - liste équipe : l'état du dernier RCCM du candidat est joint, sans exposer le fichier
+ok 10 - pièce jointe : facultative, étiquette connue sinon « autre », ajoutée à la demande ouverte du compte
+ok 11 - pièce jointe : refus si demande inconnue ou close, fichier illisible, ou plus de cinq pièces
+ok 12 - pièce jointe : acceptée aussi quand l'équipe a demandé des informations
+ok 13 - lecture d'une pièce : équipe seulement, pièce réellement jointe à la demande, lecture journalisée
+ok 14 - nettoyage des fichiers orphelins : les pièces jointes aux demandes sont considérées comme référencées
+ok 15 - décision finale : échéance d'un an posée sur les pièces ; demande d'infos : aucune échéance
+ok 16 - renouvellement : seulement le titulaire, demande décidée, pièces encore conservées ; repart d'aujourd'hui
+ok 17 - conservation : simulation compte les pièces échues ; application efface les fichiers, garde la décision
+ok 18 - rappel : marque puis notifie, 30 jours avant l'échéance, une seule fois, sans supprimer
+ok 19 - rappel : un échec de notification n'empêche pas les autres ; sans notificateur, rien n'est marqué
+ok 20 - renouvellement : remet le rappel à zéro pour la nouvelle échéance
+ok 21 - les poids font 100 % et le score reste entre 0 et 100
+ok 22 - un seul avis 5/5 ne place pas un inconnu devant un annonceur établi
+ok 23 - réactivité : peu de données = neutre (50), répondre à tout est récompensé
+ok 24 - un annonceur boosté passe devant, quel que soit son statut ou son score
+ok 25 - filtres : recherche sans accents, types, certifiés, boostés
+ok 26 - accès Premium : abonnement en cours ET certification, sinon refus
+ok 27 - centre de contrôle : refusé sans Premium, refusé sans certification, aucune autre requête n'est faite
+ok 28 - octroi Premium : super administrateur, motif et durée obligatoires, tracé
+ok 29 - annuaire : boostés d'abord, aucune donnée de contact, requête paramétrée
+ok 30 - interface : pages branchées, aucune ressource externe, carte non chargée à l'ouverture
+ok 31 - carte « Passez Premium » : présente chez tous les annonceurs, page des avantages sans promesse non tenue
+ok 32 - espace standard : ouvert sans Premium, aucune donnée de vues ni de carte, complétion du profil calculée
+ok 33 - espace standard : page branchée, chargée à la demande, verrous vers \#/premium
+ok 34 - agence : en-tête, onglets et colonne de présentation
+ok 35 - particulier : présentation de la personne, sans mention d'agence
+ok 36 - son propre profil : bouton de modification, pas de formulaire de contact
+ok 37 - abonné visible : identité complète
+ok 38 - abonné anonyme : rien d'identifiant
+ok 39 - photo masquée par la modération : pas d'avatar
+ok 40 - PostgreSQL : les migrations s'appliquent, puis une seconde exécution ne fait rien # SKIP DATABASE_URL_TEST absent : test d'intégration PostgreSQL ignoré.
+ok 41 - PostgreSQL : tout objet SQL cité par le code existe après migration # SKIP DATABASE_URL_TEST absent : test d'intégration PostgreSQL ignoré.
+ok 42 - HTTP réel : santé, annonces publiques, 404 JSON, CSRF, en-têtes # SKIP DATABASE_URL_TEST absent : test d'intégration PostgreSQL ignoré.
+ok 43 - mot de passe oublié : e-mail inconnu = même réponse, rien d'envoyé
+ok 44 - mot de passe oublié : le lien part par e-mail, seul le hachage du jeton est stocké
+ok 45 - mot de passe oublié : au plus 3 demandes par heure
+ok 46 - réinitialisation : jeton périmé ou déjà utilisé refusé ; sinon mot de passe changé et sessions fermées
+ok 47 - demande annonceur : tout le staff est notifié
+ok 48 - demande annonceur : une panne de notification n'annule pas la demande
+ok 49 - équipe : on ne s'invite pas soi-même, pas de doublon, la personne invitée est prévenue
+ok 50 - équipe : seul l'invité accepte ; l'acceptation prévient celui qui a invité
+ok 51 - chaque source produit un SQL cohérent : paramètres numérotés, pas de valeur saisie dans le texte
+ok 52 - filtres : acteur, recherche (jokers neutralisés), annonce, compte ; source incapable = ignorée
+ok 53 - le contenu des messages privés n'est jamais lu ; la fréquentation est masquée par défaut
+ok 54 - fusion : ordre décroissant à la microseconde, limite respectée
+ok 55 - événement : date en millisecondes pour l'affichage, curseur exact, libellé et ton
+ok 56 - CSV : formules de tableur neutralisées, guillemets doublés, BOM
+ok 57 - accès : tout est réservé au SUPERADMIN
+ok 58 - journal : validations (curseur, dates), pagination, sources indisponibles signalées
+ok 59 - traçage : la consultation est inscrite au journal d'audit ; compte inconnu = 404
+ok 60 - export : inscrit au journal d'audit, plafonné à 5 000 lignes par source
+ok 61 - journal de connexions : respecte l'interrupteur, n'enregistre ni IP ni agent brut, ne lève jamais
+ok 62 - tableau de bord : un bloc illisible n'empêche pas le reste ; alertes triées par gravité
+ok 63 - adresse du site : https ajouté, javascript:/data: refusés
+ok 64 - seul un administrateur gère les partenaires
+ok 65 - création : validation du nom, de la catégorie, de la description et du logo
+ok 66 - création réussie : insertion, adresse normalisée, trace d'audit
+ok 67 - limite de 100 partenaires
+ok 68 - liste publique : seulement les partenaires actifs
+ok 69 - modification, masquage et retrait : introuvable → 404, sinon audit
+ok 70 - seul le Superadmin gère quartiers et pays (un administrateur ordinaire est refusé)
+ok 71 - quartier : nom, pays, coordonnées et doublons contrôlés
+ok 72 - création d'un quartier : écrit, journalise, recharge les listes en mémoire
+ok 73 - ajout en lot : tout ou rien, ligne fautive indiquée, doublon interne refusé
+ok 74 - renommer ou supprimer un quartier qui a des annonces est refusé (masquer à la place)
+ok 75 - pays : code, devise, fuseau ; dernier pays actif non désactivable ; suppression refusée s'il est utilisé
+ok 76 - listes en mémoire : quartiers masqués absents des formulaires mais position conservée ; pays inconnu refusé
+ok 77 - remplace le nom dans les nœuds texte, y compris imbriqués
+ok 78 - une balise saisie dans le nom reste du texte : aucun nœud créé
+ok 79 - les motifs spéciaux de replace() (« $& », « $1 ») sont gardés littéralement
+ok 80 - racine absente ou motif vide : rien ne casse
+ok 81 - app.js n'utilise plus innerHTML (verrou de non-régression)
+ok 82 - hors production : un seul avis « mode local », rien d'autre
+ok 83 - production + base sur localhost : avertissement BASE_LOCALE (non bloquant)
+ok 84 - production + base distante sans SSL : bloquant, pas d'avertissement BASE_LOCALE
+ok 85 - production : TRUST_PROXY absent et démo OTP sont bloquants
+ok 86 - production : le faux fournisseur de paiement est bloquant
+ok 87 - modèle .env.example : valeurs par défaut sûres pour un poste local
+ok 88 - checkout Premium : paiement sans annonce, créé en PENDING
+ok 89 - webhook confirmé : le Premium est prolongé de 30 jours et l'octroi est historisé
+ok 90 - suivi Premium : types d'événements et origines en liste blanche
+ok 91 - checkout Premium : l'origine du clic est gardée sur le paiement (liste fermée)
+ok 92 - profil : la ville est modifiable pour tous les types de compte
+ok 93 - profil : la ville est nettoyée, tronquée à 60 caractères et effaçable
+ok 94 - profil : la vue publique expose la ville
+ok 95 - sanctions : modérateur restreint, seul un administrateur bannit, jamais un rang égal ou supérieur
+ok 96 - changement de rôle : super administrateur seulement, rôle connu
+ok 97 - codes SMS : 1 toutes les 30 s, 5 par heure ; seul le canal SMS donne le badge
+ok 98 - numéros maliens : 8 chiffres, 223…, 00223…, +223… ; le reste est refusé
+ok 99 - annonce : terrain et logement valides ne produisent aucune erreur
+ok 100 - annonce : un terrain exige accès routier, document et superficie
+ok 101 - annonce : un logement exige chambres, salles de bain, meublé, document
+ok 102 - annonce : titre, description, prix et catégorie hors limites sont refusés
+ok 103 - prix au m² : seulement pour un terrain avec superficie
+ok 104 - modification par le propriétaire : une annonce publiée repasse en contrôle
+ok 105 - décisions et sanctions : motif obligatoire pour refuser ou sanctionner
+ok 106 - mise à la une : annonce publiée et visibilité normale ; plafond respecté
+ok 107 - photos : chemins internes et data-URL image acceptés, adresses externes refusées
+ok 108 - prix affiché en FCFA, « / mois » pour une location
+ok 109 - annonce : local commercial et bureau valides sans chambres ni salles de bain
+ok 110 - annonce : local commercial et bureau exigent superficie en m² et document
+ok 111 - catégories : familles terrain / logement / professionnel
+ok 112 - Infobip : l'adresse copiée du portail (sans https://) est complétée
+ok 113 - Infobip : requête envoyée (URL, en-tête App, numéro sans +, texte)
+ok 114 - Infobip : refus du service ou message rejeté = erreur lisible, sans fuite de la clé
+ok 115 - sans fournisseur complet : SMS refusé, aucun numéro vérifié
+ok 116 - CSP sans Mapbox : aucune ressource externe
+ok 117 - CSP avec jeton Mapbox : seules les adresses Mapbox nécessaires, script-src inchangé
+ok 118 - en-têtes : HSTS seulement en production
+ok 119 - CSRF : lecture libre, écriture refusée depuis une autre origine
+ok 120 - CSRF : même origine + JSON acceptés ; corps non JSON refusé
+ok 121 - CSRF : seule exception = notification de paiement en formulaire, sans Origin
+ok 122 - cookie de session : HttpOnly, SameSite=Lax, Secure seulement en production

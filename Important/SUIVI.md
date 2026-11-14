@@ -3,6 +3,25 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Fusion de l'archive IKA_SO_Projet_V0_2_FUSION_1 (14 novembre 2026)
+**À réaliser** : fusionner l'archive fournie par le propriétaire (ÉTAPE 1 + ÉTAPE 2, plus avancée) avec le dépôt GitHub, sans perdre les acquis GitHub.
+**Réalisé** (branche `fusion/etape-1-2`, rapport de l'archive : `docs/FUSION/RAPPORT_FUSION_ETAPE_1_2.md`)
+- ✅ Comparaison par empreinte : 305 fichiers identiques, 19 modifiés dans l'archive, 89 nouveaux, 2 seulement sur GitHub. Appliqué : 106 fichiers de l'archive (migrations 059–064, services CRM / délégations / journal de modération / réglages Superadmin / WhatsApp / biens, pages `admin-audit`, `admin-settings`, `crm-leads`, `components.css`, tests, `docs/etape-*`, `docs/rapports_etapes_E2`, `docs/FUSION`, workflow CI `.github/workflows/ci.yml`).
+- ✅ **Acquis GitHub conservés** : `public/downloads/ika-so.apk` et `.gitkeep.` ; section « APPLICATION MOBILE OFFICIELLE » de `public/js/pages/home-sections.js` (absente de l'archive, version GitHub gardée) ; ce fichier de suivi.
+- ✅ `public/index.html` : version de l'archive (lien `components.css`) ; elle supprime aussi un `<section>` orphelin laissé par les commits Android du 11/11 avant le pied de page.
+- ✅ Documents `RAPPORT_ETAPE_0.md`, `RAPPORT_ETAPE_1.md`, `IKA_SO_SUIVI_TRANSFORMATION_ET_RECETTE.xlsx` rangés dans `Important/` (convention du dépôt).
+**Vérifié**
+- ✅ `npm test` : 143 tests, 140 réussis, 0 échec, 3 ignorés. `stamp-sw:check` : à jour (`ika-so-84a688f7f0`).
+- ✅ Routes : 249 avant, 272 après, **0 route perdue**, 23 ajoutées. Syntaxe JS des fichiers modifiés : OK. Aucun secret en dur (`.env.example` : variables WhatsApp commentées).
+- ✅ **Migrations 001–064 exécutées sur un PostgreSQL 16 local de test** : 059–064 s'appliquent, se rejouent sans erreur ; `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql` testé (supprime bien les 5 tables, la colonne `property_id` et les 6 lignes de `_migrations`), puis réapplication OK. Migrations additives (aucune donnée existante modifiée).
+**Non vérifié**
+- ⬜ `npm install` / vrai Express / vrai pilote `pg` impossibles ici (réseau désactivé) : tests de routes faits avec le mini-routeur de test de l'archive. Test d'intégration PostgreSQL (`DATABASE_URL_TEST`) et démarrage du serveur : non exécutés (le workflow CI les exécutera sur GitHub).
+- ⬜ Navigateur (accueil, annonceur, admin-settings, admin-audit, crm-leads ; ordinateur / téléphone), Mapbox, WhatsApp, paiements : non vérifiés. Site Render : non vérifié.
+**Risques / à faire**
+- ⚠️ Les migrations 059–064 s'appliquent **automatiquement au démarrage** sur Render (`migrate()` dans `server/index.js`). Retour arrière : `git revert` du commit de fusion + `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql` (après sauvegarde de la base).
+- ⬜ Anomalies A-01, A-06, A-07 restantes (voir `IKA_SO_SUIVI_TRANSFORMATION_ET_RECETTE.xlsx`), dont la délégation ADMIN encore bloquée.
+- ⬜ APK de 13 Mo (origine et signature non documentées) toujours à documenter.
+
 ## Vérification du dépôt et version du service worker (14 novembre 2026)
 **À réaliser** : vérifier l'état du dépôt ; corriger tout écart constaté.
 **Réalisé**

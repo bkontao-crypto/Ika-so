@@ -60,6 +60,67 @@ async function listingsPage(mode) {
   const sponsoredHost = h("div");
   const sidebarHost = h("aside", { class: "sidebar-ads", "aria-label": "Publicités" });
   const count = h("p", { class: "results-count", "aria-live": "polite" });
+  const savedHost = h("div", { class: "saved-searches", hidden: true });
+  const activeHost = h("div", { class: "active-filters", hidden: true });
+
+  const FILTER_LABELS = {
+    transaction: (v) => v,
+    category: (v) => v,
+    zone: (v) => v,
+    q: (v) => `"${v}"`,
+    minPrice: (v) => `≥ ${Number(v).toLocaleString("fr-FR")} FCFA`,
+    maxPrice: (v) => `≤ ${Number(v).toLocaleString("fr-FR")} FCFA`,
+    minSurface: (v) => `≥ ${v} m²`,
+    bedrooms: (v) => `${v} ch.`,
+  };
+
+  function renderActive() {
+    const pills = [];
+    for (const [key, val] of Object.entries(f)) {
+      if (!val || key === "sort") continue;
+      const labelFn = FILTER_LABELS[key];
+      if (!labelFn) continue;
+      pills.push(h("button", {
+        class: "pill",
+        type: "button",
+        title: "Retirer ce filtre",
+        onClick: () => { f[key] = ""; sync(); load(); }
+      }, labelFn(val), " ×"));
+    }
+    if (!pills.length) { activeHost.hidden = true; return; }
+    activeHost.hidden = false;
+    activeHost.replaceChildren(
+      h("div", { class: "row wrap gap-sm", style: "margin-bottom:12px" },
+        h("span", { class: "small muted" }, "Filtres :"),
+        ...pills,
+        h("button", { class: "btn btn-small btn-quiet", type: "button", onClick: reset }, "Tout effacer")
+      )
+    );
+  }
+
+
+  async function loadSaved() {
+    if (!S.user) return;
+    try {
+      const searches = await api("/me/searches");
+      if (!searches.length) { savedHost.hidden = true; return; }
+      savedHost.hidden = false;
+      savedHost.replaceChildren(
+        h("div", { class: "card", style: "margin-bottom:16px" },
+          h("h3", { class: "small", style: "margin:0 0 8px" }, "Mes recherches enregistrées"),
+          h("div", { class: "row wrap gap-sm" }, ...searches.slice(0, 6).map(s =>
+            h("button", {
+              class: "pill",
+              type: "button",
+              onClick: () => { Object.assign(f, s.filters || {}); sync(); load(); }
+            }, s.label || "Recherche")
+          )),
+          searches.length > 6 ? h("a", { class: "small text-link", href: "#/boite" }, "Voir toutes") : null
+        )
+      );
+    } catch { savedHost.hidden = true; }
+  }
+
   const inputs = {}; // champs du formulaire, pour les remettre à jour quand un filtre change ailleurs
   const modeButtons = [];
 
@@ -70,6 +131,7 @@ async function listingsPage(mode) {
     return qs;
   };
   function sync() {
+    renderActive();
     for (const [key, el] of Object.entries(inputs)) el.value = f[key];
     for (const b of modeButtons) b.setAttribute("aria-pressed", String(b.dataset.mode === f.transaction));
     if (!isHome) {
@@ -178,9 +240,10 @@ async function listingsPage(mode) {
     }
     count.textContent = `${shown.length} bien${shown.length > 1 ? "s" : ""} trouvé${shown.length > 1 ? "s" : ""}`;
     if (!shown.length) {
-      return mount(results, h("div", { class: "empty-state" },
-        h("strong", null, "Aucun bien ne correspond à votre recherche."),
-        "Essayez un autre quartier ou ajustez votre budget.",
+      return mount(results, h("div", { class: "card empty-state" },
+        h("div", { class: "mp-empty-ic" }, "🔍"),
+        h("h3", null, "Aucun bien ne correspond à votre recherche"),
+        h("p", null, "Essayez un autre quartier ou ajustez votre budget."),
         h("p", null, h("button", { class: "btn btn-primary", type: "button", onClick: reset }, "Effacer les filtres"))));
     }
     results.classList.toggle("view-list", view === "list");
@@ -266,7 +329,8 @@ async function listingsPage(mode) {
       h("div", { class: "row" }, chip("Terrains à vendre", { transaction: "Vente", category: "Terrain" }), chip("Appartements à louer", { transaction: "Location", category: "Appartement" }),
         h("button", { class: "btn btn-small", type: "button", onClick: saveSearch }, "Enregistrer cette recherche"), S.user ? favButton : null),
       h("div", { class: "row" }, viewBar, filtersButton)),
-    count, h("div", { class: "with-sidebar" }, sidebarHost, results)));
+    savedHost, activeHost, count, h("div", { class: "with-sidebar" }, sidebarHost, results)));
   sync();
   load();
+  loadSaved();
 }

@@ -1,0 +1,36 @@
+<!doctype html><html lang="fr" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Maquette — compte unifié (IKA SO)</title><link rel="stylesheet" href="../../../public/css/ika.css"><link rel="stylesheet" href="../../../public/css/modern.css"><link rel="stylesheet" href="../../../public/css/mon-profil.css"></head><body><main class="wrap" style="max-width:980px;margin:0 auto;padding:16px">
+<p class="notice" style="margin:0 0 12px"><strong>Maquette — Étape 1.</strong> Données fictives. Les onglets visibles dépendent des rôles réels du compte ; l'affichage n'accorde aucun droit, le serveur contrôle chaque action. Choisissez un profil pour voir la variante.</p>
+<div class="row" id="roles" role="group" aria-label="Profil simulé" style="flex-wrap:wrap;gap:8px;margin-bottom:14px"></div>
+<h1 class="title">Mon profil</h1>
+<div class="row" id="pills" style="flex-wrap:wrap;gap:8px;margin:10px 0 14px"></div>
+<div class="tabs" id="tabs" role="tablist" aria-label="Sections du profil" style="overflow:auto"></div>
+<section id="panel" class="stack" role="tabpanel" style="margin-top:14px"></section>
+</main>
+<script>
+const R={
+ membre:{label:"Membre",pills:["Membre"],tabs:["Aperçu","Favoris","Messages","Documents","Réglages"]},
+ annonceur:{label:"Annonceur approuvé",pills:["Membre","Annonceur approuvé","Numéro vérifié"],tabs:["Aperçu","Annonces","Mes biens","Messages","Favoris","Documents","Abonnement","Réglages"]},
+ proprio:{label:"Propriétaire de biens",pills:["Membre","Propriétaire de biens","Annonceur approuvé"],tabs:["Aperçu","Mes biens","Annonces","Messages","Documents","Réglages"]},
+ pro:{label:"Agence Premium certifiée",pills:["Membre","Agence vérifiée","Premium · 23 jours","Certifiée"],tabs:["Aperçu","Annonces","Mes biens","Pro","Messages","Documents","Abonnement","Réglages"]},
+ admin:{label:"Admin (Owner Center autorisé)",pills:["Membre","Administrateur"],tabs:["Aperçu","Messages","Réglages"],console:true,owner:"modules attribués"},
+ super:{label:"Superadmin",pills:["Membre","Super administrateur"],tabs:["Aperçu","Messages","Réglages"],console:true,owner:"tous les modules"}
+};
+const P={
+ "Aperçu":(k)=>`<article class="card pad stack"><p class="small muted">Mes accès</p><h2>Un seul profil, tous vos rôles</h2><p class="small">À faire : <strong>2 messages</strong> sans réponse · <strong>1 document</strong> en examen · <strong>1 visite</strong> demandée.</p>${R[k].console?`<div class="row" style="flex-wrap:wrap;gap:8px"><a class="btn" href="#">Console de modération</a><a class="btn btn-dark" href="#">Ouvrir Owner Center</a></div><p class="small muted">Owner Center : ${R[k].owner}.</p>`:""}</article>`,
+ "Mes biens":()=>`<article class="card pad stack"><div class="row-between"><h2>Mes biens</h2><a class="btn btn-primary" href="#">Ajouter un bien</a></div>${[["Villa Hamdallaye","Louée","1 annonce · 3 visites ce mois"],["Terrain ACI 2000 (400 m²)","À vendre","2 annonces · titre foncier en examen"],["Immeuble Badalabougou","Brouillon","0 annonce · 2 documents manquants"]].map(b=>`<div class="card pad"><strong>${b[0]}</strong> <span class="pill">${b[1]}</span><p class="small muted">${b[2]}</p><div class="row" style="gap:8px;flex-wrap:wrap"><a class="btn btn-small" href="#">Annonces</a><a class="btn btn-small" href="#">Visites</a><a class="btn btn-small" href="#">Documents</a><a class="btn btn-small" href="#">Collaborateurs</a></div></div>`).join("")}<p class="small muted">Un bien peut avoir plusieurs annonces successives (DEC-004).</p></article>`,
+ "Annonces":()=>`<article class="card pad stack"><h2>Mes annonces</h2><div class="card pad"><strong>Terrain 400 m², ACI 2000</strong> <span class="pill pill-green">En ligne</span> <span class="pill pill-gold">À la une</span><p class="small muted">124 vues · 6 contacts</p></div><div class="card pad"><strong>Villa 4 chambres, Hamdallaye</strong> <span class="pill">En attente de modération</span></div></article>`,
+ "Pro":()=>`<article class="card pad stack"><h2>Espace professionnel</h2><div class="row" style="gap:8px;flex-wrap:wrap"><span class="pill">Nouveaux 7</span><span class="pill">Contactés 4</span><span class="pill">Visites 3</span><span class="pill pill-green">Conclus 2</span></div><p class="small muted">Prospects, pipeline, tâches, équipe et rapports (étape 7).</p></article>`
+};
+const generic=(t)=>`<article class="card pad stack"><h2>${t}</h2><p class="muted small">Contenu des écrans existants regroupé dans cet onglet (voir SITEMAP_PARCOURS.md).</p></article>`;
+let cur="membre",tab="Aperçu";
+function draw(){const r=R[cur];
+ document.getElementById("pills").innerHTML=r.pills.map(p=>`<span class="pill pill-green">${p}</span>`).join("");
+ const tabs=r.tabs;if(!tabs.includes(tab))tab=tabs[0];
+ document.getElementById("tabs").innerHTML=tabs.map(t=>`<button type="button" role="tab" aria-selected="${t===tab}" data-t="${t}">${t}</button>`).join("");
+ document.getElementById("panel").innerHTML=(P[tab]||generic)(tab==="Aperçu"?cur:tab)||generic(tab);
+ document.querySelectorAll("#tabs button").forEach(b=>b.onclick=()=>{tab=b.dataset.t;draw()});
+ document.querySelectorAll("#roles button").forEach(b=>b.classList.toggle("btn-dark",b.dataset.k===cur));}
+document.getElementById("roles").innerHTML=Object.entries(R).map(([k,v])=>`<button class="btn btn-small" type="button" data-k="${k}">${v.label}</button>`).join("");
+document.querySelectorAll("#roles button").forEach(b=>b.onclick=()=>{cur=b.dataset.k;tab="Aperçu";draw()});
+draw();
+</script></body></html>

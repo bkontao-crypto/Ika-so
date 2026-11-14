@@ -30,15 +30,31 @@ export async function complaintsPage() {
     h("button", { class: "btn", type: "submit" }, "Envoyer")
   );
 
+  const STATUS = {
+    OPEN: ["pill", "Ouverte"],
+    IN_PROGRESS: ["pill pill-gold", "En cours"],
+    RESOLVED: ["pill pill-green", "Résolue"],
+    CLOSED: ["pill", "Fermée"],
+  };
   const items = list.length
-    ? list.map(c => h("div", { class: "card pad" },
-        h("strong", null, c.reason),
-        h("p", { class: "small muted" }, `${c.status} · ${c.createdAt?.slice(0,16) || ""}`),
-        c.title ? h("p", { class: "small" }, "Annonce : " + c.title) : null,
-        c.resolution ? h("p", { class: "small" }, "Résolution : " + c.resolution) : null,
-        h("button", { class: "btn btn-small", type: "button", onClick: () => openDetail(c.id) }, "Voir")
-      ))
-    : [h("p", { class: "muted" }, "Aucune réclamation.")];
+    ? list.map(c => {
+        const [cls, label] = STATUS[c.status] || ["pill", c.status];
+        return h("div", { class: "card" },
+          h("div", { class: "row-between" },
+            h("strong", null, c.reason),
+            h("span", { class: cls }, label)
+          ),
+          h("p", { class: "small muted", style: "margin:6px 0 0" }, c.createdAt ? new Date(c.createdAt).toLocaleDateString("fr-FR") : ""),
+          c.title ? h("p", { class: "small" }, "Annonce : " + c.title) : null,
+          c.resolution ? h("p", { class: "small" }, "Résolution : " + c.resolution) : null,
+          h("button", { class: "btn btn-small btn-outline", type: "button", onClick: () => openDetail(c.id), style: "margin-top:8px" }, "Voir / commenter")
+        );
+      })
+    : [h("div", { class: "card empty-state" },
+        h("div", { class: "mp-empty-ic" }, "📋"),
+        h("h3", null, "Aucune réclamation"),
+        h("p", null, "Vous n'avez pas encore déposé de réclamation.")
+      )];
 
   main.append(h("section", { class: "stack" },
     h("h2", null, "Mes réclamations"),

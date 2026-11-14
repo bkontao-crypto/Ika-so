@@ -23,7 +23,7 @@ export function listingCard(item, favorites, onHeart) {
     item.bathrooms ? h("span", null, icon("bath"), `${item.bathrooms} sanitaire${item.bathrooms > 1 ? "s" : ""}`) : null,
     item.surfaceLabel ? h("span", null, icon("ruler"), item.surfaceLabel) : null,
   ];
-  return h("article", { class: "listing" },
+  return h("article", { class: "listing", "data-listing-id": item.id },
     h("div", { class: "listing-wrap" },
       h("a", { class: "listing-photo", href, tabindex: "-1", "aria-hidden": "true" },
         h("img", { src: item.imageUrl, alt: "", loading: "lazy" }),
@@ -36,16 +36,16 @@ export function listingCard(item, favorites, onHeart) {
       h("p", { class: "lprice" }, formatPrice(item.price, item.transactionType)),
       h("div", { class: "lfacts" }, facts),
       h("div", { class: "row lbadges" },
-        item.documentVerified ? h("span", { class: "pill pill-green" }, "Titre foncier contrôlé") : null,
-        item.agencyVerified ? h("span", { class: "pill pill-green" }, "Agence vérifiée") : null,
-        item.phoneVerified ? h("span", { class: "pill pill-green" }, "Tél. vérifié par SMS") : null,
+        item.documentVerified ? h("span", { class: "pill pill-green", title: "Vérifié par l'équipe" }, "✓ Titre contrôlé") : null,
+        item.agencyVerified ? h("span", { class: "pill pill-green", title: "Registre de commerce contrôlé" }, "✓ Agence") : null,
+        item.phoneVerified ? h("span", { class: "pill pill-green", title: "Code SMS envoyé" }, "✓ SMS") : null,
         item.declaredDocument ? h("span", { class: "pill" }, item.declaredDocument) : null),
       h("a", { href, class: "btn btn-outline btn-block", "aria-label": `Voir le détail : ${item.title}` }, "Voir les détails →")));
 }
 
 const LAT = [12.55, 12.76];
 const LNG = [-8.12, -7.9];
-export function mapView(items) {
+export function mapView(items, onSelect = () => {}) {
   const pins = items.filter((i) => i.latitude != null && i.longitude != null);
   const box = h("div", { class: "map", role: "group", "aria-label": "Carte des annonces" }, h("p", { class: "map-label" }, "Bamako et alentours"));
   const panel = h("div", { class: "card pad stack", hidden: true, "aria-live": "polite" });
@@ -68,8 +68,8 @@ export function mapView(items) {
       : `${n} annonces dans ce secteur`;
     const props = { class: `pin${n > 1 ? " is-cluster" : first.featured ? " is-featured" : ""}`, "aria-label": label };
     const pin = n === 1
-      ? h("a", { ...props, href: `#/annonce/${encodeURIComponent(first.id)}` }, formatPrice(first.price).replace(" FCFA", ""))
-      : h("button", { ...props, type: "button", onClick: () => {
+      ? h("a", { ...props, href: `#/annonce/${encodeURIComponent(first.id)}`, onClick: (e) => { onSelect(first.id); } }, formatPrice(first.price).replace(" FCFA", ""))
+      : h("button", { ...props, type: "button", onClick: () => { onSelect(cell.items.map(i => i.id));
           mount(panel, h("h2", null, `${n} annonces dans ce secteur`),
             h("ul", { class: "stack" }, cell.items.map((i) => h("li", null, h("a", { href: `#/annonce/${encodeURIComponent(i.id)}` }, `${i.title} · ${formatPrice(i.price, i.transactionType)}`)))));
           panel.hidden = false;

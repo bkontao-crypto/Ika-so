@@ -19,7 +19,7 @@ const loadCss = () => {
 
 const duration = (days) => days < 1 ? "aujourd'hui" : days < 31 ? `${days} jour${days > 1 ? "s" : ""}` : days < 365 ? `${Math.floor(days / 30)} mois` : `${Math.floor(days / 365)} an${days >= 730 ? "s" : ""}`;
 const initialsOf = (name) => (String(name ?? "").split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
-const card = (...kids) => h("section", { class: "pa-card" }, ...kids);
+const card = (...kids) => h("section", { class: "card" }, ...kids);
 const fact = (label, value) => h("div", { class: "pa-metric" }, h("small", null, label), h("strong", null, String(value)));
 const infoRow = (glyph, ...kids) => h("div", null, h("span", { class: "pa-ico", "aria-hidden": "true" }, glyph), h("span", null, ...kids));
 const CATEGORY_LABEL = { Appartement: "Appartements", Maison: "Maisons", Villa: "Villas", Terrain: "Terrains", Bureau: "Bureaux", Commerce: "Commerces" };
@@ -55,8 +55,8 @@ export async function advertiserPage(id) {
     h("p", { class: "pa-about" }, r.body),
     r.reply ? h("div", { class: "pa-reply" }, h("small", null, h("strong", null, "Réponse de l'annonceur"), ` · ${formatDate(r.reply.at)}`), h("p", { class: "pa-about" }, r.reply.body)) : null,
     p.viewer.self ? h("div", { class: "pa-row" },
-      h("button", { class: "pa-btn", type: "button", onClick: () => replyTo(r) }, r.reply ? "Modifier ma réponse" : "Répondre"),
-      r.reply ? h("button", { class: "pa-btn", type: "button", onClick: () => run(async () => { await api(`/reviews/${encodeURIComponent(r.id)}/reply/delete`, { method: "POST", body: {} }); await reload(); }) }, "Retirer ma réponse") : null) : null,
+      h("button", { class: "btn", type: "button", onClick: () => replyTo(r) }, r.reply ? "Modifier ma réponse" : "Répondre"),
+      r.reply ? h("button", { class: "btn", type: "button", onClick: () => run(async () => { await api(`/reviews/${encodeURIComponent(r.id)}/reply/delete`, { method: "POST", body: {} }); await reload(); }) }, "Retirer ma réponse") : null) : null,
     h("div", { class: "pa-review-foot" }, h("small", null, formatDate(r.createdAt)),
       S.user && !p.viewer.self ? h("button", { class: "pa-link", type: "button", "aria-label": `Signaler l'avis de ${r.author}`, onClick: () => reportReview(r.id) }, "Signaler") : null));
   const reviewList = (rows, empty) => rows.length ? h("ul", { class: "pa-list" }, rows.map(reviewItem)) : h("p", { class: "pa-muted" }, empty);
@@ -72,8 +72,8 @@ export async function advertiserPage(id) {
     const wrap = h("span", { class: "pa-follow" });
     if (p.isFollowing) {
       wrap.append(
-        h("button", { class: "pa-btn soft", type: "button", onClick: () => send(undefined, "Vous ne suivez plus cet annonceur.") }, "✓ Suivi"),
-        h("button", { class: "pa-btn", type: "button", title: "Choisir si cet annonceur voit votre identité parmi ses abonnés",
+        h("button", { class: "btn btn-gold", type: "button", onClick: () => send(undefined, "Vous ne suivez plus cet annonceur.") }, "✓ Suivi"),
+        h("button", { class: "btn", type: "button", title: "Choisir si cet annonceur voit votre identité parmi ses abonnés",
           onClick: () => run(async () => { await api(`/advertisers/${encodeURIComponent(id)}/follow`, { method: "PUT", body: { anonymous: !p.followAnonymous } }); await reload(); }, p.followAnonymous ? "Votre nom est maintenant visible." : "Vous êtes maintenant anonyme.") },
           p.followAnonymous ? "🕶 Anonyme" : "👤 Nom visible"));
       return wrap;
@@ -81,17 +81,17 @@ export async function advertiserPage(id) {
     const menu = h("div", { class: "pa-follow-menu", role: "group", "aria-label": "Comment voulez-vous suivre ?", hidden: true },
       h("button", { type: "button", onClick: () => send(false, "Vous suivez cet annonceur.") }, "👤 Suivre avec mon nom"),
       h("button", { type: "button", onClick: () => send(true, "Vous suivez cet annonceur anonymement.") }, "🕶 Suivre anonymement"));
-    wrap.append(h("button", { class: "pa-btn soft", type: "button", "aria-haspopup": "true", onClick: () => { if (needLogin()) return; menu.hidden = !menu.hidden; } }, "＋ Suivre"), menu);
+    wrap.append(h("button", { class: "btn btn-gold", type: "button", "aria-haspopup": "true", onClick: () => { if (needLogin()) return; menu.hidden = !menu.hidden; } }, "＋ Suivre"), menu);
     return wrap;
   }
   // Inviter ce compte dans mon équipe (accepté : les deux profils s'affichent mutuellement).
   function teamAction() {
-    if (p.viewer.self) return h("p", null, h("a", { class: "pa-btn", href: "#/profil?tab=equipe" }, "Gérer mon équipe"));
+    if (p.viewer.self) return h("p", null, h("a", { class: "btn", href: "#/profil?tab=equipe" }, "Gérer mon équipe"));
     const st = p.teamLink?.status ?? "NONE";
     if (st === "MEMBER") return h("p", { class: "pa-muted" }, "✓ Ce compte fait partie de votre équipe.");
     if (st === "SENT") return h("p", { class: "pa-muted" }, "Invitation envoyée : en attente de réponse.");
-    if (st === "RECEIVED") return h("p", null, h("a", { class: "pa-btn primary", href: "#/profil?tab=equipe" }, "Ce compte vous a invité : répondre"));
-    return h("p", null, h("button", { class: "pa-btn", type: "button", onClick: () => {
+    if (st === "RECEIVED") return h("p", null, h("a", { class: "btn btn-primary", href: "#/profil?tab=equipe" }, "Ce compte vous a invité : répondre"));
+    return h("p", null, h("button", { class: "btn", type: "button", onClick: () => {
       if (needLogin()) return;
       const role = window.prompt("Rôle de ce compte dans votre équipe (facultatif, ex. : Agent commercial) :", "");
       if (role === null) return;
@@ -99,12 +99,12 @@ export async function advertiserPage(id) {
     } }, "＋ Inviter dans mon équipe"));
   }
   const actions = p.viewer.self
-    ? [h("a", { class: "pa-btn primary", href: "#/centre" }, "Mon espace"),
-       h("a", { class: "pa-btn", href: "#/mon-profil-public" }, "Modifier mon profil")]
+    ? [h("a", { class: "btn btn-primary", href: "#/centre" }, "Mon espace"),
+       h("a", { class: "btn", href: "#/mon-profil-public" }, "Modifier mon profil")]
     : [followControl(),
-      h("button", { class: "pa-btn soft", type: "button", onClick: () => goTo("reviews") }, "★ Donner mon avis"),
-      first ? h("a", { class: "pa-btn", href: `#/annonce/${encodeURIComponent(first.id)}` }, "✉ Message") : null,
-      h("button", { class: "pa-btn primary", type: "button", onClick: () => { document.getElementById("pa-contact")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }, "☎ Contacter")];
+      h("button", { class: "btn btn-gold", type: "button", onClick: () => goTo("reviews") }, "★ Donner mon avis"),
+      first ? h("a", { class: "btn", href: `#/annonce/${encodeURIComponent(first.id)}` }, "✉ Message") : null,
+      h("button", { class: "btn btn-primary", type: "button", onClick: () => { document.getElementById("pa-contact")?.scrollIntoView({ behavior: "smooth", block: "center" }); } }, "☎ Contacter")];
   const head = [
     pr.coverUrl ? h("img", { class: "pa-cover", src: pr.coverUrl, alt: "", loading: "lazy" }) : h("div", { class: "pa-cover", "aria-hidden": "true" }),
     h("section", { class: "pa-head" },
@@ -127,10 +127,10 @@ export async function advertiserPage(id) {
       h("nav", { class: "pa-tabs", id: "pa-tabs", role: "tablist", "aria-label": "Sections du profil" })),
   ];
   const nav = head[1].querySelector(".pa-tabs");
-  const ownerSpace = p.viewer.self ? h("section", { class: "pa-card", style: "margin-bottom:16px" },
+  const ownerSpace = p.viewer.self ? h("section", { class: "card mb-16" },
     h("h2", null, "Mon espace"),
     h("p", { class: "pa-muted" }, "Vos annonces, messages et visites au même endroit."),
-    h("a", { class: "pa-btn primary", href: "#/centre" }, "Ouvrir mon espace")) : null;
+    h("a", { class: "btn btn-primary", href: "#/centre" }, "Ouvrir mon espace")) : null;
   const tabs = [
     ["publications", "Publications"],
     ["listings", `Annonces immobilières (${p.listings.length})`],
@@ -158,16 +158,16 @@ export async function advertiserPage(id) {
         pr.hours ? infoRow("◷", pr.hours) : null,
         pr.foundedYear ? infoRow("▣", `Depuis ${pr.foundedYear} (déclaré)`) : null,
         infoRow("✦", `Sur Ika So depuis ${duration(p.memberDays)}`))),
-    specialties.length ? card(h("h2", null, "Spécialités"), h("div", { class: "pa-chips" }, specialties.map((s) => h("span", { class: "pa-chip" }, s)))) : null,
+    specialties.length ? card(h("h2", null, "Spécialités"), h("div", { class: "pa-chips" }, specialties.map((s) => h("span", { class: "pill" }, s)))) : null,
     card(h("h2", null, "Évaluation des clients"),
       p.rating.count ? h("div", null, h("div", { class: "pa-rating" }, h("strong", null, avg), h("div", null, stars(p.rating.average, { label: `Note moyenne ${avg} sur 5` }), h("small", { class: "pa-muted" }, h("br"), `Sur ${p.rating.count} avis`))), dist)
         : h("p", { class: "pa-muted" }, "Pas encore d'avis.")),
     card(h("h2", null, "Certifications & badges"), h("div", { class: "pa-chips" },
-      h("span", { class: "pa-chip strong" }, p.trust.label),
-      p.agencyVerified ? h("span", { class: "pa-chip ok" }, "◆ Agence vérifiée") : null,
+      h("span", { class: "pill pill-gold" }, p.trust.label),
+      p.agencyVerified ? h("span", { class: "pill pill-green" }, "◆ Agence vérifiée") : null,
       h("span", { class: p.phoneVerifiedBySms ? "pa-chip ok" : "pa-chip" }, p.phoneVerifiedBySms ? "✓ Numéro vérifié par SMS" : "Numéro non vérifié par SMS"),
-      p.experience.titleChecked ? h("span", { class: "pa-chip ok" }, `✓ ${p.experience.titleChecked} titre${p.experience.titleChecked > 1 ? "s" : ""} foncier${p.experience.titleChecked > 1 ? "s" : ""} contrôlé${p.experience.titleChecked > 1 ? "s" : ""}`) : null,
-      p.responseRate != null && p.responseRate >= 80 ? h("span", { class: "pa-chip ok" }, "⚡ Réponse rapide") : null)));
+      p.experience.titleChecked ? h("span", { class: "pill pill-green" }, `✓ ${p.experience.titleChecked} titre${p.experience.titleChecked > 1 ? "s" : ""} foncier${p.experience.titleChecked > 1 ? "s" : ""} contrôlé${p.experience.titleChecked > 1 ? "s" : ""}`) : null,
+      p.responseRate != null && p.responseRate >= 80 ? h("span", { class: "pill pill-green" }, "⚡ Réponse rapide") : null)));
 
   // ── Panneaux ────────────────────────────────────────────────────────────
   const listingCard = (l) => h("a", { class: "pa-listing", href: `#/annonce/${encodeURIComponent(l.id)}` },
@@ -183,17 +183,17 @@ export async function advertiserPage(id) {
     else if (!p.viewer.canReview) form = h("p", { class: "pa-muted" }, p.viewer.reason);
     else {
       const body = h("textarea", { class: "input", rows: "4", maxlength: "600", required: true, "aria-label": "Votre avis", placeholder: "Racontez les faits : le bien était-il conforme ? L'annonceur était-il joignable et honnête ?", value: p.viewer.mine?.body ?? "" });
-      const picker = h("div", { class: "pa-row", role: "radiogroup", "aria-label": "Note de 1 à 5" }, [1, 2, 3, 4, 5].map((n) => h("button", { class: `pa-btn${rating === n ? " primary" : ""}`, type: "button", role: "radio", "aria-checked": String(rating === n), onClick: () => {
+      const picker = h("div", { class: "pa-row", role: "radiogroup", "aria-label": "Note de 1 à 5" }, [1, 2, 3, 4, 5].map((n) => h("button", { class: `btn${rating === n ? " primary" : ""}`, type: "button", role: "radio", "aria-checked": String(rating === n), onClick: () => {
         rating = n; picker.querySelectorAll("button").forEach((b, i) => { b.setAttribute("aria-checked", String(i + 1 === n)); b.classList.toggle("primary", i + 1 === n); });
       } }, String(n))));
       form = h("form", { class: "pa-stack", onSubmit: (e) => { e.preventDefault(); if (!rating) return toast("Choisissez une note de 1 à 5.", true); run(async () => { await api(`/advertisers/${encodeURIComponent(p.id)}/reviews`, { method: "POST", body: { rating, body: body.value } }); await reload(); }, "Avis enregistré."); } },
         p.viewer.mine?.hidden ? h("p", { class: "pa-banner" }, "Votre avis a été masqué par la modération.") : null,
         h("p", { class: "pa-muted" }, "Votre note (1 = très mauvais, 5 = excellent)"), picker, field("Votre avis", body),
-        h("div", { class: "pa-row" }, h("button", { class: "pa-btn primary", type: "submit" }, p.viewer.mine ? "Modifier mon avis" : "Publier mon avis"),
-          p.viewer.mine ? h("button", { class: "pa-btn", type: "button", onClick: () => run(async () => { await api(`/advertisers/${encodeURIComponent(p.id)}/reviews/delete`, { method: "POST", body: {} }); await reload(); }, "Avis supprimé.") }, "Supprimer mon avis") : null));
+        h("div", { class: "pa-row" }, h("button", { class: "btn btn-primary", type: "submit" }, p.viewer.mine ? "Modifier mon avis" : "Publier mon avis"),
+          p.viewer.mine ? h("button", { class: "btn", type: "button", onClick: () => run(async () => { await api(`/advertisers/${encodeURIComponent(p.id)}/reviews/delete`, { method: "POST", body: {} }); await reload(); }, "Avis supprimé.") }, "Supprimer mon avis") : null));
     }
     const list = h("div", { class: "pa-stack" });
-    const more = h("button", { class: "pa-btn", type: "button", hidden: true, onClick: () => load(false) }, "Voir plus d'avis");
+    const more = h("button", { class: "btn", type: "button", hidden: true, onClick: () => load(false) }, "Voir plus d'avis");
     let kind = "recent"; let offset = 0;
     async function load(reset) {
       if (reset) { offset = 0; list.replaceChildren(); }
@@ -205,7 +205,7 @@ export async function advertiserPage(id) {
       } catch (error) { fail(error); }
     }
     const chips = h("div", { class: "pa-row", role: "group", "aria-label": "Filtrer les avis" }, [["recent", "Tous"], ["best", "Positifs (4-5)"], ["worst", "Négatifs (1-2)"]].map(([k, label]) =>
-      h("button", { class: `pa-btn${k === kind ? " primary" : ""}`, type: "button", "aria-pressed": String(k === kind), onClick: (e) => { kind = k; chips.querySelectorAll("button").forEach((b) => { b.classList.remove("primary"); b.setAttribute("aria-pressed", "false"); }); e.currentTarget.classList.add("primary"); e.currentTarget.setAttribute("aria-pressed", "true"); load(true); } }, label)));
+      h("button", { class: `btn${k === kind ? " primary" : ""}`, type: "button", "aria-pressed": String(k === kind), onClick: (e) => { kind = k; chips.querySelectorAll("button").forEach((b) => { b.classList.remove("primary"); b.setAttribute("aria-pressed", "false"); }); e.currentTarget.classList.add("primary"); e.currentTarget.setAttribute("aria-pressed", "true"); load(true); } }, label)));
     load(true);
     return [card(h("div", { class: "pa-sectionhead" }, h("h2", null, "Avis & évaluations"), h("span", { class: "pa-badge" }, `${p.rating.count} avis`)), form),
       card(chips, list, more),
@@ -217,7 +217,7 @@ export async function advertiserPage(id) {
     let reason = REPORT_REASONS[0];
     const details = h("textarea", { class: "input", rows: "3", maxlength: "1000", "aria-label": "Détails du litige", placeholder: "Décrivez les faits : date, annonce concernée, ce qui a été demandé ou promis." });
     const report = h("form", { class: "pa-stack", onSubmit: (e) => { e.preventDefault(); if (needLogin()) return; run(async () => { await api(`/advertisers/${encodeURIComponent(p.id)}/report`, { method: "POST", body: { reason, details: details.value } }); details.value = ""; }, "Signalement transmis à la modération."); } },
-      field("Motif", select(REPORT_REASONS, reason, (v) => { reason = v; })), field("Détails", details), h("button", { class: "pa-btn", type: "submit" }, "⚑ Signaler ce profil"));
+      field("Motif", select(REPORT_REASONS, reason, (v) => { reason = v; })), field("Détails", details), h("button", { class: "btn", type: "submit" }, "⚑ Signaler ce profil"));
     return [
       card(h("h2", null, "Informations & confiance"), h("p", { class: "pa-muted" }, `${p.trust.met} critère(s) sur ${p.trust.total} constatés`),
         h("div", { class: "pa-info" }, p.trust.criteria.map((c) => h("div", null, h("span", { class: "pa-ico", "aria-hidden": "true" }, c.ok ? "✓" : "○"), h("span", null, c.label), h("span", { class: c.ok ? "pa-badge" : "pa-badge off" }, c.ok ? "Constaté" : "Pas encore")))),
@@ -259,17 +259,17 @@ export async function advertiserPage(id) {
       else window.open(`https://wa.me/${digits(clean)}`, "_blank", "noopener,noreferrer");
     });
   };
-  const contactCard = p.viewer.self ? null : h("section", { class: "pa-card", id: "pa-contact" },
+  const contactCard = p.viewer.self ? null : h("section", { class: "card", id: "pa-contact" },
     h("h2", null, agency ? "Contacter l'agence" : "Contacter l'annonceur"),
     h("p", { class: "pa-about" }, agency ? "Une question sur un bien ou un service ? Appelez l'agence ou écrivez-lui au sujet d'une annonce." : "Une question sur un bien ? Contactez directement cet annonceur."),
     h("div", { class: "pa-row" },
-      contact.canCall ? h("button", { class: "pa-btn primary", type: "button", onClick: () => reach("CALL") }, "☎ Appeler") : null,
-      contact.canWhatsapp ? h("button", { class: "pa-btn", type: "button", onClick: () => reach("WHATSAPP") }, "WhatsApp") : null,
-      first ? h("a", { class: "pa-btn", href: `#/annonce/${encodeURIComponent(first.id)}` }, "✉ Écrire à propos d'une annonce") : null),
+      contact.canCall ? h("button", { class: "btn btn-primary", type: "button", onClick: () => reach("CALL") }, "☎ Appeler") : null,
+      contact.canWhatsapp ? h("button", { class: "btn", type: "button", onClick: () => reach("WHATSAPP") }, "WhatsApp") : null,
+      first ? h("a", { class: "btn", href: `#/annonce/${encodeURIComponent(first.id)}` }, "✉ Écrire à propos d'une annonce") : null),
     !contact.canCall && !contact.canWhatsapp ? h("p", { class: "pa-muted" }, "Cet annonceur n'affiche pas son numéro sur son profil.") : null,
     contact.needsLogin ? h("p", { class: "pa-muted" }, "Connexion demandée pour afficher les moyens de contact : cela limite les abus.") : null,
     h("p", { class: "pa-muted" }, "Un échange par la messagerie, un appel ou WhatsApp vous permet ensuite de donner votre avis."));
-  const shareBtn = h("button", { class: "pa-btn", type: "button", onClick: async () => { try { if (navigator.share) await navigator.share({ title: p.name, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("Lien copié."); } } catch { /* partage annulé */ } } }, "↗ Partager ce profil");
+  const shareBtn = h("button", { class: "btn", type: "button", onClick: async () => { try { if (navigator.share) await navigator.share({ title: p.name, url: location.href }); else { await navigator.clipboard.writeText(location.href); toast("Lien copié."); } } catch { /* partage annulé */ } } }, "↗ Partager ce profil");
 
   const panel = h("div", { class: "pa-stack", role: "tabpanel", id: "pa-panel" });
   function draw() {
