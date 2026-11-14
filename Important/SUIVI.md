@@ -3,6 +3,19 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Vérification du dépôt et version du service worker (14 novembre 2026)
+**À réaliser** : vérifier l'état du dépôt ; corriger tout écart constaté.
+**Réalisé**
+- ✅ `npm run stamp-sw` relancé : `public/sw.js` passe de `ika-so-8a291ed21a` à `ika-so-653da5bfc9` (1 ligne). Les commits du 11/11 sur `public/index.html` et `public/js/pages/home-sections.js` (section de téléchargement Android) n'avaient pas rafraîchi la version du cache.
+**Vérifié**
+- ✅ `npm run stamp-sw:check` : version à jour. `npm test` : 122 tests, 119 réussis, 0 échec, 3 ignorés (PostgreSQL absent : non exécutés).
+- ⬜ Site Render (`ika-so.onrender.com`) : non vérifié (accès refusé depuis l'environnement de l'agent).
+**À faire / Risques**
+- ⬜ Après déploiement : contrôler le statut Render et la nouvelle version du cache sur un appareil.
+- ⬜ `public/downloads/ika-so.apk` (13 Mo, commit « Add files via upload ») : origine et signature non documentées.
+- ⬜ Section Android de l'accueil (commits du 11/11) : non décrite dans ce suivi.
+- ⬜ `Dossier_Suivi` absent du dépôt : le suivi est dans `Important/` ; décision du propriétaire attendue.
+
 ## Pages illisibles et partenaires (11 novembre 2026)
 **Ce qui est fait**
 - ✅ **Pages serveur illisibles (Quartiers, Agences, Guides, annonces, pages légales, 404)** : `seo.css` est désormais autonome (ses propres couleurs clair/sombre, posées ensemble sur html, en-tête, cartes, boutons, pastilles, tableaux, pied de page). Même avec un ancien `ika.css` ou sans lui, le texte reste lisible.
