@@ -3,6 +3,20 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-008 — contrôle d'accès des routes /staff/* qualifié et verrouillé par test (14 novembre 2026)
+**À réaliser** : qualifier route par route les 130 routes `/staff/*` (registre des anomalies, BUG-008 « À qualifier ») et empêcher qu'une route sans garde soit ajoutée sans que cela se voie.
+**Réalisé**
+- ✅ Analyse : sur 130 routes `/staff/*`, **aucune route sans garde de rôle** n'a été trouvée. Le contrôle est soit dans la route (`requireOwnerModule`…), soit en tête de la fonction de service appelée (`requireStaff`, `guard`, `requireSuper`, ou délégation à une fonction gardée comme `ownerExportCsv` → `ownerOverview`). Aucun changement de code serveur n'a été nécessaire.
+- ✅ Test ajouté : `test/staff-routes-guard.test.js` (3 tests). (1) sans connexion, aucune route `/staff/*` n'atteint un service et toutes répondent 401 ; (2) chaque route `/staff/*` a une garde de rôle dans la route ou dans les 8 premières lignes de la fonction de service appelée (fichier de service déduit du nom).
+**Vérifié**
+- ✅ `npm test` : 146 tests, 143 réussis, 0 échec, 3 ignorés (PostgreSQL absent : non exécutés). `stamp-sw:check` : à jour.
+- ✅ Essais de régression (garde retirée puis fichier restauré) : route sans `requireUser` → test 2 échoue ; garde retirée de `places.listForOwner`, de `ownerDelegations.grant` et de `stats.ownerOverview` (via `ownerExportCsv`) → test 3 échoue à chaque fois.
+**Limites / à faire**
+- ⚠️ Le test vérifie la **présence** d'une garde, pas son **niveau** (SUPERADMIN, ADMIN, modérateur). Les niveaux restent à tester route par route avec de vrais comptes (PostgreSQL) : non fait.
+- ⚠️ Test statique : une nouvelle forme de garde (autre nom de fonction) devra être ajoutée à l'expression `GUARD` du test.
+- ⬜ Le registre Excel (`IKA_SO_SUIVI_TRANSFORMATION_ET_RECETTE.xlsx`, feuille Anomalies) n'a pas été modifié : BUG-008 y reste « Ouverte » ; à passer en « Résolue (présence des gardes) » après votre validation.
+- ⬜ Prochaines anomalies du registre : BUG-001 (3 styles en ligne ; `dom.js` applique déjà les styles texte via `cssText`, compatible avec la politique de sécurité — à requalifier avec un navigateur), BUG-002 (40 migrations sans retour arrière), BUG-003 (24 modules sans test), BUG-004 (permissions nommées non branchées, prérequis de DEC-001/DEC-003), BUG-005 (double authentification absente).
+
 ## Fusion de l'archive IKA_SO_Projet_V0_2_FUSION_1 (14 novembre 2026)
 **À réaliser** : fusionner l'archive fournie par le propriétaire (ÉTAPE 1 + ÉTAPE 2, plus avancée) avec le dépôt GitHub, sans perdre les acquis GitHub.
 **Réalisé** (branche `fusion/etape-1-2`, rapport de l'archive : `docs/FUSION/RAPPORT_FUSION_ETAPE_1_2.md`)
