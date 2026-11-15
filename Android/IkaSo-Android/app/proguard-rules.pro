@@ -1,0 +1,2 @@
+-keepclassmembers class com.ikaso.app.AppBridge { @android.webkit.JavascriptInterface <methods>; }
+-keepattributes JavascriptInterface
