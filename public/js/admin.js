@@ -450,11 +450,13 @@ function trustPanel() {
 function payPanel() {
   if (!recon) return h("p", { class: "card pad muted" }, "Réservé aux administrateurs.");
   const blocks = [h("h2", null, "Offres (tarifs fixés par le propriétaire)"),
-    h("p", { class: "small muted" }, "Une offre inactive ou à prix 0 n'est jamais proposée au public.")];
+    h("p", { class: "small muted" }, "Une offre inactive ou à prix 0 n'est jamais proposée au public."),
+    // Prix et activation : permission « offres.tarifs » (Superadmin par défaut, BUG-004). Les boutons ne sont proposés qu'au Superadmin.
+    me.staffRole === "SUPERADMIN" ? null : h("p", { class: "small muted" }, "Seul le Superadmin modifie les prix, sauf permission accordée à un administrateur.")];
   for (const o of offers) {
     blocks.push(h("article", { class: "card list-item" },
       h("div", { class: "grow" }, h("h2", null, o.label), h("p", { class: "small muted" }, `${o.priceXof.toLocaleString("fr-FR")} FCFA · ${o.active ? "active" : "inactive"}`)),
-      h("div", { class: "row" },
+      me.staffRole !== "SUPERADMIN" ? null : h("div", { class: "row" },
         h("button", { class: "btn btn-small", type: "button", onClick: () => { const v = ask("Prix en FCFA (nombre entier) :", 1); if (v) run(() => post(`/staff/offers/${encodeURIComponent(o.code)}`, { priceXof: Number(v), active: o.active }), "Prix enregistré."); } }, "Fixer le prix"),
         h("button", { class: "btn btn-small btn-primary", type: "button", onClick: () => run(() => post(`/staff/offers/${encodeURIComponent(o.code)}`, { priceXof: o.priceXof, active: !o.active }), o.active ? "Offre désactivée." : "Offre activée.") }, o.active ? "Désactiver" : "Activer"))));
   }
