@@ -5,6 +5,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createAccounts } from "../server/services/accounts.js";
 import { createTrust } from "../server/services/trust.js";
+import { ALL_PERMISSIONS } from "../server/lib/permissions.js";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 
 function fakeDb({ role = "USER", status = "ACTIVE", grants = [] } = {}) {
   const calls = [];
@@ -27,6 +30,8 @@ const MIGRATED = [
   ["trust.agency_badge", "ADMIN"],
   ["trust.badge_remove", "ADMIN"],
   ["trust.blacklist", "ADMIN"],
+  ["payments.manage", "ADMIN"], // lot 2 : server/services/payments.js
+  ["analytics.read", "ADMIN"],  // lot 2 : server/services/stats.js
 ];
 
 test("requirePermission : mêmes accès et mêmes messages que requireStaff, pour chaque rôle et chaque statut de compte", async () => {
@@ -87,6 +92,22 @@ test("requirePermission : les permissions expirées sont écartées par la requ�
   const q = db.calls.find((c) => /ika_user_permissions/.test(c.sql));
   assert.match(q.sql, /expires_at is null or expires_at > now\(\)/);
   assert.deepEqual(q.params, ["u1"]);
+});
+
+// Une faute de frappe dans un code ferait refuser tout le monde sans bruit : tous les codes utilisés doivent exister.
+test("requirePermission : tous les codes utilisés dans server/ existent dans la matrice", () => {
+  const files = [];
+  const walk = (dir) => { for (const e of readdirSync(dir, { withFileTypes: true })) { const p = join(dir, e.name); if (e.isDirectory()) walk(p); else if (p.endsWith(".js")) files.push(p); } };
+  walk(new URL("../server", import.meta.url).pathname);
+  const used = new Map();
+  for (const f of files) {
+    if (f.endsWith("/services/accounts.js")) continue; // définition
+    for (const call of readFileSync(f, "utf8").matchAll(/requirePermission\(([^)]*)\)/g)) {
+      for (const [, code] of call[1].matchAll(/"([a-z_]+\.[a-z_]+)"/g)) used.set(code, f); // ignore les autres chaînes (ex. "AGENCE")
+    }
+  }
+  assert.ok(used.size >= 6, "les codes migrés doivent être trouvés");
+  for (const [code, file] of used) assert.ok(ALL_PERMISSIONS.includes(code), `code inconnu « ${code} » dans ${file}`);
 });
 
 // --- Branchement dans le service de confiance ---------------------------------------------------

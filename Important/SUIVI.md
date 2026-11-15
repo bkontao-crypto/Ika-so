@@ -3,6 +3,19 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-004 (lot 2) — paiements et statistiques branchés sur les permissions nommées (15 novembre 2026)
+**À réaliser** : poursuivre la migration progressive de `requireStaff` vers `requirePermission`, sans changer les droits.
+**Réalisé** (branche `feat/bug-004-lot-2`, 8 appels, 3 fichiers)
+- ✅ `server/services/payments.js` (4) : offres, modification d'une offre, réconciliation, remboursement → `payments.manage` (niveau ADMIN, comme avant).
+- ✅ `server/services/stats.js` (4, ceux de niveau ADMIN) : classements, fiche annonceur, comparaison d'annonceurs, vue d'ensemble → `analytics.read` (niveau ADMIN, comme avant). Les 56 appels SUPERADMIN de `stats.js` ne sont pas touchés.
+- ✅ Nouveau test de sécurité : tous les codes passés à `requirePermission` dans `server/` doivent exister dans la matrice (une faute de frappe ferait refuser tout le monde sans bruit). Test d'équivalence avec `requireStaff` étendu aux 2 nouvelles permissions.
+**Vérifié**
+- ✅ `npm test` : 191 tests, 188 réussis, 0 échec, 3 ignorés (PostgreSQL absent). Casse volontaire d'un code (`payments.manag`) → test en échec ; garde retirée de `payments.reconcile` → test des routes `/staff/*` en échec ; fichiers restaurés.
+- ⬜ Site Render : non vérifié (pas d'accès depuis l'atelier).
+**Constat (non modifié, décision du propriétaire)**
+- ⚠️ `setOffer` (modifier le prix d'une offre) est ouvert aux ADMIN aujourd'hui, alors que `docs/etape-1/MATRICE_DROITS.md` classe « Offres et tarifs » en « Superadmin seul » dans l'Owner Center. Les droits actuels sont conservés ; à trancher avant d'aligner (DEC-003).
+**À faire** : lots suivants (`partners.js` ×6 ADMIN, `homepage-settings.js` ×2, `moderation.js` mise en avant / restriction, `advertiser-applications.js` ×3, `reviews.js`, `engagement.js`), puis les 56 appels SUPERADMIN de `stats.js` (permission à définir : décision de droits). BUG-004 reste « Ouverte » dans le registre Excel (non modifié).
+
 ## BUG-004 (partie 2) — permissions nommées : service `requirePermission` et premier lot branché (15 novembre 2026)
 **À réaliser** : brancher les permissions nommées selon `PLAN_ROLES_PERMISSIONS.md` (« Code A ») et `docs/etape-1/MATRICE_DROITS.md`, **sans changer les droits actuels** ; créer l'index `Dossier_Suivi/`.
 **Réalisé** (branche `feat/bug-004-permissions-service`)

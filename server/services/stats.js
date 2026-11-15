@@ -177,7 +177,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
   return {
     /** Classements d'annonces et d'annonceurs (agences séparées des autres), calculés sur les agrégats par annonce. */
     async rankings(staffId, { days = 7, from, to, limit = 10 } = {}) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "analytics.read");
       const list = from || to ? planDays({ from, to, now: clock() }) : planDays({ days: [7, 30, 90].includes(Number(days)) ? Number(days) : 7, now: clock() });
       const [start, end] = range(list);
       const top = Math.min(Math.max(Number(limit) || 10, 1), 50);
@@ -223,7 +223,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Fiche détaillée d'un annonceur (administrateurs). Chaque consultation est inscrite au journal (donnée sensible). */
     async advertiserSheet(staffId, advertiserId, opts = {}) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "analytics.read");
       const p = periodOf(opts, clock());
       const base = await advertiserBase(advertiserId);
       const { weights } = await readWeights();
@@ -253,7 +253,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Comparaison de deux annonceurs sur la même période (mêmes pondérations). */
     async compareAdvertisers(staffId, aId, bId, opts = {}) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "analytics.read");
       if (!aId || !bId || String(aId) === String(bId)) throw badRequest("Choisissez deux annonceurs différents.");
       const p = periodOf(opts, clock());
       const { weights } = await readWeights();
@@ -285,7 +285,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Période : 7, 30 ou 90 derniers jours complets, ou plage libre. Comparaison avec la période précédente de même durée. */
     async overview(staffId, { days = 7, from, to } = {}) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "analytics.read");
       const now = clock();
       const list = from || to ? planDays({ from, to, now }) : planDays({ days: [7, 30, 90].includes(Number(days)) ? Number(days) : 7, now });
       const [start, end] = range(list);
