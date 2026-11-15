@@ -36,7 +36,7 @@ export function createHomepageSettings({ db, accounts }) {
      * Elle ne devient la photo publique qu'au moment de « Enregistrer ».
      */
     async uploadImage(userId, dataUrl) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       let file;
       try { file = await storeDataUrl(db, dataUrl, { imagesOnly: true }); }
       catch (error) { throw badRequest(error?.message || "Impossible d’enregistrer cette image."); }
@@ -48,7 +48,7 @@ export function createHomepageSettings({ db, accounts }) {
       return { image, pending: true, mimeType: file.mimeType, fileSize: file.fileSize };
     },
     async save(userId, input) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
       const current = await row();
       const config = {};

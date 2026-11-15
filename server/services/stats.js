@@ -269,7 +269,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Réglage des pondérations : Superadmin seulement, motif obligatoire, ancien et nouveau réglage inscrits au journal (même transaction). */
     async setWeights(staffId, input) {
-      await accounts.requireStaff(staffId, "SUPERADMIN");
+      await accounts.requirePermission(staffId, "owner.stats");
       const next = validateWeights(input);
       const reason = String(input?.reason ?? "").trim().slice(0, 300);
       if (reason.length < 3) throw badRequest("Indiquez le motif du changement.");
@@ -337,7 +337,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     /** Répartition des annonces par région / quartier. */
     /** Conversion du Premium par emplacement d'invitation. Clics : événements mesurés (robots exclus, collecte consentie). Paiements lancés et confirmés : lus dans les paiements eux-mêmes, donc exacts. */
     async premiumFunnel(userId, days = 30) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const d = Math.min(365, Math.max(1, Number.parseInt(days, 10) || 30));
       const clicks = await db.query(
         `select coalesce(metadata->>'from', 'autre') as origin, count(*)::int as n
@@ -364,7 +364,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
 
     async regionsOverview(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         `select neighborhood, 
                 count(*)::int as total,
@@ -388,7 +388,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Gestion autonome des formules. */
     async manageOffers(userId, action, input = {}) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       if (action === "list") {
         const rows = await db.query("select code, label, days, price_xof, active, kind from ika_offers order by kind, days");
         return rows;
@@ -417,7 +417,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Journal des restaurations. */
     async logRestore(userId, backupId, note = "Restauration manuelle") {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "rs_" + Date.now().toString(36);
       await db.query(
         "insert into ika_restore_log (id, backup_id, note, created_by) values ($1, $2, $3, $4)",
@@ -427,13 +427,13 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       return { id, note };
     },
     async listRestores(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select id, backup_id, note, created_at from ika_restore_log order by created_at desc limit 20");
       return rows.map(r => ({ ...r, created_at: r.created_at?.toISOString?.() }));
     },
     /** Vue des abonnements / offres et paiements. */
     async subscriptionsOverview(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const offers = await db.query("select code, label, days from ika_offers order by days");
       const payments = await db.query(
         `select status, count(*)::int as n, coalesce(sum(amount_xof),0)::bigint as total
@@ -456,7 +456,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Aide à la rédaction IA (suggestions de titre et description). */
     async aiWriteAssist(userId, input = {}) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const category = String(input.category || "Maison").trim();
       const transaction = String(input.transaction || "Vente").trim();
       const neighborhood = String(input.neighborhood || "Bamako").trim();
@@ -495,7 +495,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Assistance IA : détection de doublons potentiels et annonces suspectes. */
     async aiAssist(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       // Doublons potentiels : même quartier, même type, prix proche, titres similaires
       const duplicates = await db.query(
         `select a.id as id1, b.id as id2, a.title as title1, b.title as title2, a.neighborhood, a.price
@@ -612,12 +612,12 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Gestion du logo. */
     async getLogo(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select value from ika_settings where key = 'platform_logo'");
       return { logoUrl: rows[0]?.value || "" };
     },
     async saveLogo(userId, logoUrl) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const url = String(logoUrl || "").trim().slice(0, 500);
       if (url && !LOGO_URL.test(url)) throw badRequest("Logo invalide : indiquez un chemin du site (/media/logo.png) ou une adresse https.");
       await db.query("insert into ika_settings (key, value) values ('platform_logo', $1) on conflict (key) do update set value = $1", [url]);
@@ -627,14 +627,14 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Newsletters. */
     async listNewsletters(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         "select id, subject, status, recipients, failed, last_error, sent_at, created_at from ika_newsletters order by created_at desc limit 30"
       ).catch(() => []);
       return rows.map(r => ({ ...r, created_at: r.created_at?.toISOString?.(), sent_at: r.sent_at?.toISOString?.() }));
     },
     async createNewsletter(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "nl_" + Date.now().toString(36);
       const subject = String(input.subject || "").trim().slice(0, 120);
       const content = String(input.content || "").slice(0, 5000);
@@ -651,7 +651,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
      * (table ika_newsletter_optin). Sans l'un des deux, la newsletter reste en brouillon et l'erreur est explicite.
      */
     async sendNewsletter(userId, newsletterId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       if (!sendEmail) throw badRequest("Envoi impossible : aucun fournisseur e-mail n'est configuré (EMAIL_PROVIDER). La newsletter reste en brouillon.");
       // Réservation : un seul envoi à la fois par newsletter (sent_at posé = en cours ou terminé).
       const claimed = await db.query(
@@ -694,7 +694,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Pages légales (CGU, confidentialité). */
     async getLegalPages(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const keys = ["legal_cgu", "legal_privacy", "legal_mentions"];
       const rows = await db.query("select key, value from ika_settings where key = any($1)", [keys]);
       const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
@@ -705,7 +705,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       };
     },
     async saveLegalPages(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const allowed = {
         legal_cgu: String(input.cgu ?? "").slice(0, 10000),
         legal_privacy: String(input.privacy ?? "").slice(0, 10000),
@@ -720,7 +720,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Paramètres SEO de base. */
     async getSeoSettings(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const keys = ["seo_title", "seo_description", "seo_keywords"];
       const rows = await db.query("select key, value from ika_settings where key = any($1)", [keys]);
       const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
@@ -731,7 +731,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       };
     },
     async saveSeoSettings(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const allowed = {
         seo_title: String(input.title ?? "").trim().slice(0, 120),
         seo_description: String(input.description ?? "").trim().slice(0, 300),
@@ -746,7 +746,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Envoi d'une notification collective (in-app). */
     async broadcastNotification(userId, { title, body, target = "ALL" } = {}) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const t = String(title || "").trim().slice(0, 120);
       const b = String(body || "").trim().slice(0, 500);
       if (!t || !b) throw new Error("Titre et message obligatoires.");
@@ -768,7 +768,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Pipeline CRM complet (7 étapes). */
     async crmPipeline(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         `select p.id, p.listing_id, p.contact_name, p.contact_phone, p.stage, p.note, p.updated_at, l.title
          from ika_crm_pipeline p
@@ -788,7 +788,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       };
     },
     async createPipelineItem(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "pl_" + Date.now().toString(36);
       const stage = ["NEW","CONTACTED","VISIT_PLANNED","VISIT_DONE","NEGOTIATION","WON","LOST"].includes(input.stage) ? input.stage : "NEW";
       await db.query(
@@ -800,7 +800,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       return { id, stage };
     },
     async updatePipelineStage(userId, itemId, stage) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const allowed = ["NEW","CONTACTED","VISIT_PLANNED","VISIT_DONE","NEGOTIATION","WON","LOST"];
       if (!allowed.includes(stage)) throw new Error("Étape invalide.");
       const rows = await db.query(
@@ -815,12 +815,12 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Gestion des langues. */
     async getLanguages(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select code, label, active from ika_languages order by label").catch(() => []);
       return rows;
     },
     async toggleLanguage(userId, code) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       await db.query("update ika_languages set active = not active where code = $1", [code]);
       await accounts.audit(userId, "LANGUAGE_TOGGLE", null, code);
       onSettingsChanged();
@@ -828,12 +828,12 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Redirections. */
     async getRedirects(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select id, from_path, to_path, active from ika_redirects order by created_at desc limit 50").catch(() => []);
       return rows;
     },
     async createRedirect(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "rd_" + Date.now().toString(36);
       const from = trimPath(String(input.from || "").slice(0, 200));
       const to = trimPath(String(input.to || "").slice(0, 200));
@@ -854,12 +854,12 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Gestion des catégories. */
     async getCategories(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select code, label, active from ika_categories order by label").catch(() => []);
       return rows;
     },
     async toggleCategory(userId, code) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       await db.query("update ika_categories set active = not active where code = $1", [code]);
       await accounts.audit(userId, "CATEGORY_TOGGLE", null, code);
       onSettingsChanged();
@@ -867,7 +867,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Analyse des tendances (prix médians, volumes). */
     async trends(userId, { days = 90 } = {}) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const byCategory = await db.query(
         `select category, count(*)::int as n,
                 percentile_cont(0.5) within group (order by price)::float8 as median
@@ -889,7 +889,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Données pour graphiques (annonces par mois, contacts par jour). */
     async chartData(userId, { days = 30 } = {}) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const listings = await db.query(
         `select date_trunc('day', created_at)::date as day, count(*)::int as n
          from ika_listings where created_at > now() - ($1 || ' days')::interval
@@ -907,7 +907,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Pipeline CRM : mise à jour du statut d'une visite. */
     async updateVisitStatus(userId, visitId, status) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const allowed = ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"];
       if (!allowed.includes(status)) throw new Error("Statut invalide.");
       const rows = await db.query(
@@ -979,7 +979,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Workflow riche des réclamations. */
     async getComplaint(userId, reportId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const reports = await db.query(
         `select r.*, l.title from ika_reports r left join ika_listings l on l.id = r.listing_id where r.id = $1`,
         [reportId]
@@ -998,7 +998,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       };
     },
     async assignComplaint(userId, reportId, assigneeId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         "update ika_reports set assigned_to = $2, status = case when status = 'OPEN' then 'IN_PROGRESS' else status end where id = $1 returning id, assigned_to, status",
         [reportId, assigneeId || null]
@@ -1009,7 +1009,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Note interne par défaut. Elle n'est visible du plaignant que si l'équipe le demande explicitement (visibleToComplainant === true). */
     async addComplaintComment(userId, reportId, content, visibleToComplainant = false) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = newId("cc");
       const visible = visibleToComplainant === true;
       const text = String(content || "").trim().slice(0, 1000);
@@ -1022,7 +1022,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       return { id, content: text, visibleToComplainant: visible };
     },
     async closeComplaint(userId, reportId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         "update ika_reports set status = 'CLOSED', closed_at = now() where id = $1 and status in ('RESOLVED', 'DISMISSED') returning id, status",
         [reportId]
@@ -1033,7 +1033,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Workflow des réclamations. */
     async resolveComplaint(userId, reportId, resolution) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         `update ika_reports set status = 'RESOLVED', resolution = $2, resolved_at = now(), assigned_to = $3
          where id = $1 returning id, status`,
@@ -1045,14 +1045,14 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Alertes d'incident. */
     async listIncidents(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         "select id, kind, severity, message, resolved, created_at from ika_incidents order by created_at desc limit 30"
       ).catch(() => []);
       return rows.map(r => ({ ...r, created_at: r.created_at?.toISOString?.() }));
     },
     async createIncident(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "inc_" + Date.now().toString(36);
       const kind = ["DB","PAYMENT","STORAGE","ERROR","OTHER"].includes(input.kind) ? input.kind : "OTHER";
       const severity = ["INFO","WARNING","CRITICAL"].includes(input.severity) ? input.severity : "WARNING";
@@ -1066,14 +1066,14 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       return { id, kind, severity };
     },
     async resolveIncident(userId, incidentId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       await db.query("update ika_incidents set resolved = true where id = $1", [incidentId]);
       await accounts.audit(userId, "INCIDENT_RESOLVE", null, incidentId);
       return { id: incidentId, resolved: true };
     },
     /** Vue des réclamations / signalements. */
     async complaintsOverview(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const reports = await db.query(
         `select r.id, r.listing_id, r.reason, r.status, r.created_at, l.title
          from ika_reports r left join ika_listings l on l.id = r.listing_id
@@ -1126,14 +1126,14 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Déclenchement manuel (route HTTP) : SUPERADMIN uniquement, journalisé. */
     async autoBackupNow(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const out = await this.autoBackup({ force: true });
       await accounts.audit(userId, "BACKUP_AUTO_MANUAL", null, `${out.id} ${out.status}`);
       return out;
     },
     /** Contrôle d'intégrité d'une sauvegarde déjà faite (fichier présent, empreinte inchangée, archive lisible). Ce n'est PAS une restauration. */
     async verifyBackup(userId, backupId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select id, file_name from ika_backup_log where id = $1", [backupId]);
       if (!rows.length) throw notFound("Sauvegarde introuvable.");
       if (!rows[0].file_name) throw badRequest("Cette ligne est une simple note : aucun fichier à vérifier.");
@@ -1145,7 +1145,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       return { id: backupId, ok: check.ok, reason: check.reason ?? null };
     },
     async autoCheckIncidentsNow(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const out = await this.autoCheckIncidents();
       await accounts.audit(userId, "INCIDENTS_CHECK_MANUAL", null, String(out.created));
       return out;
@@ -1198,13 +1198,13 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Journal des sauvegardes. */
     async listBackups(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select id, kind, note, status, file_name, size_bytes, sha256, verified_at, error, created_at from ika_backup_log order by created_at desc limit 30");
       return rows.map(r => ({ ...r, created_at: r.created_at?.toISOString?.(), verified_at: r.verified_at?.toISOString?.() ?? null }));
     },
     /** Simple NOTE dans le journal (statut LOGGED) : aucun fichier n'est créé. Pour une vraie copie, voir autoBackup. */
     async logBackup(userId, note = "Sauvegarde manuelle") {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "bk_" + Date.now().toString(36);
       await db.query(
         "insert into ika_backup_log (id, kind, note, created_by) values ($1, 'MANUAL', $2, $3)",
@@ -1215,7 +1215,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Paramètres généraux de la plateforme (lecture / écriture SUPERADMIN). */
     async getSettings(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const keys = ["platform_name", "contact_email", "contact_phone", "default_currency"];
       const rows = await db.query("select key, value from ika_settings where key = any($1)", [keys]);
       const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
@@ -1227,7 +1227,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       };
     },
     async saveSettings(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const allowed = {
         platform_name: String(input.platformName ?? "").trim().slice(0, 80),
         contact_email: String(input.contactEmail ?? "").trim().slice(0, 120),
@@ -1244,7 +1244,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
 
     /** Marketing : campagnes et annonces sponsorisées. */
     async marketingOverview(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const campaigns = await db.query(
         "select id, name, kind, status, starts_at, ends_at, listing_id, link_url from ika_campaigns order by created_at desc limit 30"
       ).catch(() => []);
@@ -1266,7 +1266,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       };
     },
     async createCampaign(userId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const id = "cp_" + Date.now().toString(36);
       const name = String(input.name || "").trim().slice(0, 80);
       const kind = CAMPAIGN_KINDS.includes(input.kind) ? input.kind : "PROMO";
@@ -1282,7 +1282,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Modifie une campagne non terminée (champs fournis seulement). */
     async updateCampaign(userId, campaignId, input) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query("select id, name, kind, status from ika_campaigns where id = $1", [campaignId]);
       if (!rows.length) throw notFound("Campagne introuvable.");
       if (rows[0].status === "ENDED") throw badRequest("Une campagne terminée ne peut plus être modifiée.");
@@ -1301,7 +1301,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Change l'état : DRAFT → ACTIVE, ACTIVE ⇄ PAUSED, tout → ENDED (définitif). Une SPONSORED active doit être diffusable. */
     async setCampaignStatus(userId, campaignId, status) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       if (!CAMPAIGN_STATUSES.includes(status)) throw badRequest("Statut invalide.");
       const rows = await db.query("select id, name, kind, status, listing_id, image_url, link_url from ika_campaigns where id = $1", [campaignId]);
       if (!rows.length) throw notFound("Campagne introuvable.");
@@ -1406,7 +1406,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Santé technique basique. */
     async health(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const dbOk = await db.query("select 1 as ok").then(() => true).catch(() => false);
       const counts = await db.query(
         `select
@@ -1425,7 +1425,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Vue des agences / annonceurs vérifiés. */
     async agenciesOverview(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         `select p.user_id, p.full_name, p.agency_name, p.agency_verified_at, p.account_status,
                 (select count(*)::int from ika_listings l where l.owner_id = p.user_id and l.status = 'PUBLISHED') as published
@@ -1445,7 +1445,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Export CSV des annonces (résumé). */
     async listingsReportCsv(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const rows = await db.query(
         `select id, title, neighborhood, transaction_type, category, price, status, created_at
          from ika_listings order by created_at desc limit 500`
@@ -1459,7 +1459,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Liste des contacts et visites récents (CRM basique) pour le personnel. */
     async crmOverview(userId, { limit = 50 } = {}) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const contacts = await db.query(
         `select c.id, c.listing_id, c.kind, c.created_at, l.title, l.neighborhood
          from ika_contact_events c
@@ -1492,7 +1492,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Vue synthétique pour le Owner Control Center (données réelles uniquement). */
     async ownerOverview(userId) {
-      await accounts.requireStaff(userId, "SUPERADMIN");
+      await accounts.requirePermission(userId, "owner.stats");
       const q = async (sql) => (await db.query(sql))[0]?.n ?? 0;
       const listings = {
         total: await q("select count(*)::int as n from ika_listings"),

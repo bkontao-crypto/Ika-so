@@ -161,7 +161,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null) {
     },
 
     async setOffer(userId, code, { priceXof, active }) {
-      await accounts.requirePermission(userId, "payments.manage");
+      await accounts.requirePermission(userId, "offres.tarifs");
       const price = Number(priceXof);
       if (!Number.isInteger(price) || price < 0 || price > MAX_PRICE_XOF) throw badRequest("Prix invalide (entier en FCFA).");
       if (active && price === 0) throw badRequest("Une offre active doit avoir un prix.");

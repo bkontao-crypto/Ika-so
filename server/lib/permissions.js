@@ -1,8 +1,10 @@
-// Permissions nommées, refus par défaut. Module pur (sans base) : reflète l'amorçage de la migration 025.
-// Pas encore branché sur requireStaff : le comportement actuel par rang reste inchangé.
+// Permissions nommées, refus par défaut. Module pur (sans base) : reflète l'amorçage de la migration 025,
+// plus 3 codes ajoutés ensuite (contenu.gerer, offres.tarifs, owner.stats) qui NE SONT PAS ENCORE en base :
+// une migration additive (ika_permissions + ika_role_permissions) est requise avant tout octroi individuel (clé étrangère).
+// Branché progressivement via accounts.requirePermission (BUG-004) ; requireStaff reste en place pour le reste.
 const MOD = ["moderation.review", "moderation.restrict", "trust.proof_review"];
-const ADMIN_ONLY = ["trust.agency_badge", "trust.badge_remove", "trust.blacklist", "account.ban", "payments.manage", "audit.read", "analytics.read"];
-const SUPER_ONLY = ["premium.decide", "staff.role_change", "superadmin.slot_manage", "permissions.grant"];
+const ADMIN_ONLY = ["trust.agency_badge", "trust.badge_remove", "trust.blacklist", "account.ban", "payments.manage", "audit.read", "analytics.read", "contenu.gerer"];
+const SUPER_ONLY = ["premium.decide", "staff.role_change", "superadmin.slot_manage", "permissions.grant", "offres.tarifs", "owner.stats"];
 
 export const ROLE_PERMISSIONS = Object.freeze({
   MODERATOR: Object.freeze([...MOD]),
@@ -10,7 +12,7 @@ export const ROLE_PERMISSIONS = Object.freeze({
   SUPERADMIN: Object.freeze([...MOD, ...ADMIN_ONLY, ...SUPER_ONLY]),
 });
 /** Jamais accordables à titre individuel. */
-export const NON_DELEGABLE = Object.freeze(["staff.role_change", "superadmin.slot_manage", "permissions.grant"]);
+export const NON_DELEGABLE = Object.freeze(["staff.role_change", "superadmin.slot_manage", "permissions.grant", "owner.stats"]);
 export const ALL_PERMISSIONS = ROLE_PERMISSIONS.SUPERADMIN;
 
 /** `grants` : codes accordés individuellement et non expirés. Permission inconnue ou rôle inconnu : refus. */

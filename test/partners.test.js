@@ -12,6 +12,8 @@ function setup(rowsFor = {}) {
   } };
   const accounts = {
     requireStaff: async (id, min) => { if (id !== "admin") { const e = new Error("Réservé aux administrateurs."); e.status = 403; throw e; } },
+    // Le service demande désormais la permission nommée « contenu.gerer » (BUG-004, lot 4) : même simulation, même refus.
+    requirePermission: async (id, permission) => { if (id !== "admin") { const e = new Error("Réservé aux administrateurs."); e.status = 403; throw e; } },
     audit: async (...a) => { audits.push(a); },
   };
   return { svc: createPartners({ db, accounts }), calls, audits };
