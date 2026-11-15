@@ -155,13 +155,13 @@ export function createPayments(ctx, accounts, provider, onPaid = null) {
     },
 
     async adminOffers(userId) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "payments.manage");
       const rows = await db.query("select code, label, days, price_xof, active, kind from ika_offers order by kind, days");
       return rows.map((r) => ({ code: r.code, label: r.label, days: r.days, priceXof: r.price_xof, active: r.active, kind: r.kind }));
     },
 
     async setOffer(userId, code, { priceXof, active }) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "payments.manage");
       const price = Number(priceXof);
       if (!Number.isInteger(price) || price < 0 || price > MAX_PRICE_XOF) throw badRequest("Prix invalide (entier en FCFA).");
       if (active && price === 0) throw badRequest("Une offre active doit avoir un prix.");
@@ -303,7 +303,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null) {
 
     /** Rapprochement : ce qui demande l'œil d'un administrateur. Réapplique aussi ce qui est payé mais pas encore appliqué. */
     async reconcile(userId) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "payments.manage");
       const expired = await expirePending();
       const stuck = await db.query("select id from ika_payments where status = 'PAID' and applied_at is null");
       let repaired = 0;
@@ -331,7 +331,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null) {
      * Retire de l'annonce les jours de ce paiement ; reste « à confirmer » tant que le fournisseur n'a pas confirmé.
      */
     async markRefunded(userId, paymentId, reason, { refundRef = "" } = {}) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "payments.manage");
       if (!String(reason ?? "").trim()) throw badRequest("Le motif est obligatoire.");
       return db.transaction(async (tx) => {
         const p = (await tx.query("select * from ika_payments where id = $1 for update", [String(paymentId).slice(0, 80)]))[0];
