@@ -3,6 +3,17 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-004 (partie 1) — `can()` : un rôle inconnu est désormais refusé (15 novembre 2026)
+**À réaliser** : brancher les permissions nommées (BUG-004). Partie 1 = corriger l'écart relevé dans `can()` (`server/lib/permissions.js`), sans brancher la matrice.
+**Réalisé** (branche `fix/bug-004-permissions`, 1 ligne ajoutée dans `can()`)
+- ✅ Un rôle absent de la matrice (`USER`, `undefined`, `null`, nom quelconque) est refusé même avec une permission accordée individuellement, comme l'annonçait déjà la documentation. Corrige aussi un plantage latent : un rôle nommé `constructor` ou `toString` provoquait une erreur (`.includes is not a function`) ; `Object.hasOwn` règle les deux cas.
+- ✅ Le test « todo » du lot 1 est devenu un vrai test (5 rôles inconnus).
+**Vérifié**
+- ✅ Le nouveau test **échoue sur l'ancien code** et passe avec le correctif. `npm test` : 181 tests, 178 réussis, 0 échec, 3 ignorés (PostgreSQL absent), 0 « todo ». Aucun fichier du serveur n'importe `permissions.js` : **aucun effet sur le site en production**.
+**Pas fait : le branchement lui-même (⛔ décision du propriétaire)**
+- ⬜ L'accès équipe repose sur `requireStaff(userId, minimum)` (`server/services/accounts.js`, 113 appels, test de rang MODERATOR < ADMIN < SUPERADMIN). Brancher la matrice demande de choisir, route par route, la permission qui remplace chaque rang : c'est une décision de droits (prérequis de DEC-001 / DEC-003), pas seulement technique. Les tables existent déjà (migration 025 : `ika_permissions`, `ika_role_permissions`, `ika_user_permissions`).
+- ⬜ BUG-004 reste « Ouverte » dans le registre Excel (non modifié).
+
 ## BUG-003 (lot 1) — tests des modules purs de `server/lib/` (15 novembre 2026)
 **À réaliser** : BUG-003 (modules serveur sans test). Lot 1 = les modules purs de `server/lib/`, sans base de données, pour protéger les règles métier avant de les modifier. Aucun changement de code serveur.
 **Réalisé** (branche `test/modules-lib-bug-003`, fichier `test/lib-pures.test.js`, 35 tests)
@@ -10,7 +21,7 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 **Vérifié**
 - ✅ `npm test` : 181 tests (146 avant), 177 réussis, 0 échec, 3 ignorés (PostgreSQL absent : non exécutés), 1 « todo » volontaire. `stamp-sw:check` : à jour.
 - ✅ Essais de régression : 7 casses volontaires du code (liste noire désactivée, non-délégables accordables, auto-octroi permis, photos externes acceptées, seuil de prix déplacé, limite de recherche retirée, panne du suivi propagée) → **chacune fait échouer exactement 1 test** ; fichiers restaurés ensuite (`git status` : seul le nouveau test apparaît).
-**Constat (non corrigé, rattaché à BUG-004)**
+**Constat (corrigé ensuite : voir « BUG-004 (partie 1) » ci-dessus)**
 - ⚠️ `can()` (`server/lib/permissions.js`) est documentée « rôle inconnu : refus », mais une permission accordée individuellement l'emporte aujourd'hui même pour un rôle inconnu (`can("X", "account.ban", ["account.ban"])` → vrai). Sans effet en production aujourd'hui (le module n'est branché nulle part), à trancher avant de brancher la matrice. Test marqué « todo » (`BUG-004`) qui deviendra un échec utile quand ce sera corrigé.
 **À faire**
 - ⬜ Lots suivants de BUG-003 (liste recalculée par nom de fichier, à confirmer ; l'audit en annonçait 24) : services `engagement`, `moderation`, `trust`, `crm`, `seo`, `analytics`, `homepage-settings`, `cards`, `imports`, `owner-delegations`, `properties`, `duplicates`, `geo` ; lib `geo`, `file-storage`, `fiche`, `aggregation`, `notifier`, `csv`, `logger`, `receipt-email` ; `seo/render`, `seo/guides`, `routes/seo`, `payments/paydunya`, `payments/cinetpay`. Les services touchent la base : à tester avec PostgreSQL (DEC-002).
