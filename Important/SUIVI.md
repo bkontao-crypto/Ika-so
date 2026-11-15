@@ -3,6 +3,13 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Correctif — l'accueil s'ouvrait en bas puis remontait (application Android) (15 novembre 2026)
+**À réaliser** : à l'ouverture de l'application, l'écran d'accueil doit apparaître directement en haut.
+**Cause** : `render()` (`public/js/app.js`) ne remontait la page (`scrollTo(0,0)`) qu'à la toute fin du rendu, après le chargement de la page ; entre-temps le navigateur de l'application pouvait garder ou restaurer une ancienne position de défilement, d'où l'écran en bas puis la remontée.
+**Réalisé** : `history.scrollRestoration = "manual"` (plus de restauration automatique) et `scrollTo(0,0)` dès l'affichage du squelette de chargement, en plus de celui de fin de rendu. Tampon du service worker mis à jour (`ika-so-880f68b99c`) pour que les appareils reçoivent la correction.
+**Vérifié** : tests 197 réussis, 0 échec (11 PostgreSQL ignorés) ; `stamp-sw:check` à jour. **Non vérifié** : sur un téléphone Android réel (l'APK n'est pas dans le dépôt). À contrôler par le propriétaire après déploiement ; si le défaut persiste, il vient de l'enveloppe APK elle-même.
+**Risques** : le bouton « retour » ne restaure plus la position de défilement d'une page précédente (retour en haut).
+
 ## BUG-003 (lot 2) — tests des services `duplicates` et `moderation-audit` (15 novembre 2026)
 **À réaliser** : poursuivre la couverture de tests des services du serveur.
 **Réalisé** : `test/duplicates-moderation-audit.test.js` (5 tests, base simulée, sans PostgreSQL) : doublons (prix invalide sans requête, fourchette ±5 %, exclusion, propriétaire, filtre final par surface, titre identique du même annonceur) et journal de modération (refus sans acteur/action/type, sérialisation des détails, filtres, bornes limit 1–200 et offset ≥ 0). Aucun code de production modifié.
