@@ -3,6 +3,13 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Application Android — code source ajouté au dépôt, version 1.0.1 (15 novembre 2026)
+**À réaliser** : versionner le projet Android Studio fourni par le propriétaire (`IkaSo-Android_V0.zip`) et y corriger l'écran d'accueil qui s'ouvrait en bas.
+**Réalisé** : projet copié tel quel dans `Android/IkaSo-Android/` (WebView Kotlin, `com.ikaso.app`, 1.0.0 → **1.0.1**, `versionCode` 2). Seul changement : `MainActivity.kt`, `onPageStarted` remonte la WebView en haut (`v.scrollTo(0, 0)`). Complète le correctif du site (commit `c976c5c`). Le Dockerfile ne copie que `server`, `migrations` et `public` : ce dossier n'a aucun effet sur le déploiement Render.
+**Vérifié** : copie complète (30 fichiers), différence limitée aux 2 fichiers ci-dessus. **Non vérifié** : compilation (pas de SDK Android ici), test sur téléphone.
+**À faire (propriétaire)** : compiler dans Android Studio (Build ▸ Build APK), signer avec votre keystore, tester, puis remplacer `public/downloads/ika-so.apk` (13 Mo, origine encore non documentée) ; je ne l'ai pas modifié.
+**Risques** : l'APK actuellement téléchargeable sur le site reste l'ancienne version tant qu'il n'est pas remplacé.
+
 ## Correctif — l'accueil s'ouvrait en bas puis remontait (application Android) (15 novembre 2026)
 **À réaliser** : à l'ouverture de l'application, l'écran d'accueil doit apparaître directement en haut.
 **Cause** : `render()` (`public/js/app.js`) ne remontait la page (`scrollTo(0,0)`) qu'à la toute fin du rendu, après le chargement de la page ; entre-temps le navigateur de l'application pouvait garder ou restaurer une ancienne position de défilement, d'où l'écran en bas puis la remontée.

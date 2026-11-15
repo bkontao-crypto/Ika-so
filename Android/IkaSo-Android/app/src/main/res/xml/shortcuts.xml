@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="settings" android:enabled="true" android:shortcutShortLabel="@string/settings" android:shortcutLongLabel="@string/settings">
+        <intent android:action="com.ikaso.app.OPEN_SETTINGS" android:targetPackage="com.ikaso.app" android:targetClass="com.ikaso.app.MainActivity" />
+    </shortcut>
+</shortcuts>
