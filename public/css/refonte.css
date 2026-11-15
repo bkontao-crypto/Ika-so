@@ -472,3 +472,7 @@ img, video, svg { max-width: 100%; }
 :root[data-theme="dark"] .pm-table .pm-prem, :root[data-theme="dark"] .pm-step:not(.done) .pm-num { color: var(--green-text); }
 :root[data-theme="dark"] .sponsor-link { color: var(--green-text); }
 :root[data-theme="dark"] .sponsor-link:hover { color: var(--gold-text); }
+
+/* Chargement d'une page : pas de pied de page visible sous l'écran vide (évite le « tour en bas » à l'actualisation). */
+body.page-loading .site-footer { visibility: hidden; }
+body.page-loading #app { min-height: 100vh; }

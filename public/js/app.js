@@ -48,6 +48,7 @@ async function render() {
   document.body.classList.remove("in-chat");
   const mine = ++sequence;
   const hit = routes.map(([re, file, name, arg]) => [re.exec(path), file, name, arg]).find(([m]) => m);
+  document.body.classList.add("page-loading"); // pied de page masqué pendant le chargement (sinon il apparaît sous un écran vide)
   mount(app, h("div", { class: "skeleton" }));
   window.scrollTo(0, 0); // dès le chargement : sinon l'écran reste en bas jusqu'à la fin du rendu de la page
   try {
@@ -61,6 +62,7 @@ async function render() {
     if (error?.stale || mine !== sequence) return; // l'utilisateur a changé de page entre-temps
     mount(app, h("div", { class: "card pad" }, h("p", null, error instanceof Error ? error.message : "Erreur."), h("p", null, h("a", { href: "#/" }, "Retour à l'accueil"))));
   }
+  document.body.classList.remove("page-loading");
   app.focus({ preventScroll: true });
   window.scrollTo(0, 0);
   refreshUnread(); // le compteur de la boîte se met à jour à chaque page
@@ -103,5 +105,15 @@ document.getElementById("quickSearch")?.addEventListener("submit", (e) => {
  // icônes devant les libellés (voir decorate.js)
 onSession(renderChrome);
 window.addEventListener("hashchange", render);
+// Mémoire de 30 secondes : si l'utilisateur quitte le site plus de 30 s, il retrouve l'accueil en haut ; sinon il reprend où il était.
+const MEMORY_MS = 30_000;
+let hiddenAt = 0;
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) { hiddenAt = Date.now(); return; }
+  const away = hiddenAt ? Date.now() - hiddenAt : 0;
+  hiddenAt = 0;
+  if (away <= MEMORY_MS) return;
+  if (currentRoute().path !== "/") location.hash = "#/"; else window.scrollTo(0, 0);
+});
 // Les listes de quartiers et de pays sont lues avant le premier affichage (les formulaires et filtres en dépendent).
 Promise.all([loadPlaces(), refreshSession().then(refreshUnread).catch(() => undefined)]).finally(render);
