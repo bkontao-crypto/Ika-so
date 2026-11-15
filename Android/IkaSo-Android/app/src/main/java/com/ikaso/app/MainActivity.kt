@@ -50,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private var netCallback: ConnectivityManager.NetworkCallback? = null
     private var backgroundedAt = 0L
     private var locked = false
+    private var keepPage = false                  // lien reçu (paiement, partage) : ne pas renvoyer à l'accueil
     @Volatile var refreshBlocked = false          // renseigné par le site au toucher (voir INJECT_JS)
     private val host: String = BuildConfig.SITE_HOST
 
@@ -112,6 +113,7 @@ class MainActivity : AppCompatActivity() {
                 if (u.scheme == "https" && u.host == host) return false
                 openExternal(u); return true          // WhatsApp, appel, e-mail, page de paiement, autres sites
             }
+            override fun onPageCommitVisible(v: WebView, url: String) { v.scrollTo(0, 0) }   // la page s'affiche toujours en haut, y compris après « tirer pour actualiser »
             override fun onReceivedError(v: WebView, req: WebResourceRequest, err: WebResourceError) {
                 if (req.isForMainFrame) { failed = true; ui.offline.visibility = View.VISIBLE }
             }
@@ -189,7 +191,9 @@ class MainActivity : AppCompatActivity() {
         })
 
         val start = intent?.data?.takeIf { it.host == host }?.toString() ?: BuildConfig.BASE_URL
-        if (savedInstanceState == null) ui.web.loadUrl(start) else ui.web.restoreState(savedInstanceState)
+        // Mémoire de 30 secondes : au-delà, l'application s'ouvre sur l'accueil (jamais sur une ancienne page ou position).
+        val away = savedInstanceState?.getLong("bg", 0L)?.takeIf { it > 0 }?.let { System.currentTimeMillis() - it } ?: 0L
+        if (savedInstanceState == null || away > MEMORY_MS) ui.web.loadUrl(start) else ui.web.restoreState(savedInstanceState)
         if (intent?.action == ACTION_SETTINGS) ui.web.post { showSettings() }
         lockIfNeeded()
     }
@@ -213,7 +217,10 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() { backgroundedAt = System.currentTimeMillis(); super.onStop() }
     override fun onStart() {
         super.onStart()
-        if (backgroundedAt > 0 && System.currentTimeMillis() - backgroundedAt > 60_000) lockIfNeeded()   // reverrouillage après 1 min en arrière-plan
+        val away = if (backgroundedAt > 0) System.currentTimeMillis() - backgroundedAt else 0L
+        if (away > MEMORY_MS && !keepPage) { ui.web.loadUrl(BuildConfig.BASE_URL); ui.web.scrollTo(0, 0) }   // retour après plus de 30 s : accueil
+        keepPage = false
+        if (away > 60_000) lockIfNeeded()   // reverrouillage après 1 min en arrière-plan   // reverrouillage après 1 min en arrière-plan
     }
 
     // ---------- Réglages natifs (appui long sur l'icône ▸ Réglages de l'application) ----------
@@ -248,9 +255,9 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == ACTION_SETTINGS) ui.web.post { showSettings() }
-        intent.data?.takeIf { it.host == host }?.let { ui.web.loadUrl(it.toString()) }     // retour de paiement, liens partagés
+        intent.data?.takeIf { it.host == host }?.let { keepPage = true; ui.web.loadUrl(it.toString()) }     // retour de paiement, liens partagés
     }
-    override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); ui.web.saveState(outState) }
+    override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); ui.web.saveState(outState); outState.putLong("bg", backgroundedAt) }
     override fun onPause() { ui.web.onPause(); CookieManager.getInstance().flush(); super.onPause() }
     override fun onResume() { super.onResume(); ui.web.onResume() }
     override fun onDestroy() {
@@ -259,6 +266,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     companion object {
+        const val MEMORY_MS = 30_000L
         const val ACTION_SETTINGS = "com.ikaso.app.OPEN_SETTINGS"
         /** Vrai si un champ de saisie a été modifié depuis le chargement (données non enregistrées). */
         private const val DIRTY_JS = """
