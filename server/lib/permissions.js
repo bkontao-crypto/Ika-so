@@ -16,7 +16,8 @@ export const ALL_PERMISSIONS = ROLE_PERMISSIONS.SUPERADMIN;
 /** `grants` : codes accordés individuellement et non expirés. Permission inconnue ou rôle inconnu : refus. */
 export function can(role, permission, grants = []) {
   if (!ALL_PERMISSIONS.includes(permission)) return false;
-  if ((ROLE_PERMISSIONS[role] ?? []).includes(permission)) return true;
+  if (!Object.hasOwn(ROLE_PERMISSIONS, role)) return false;
+  if (ROLE_PERMISSIONS[role].includes(permission)) return true;
   return grants.includes(permission) && !NON_DELEGABLE.includes(permission);
 }
 

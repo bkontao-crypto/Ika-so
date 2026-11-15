@@ -205,10 +205,16 @@ test("permissions : une permission accordée à titre individuel fonctionne, sau
   for (const p of NON_DELEGABLE) assert.ok(ALL_PERMISSIONS.includes(p));
 });
 
-// ÉCART DOCUMENTÉ (BUG-004) : la doc de can() dit « rôle inconnu : refus », mais une permission accordée
-// individuellement l'emporte aujourd'hui même pour un rôle inconnu. Non figé en « correct » : marqué todo.
-test("permissions : un rôle inconnu doit être refusé même avec une permission accordée", { todo: "BUG-004 : écart entre la documentation de can() et son comportement" }, () => {
+// BUG-004 : la doc de can() dit « rôle inconnu : refus » ; une permission accordée individuellement ne doit pas
+// ouvrir de droits à un rôle inconnu (ni à un nom hérité de l'objet, comme « constructor »).
+test("permissions : un rôle inconnu est refusé même avec une permission accordée", () => {
   assert.equal(can("NI_UN_ROLE", "account.ban", ["account.ban"]), false);
+  assert.equal(can("USER", "account.ban", ["account.ban"]), false);
+  assert.equal(can(undefined, "account.ban", ["account.ban"]), false);
+  assert.equal(can(null, "moderation.review"), false);
+  for (const role of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+    assert.equal(can(role, "moderation.review", ["moderation.review"]), false, role);
+  }
 });
 
 test("permissions : règles d'octroi", () => {
