@@ -3,6 +3,12 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-003 (lot 2) — tests des services `duplicates` et `moderation-audit` (15 novembre 2026)
+**À réaliser** : poursuivre la couverture de tests des services du serveur.
+**Réalisé** : `test/duplicates-moderation-audit.test.js` (5 tests, base simulée, sans PostgreSQL) : doublons (prix invalide sans requête, fourchette ±5 %, exclusion, propriétaire, filtre final par surface, titre identique du même annonceur) et journal de modération (refus sans acteur/action/type, sérialisation des détails, filtres, bornes limit 1–200 et offset ≥ 0). Aucun code de production modifié.
+**Vérifié** : 3 casses volontaires (fourchette de prix, plafond de limite, contrôle des champs obligatoires) → chacune détectée ; fichiers restaurés. Limite : le SQL lui-même (`ika_norm`, filtres) n'est pas exécuté ici ; il le sera avec PostgreSQL.
+**À faire** : autres services (engagement, moderation, crm, seo, analytics, cards, imports, properties, geo…), de préférence sur PostgreSQL réel. BUG-003 reste « Ouverte ».
+
 ## BUG-004 (lot 6) — attribution des permissions : service, routes, écran Superadmin (15 novembre 2026)
 **À réaliser** : permettre au Superadmin d'accorder et de retirer des permissions individuelles (suite logique des décisions du lot 4 : sans cela, `offres.tarifs` ne pouvait être accordé à personne).
 **Réalisé** (branche `feat/bug-004-lot-6`)
