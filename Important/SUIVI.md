@@ -3,6 +3,26 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-002 — retours arrière des migrations 017 à 065, testés sur un vrai PostgreSQL (15 novembre 2026)
+**À réaliser** : le registre des anomalies signalait 40 migrations sans script de retour arrière (BUG-002).
+**Réalisé** (branche `fix/bug-002-retours-arriere`)
+- ✅ 30 scripts créés dans `scripts/rollback/` : 017–019, 029–038, 041, 046–049, 052–057, 059–064. Format identique aux scripts existants : avertissement en tête sur ce qui est supprimé, transaction (tout ou rien), suppression de la ligne dans `_migrations`, jamais de `cascade`.
+- ✅ **Défaut existant corrigé** : 9 anciens scripts (028, 039, 042, 043, 044, 045, 050, 051, 058) laissaient leur ligne dans `_migrations` : `npm run migrate` aurait cru la migration toujours appliquée et ne l'aurait pas rejouée. Une ligne `delete from _migrations…` ajoutée à chacun, rien d'autre modifié.
+- ✅ Point d'attention traité : les colonnes `price_xof` et `active` de `ika_offers` existaient déjà (migration 008) ; le retour arrière de 032 ne les supprime donc pas.
+- ✅ Mode d'emploi : `scripts/rollback/LISEZ-MOI.md` (sauvegarde, ordre du plus récent au plus ancien, scripts qui refusent volontairement).
+- ✅ Test automatique `test/rollback-scripts.test.js` (5 tests) : toute nouvelle migration à partir de 017 doit avoir son script.
+**Vérifié** (PostgreSQL 16 local, instantané schéma + données après chaque migration)
+- ✅ Migrations 001→065 appliquées, puis les 49 retours arrière de 065 à 017 exécutés : après **chacun**, base identique à l'instantané précédent (49/49), aucune ligne `_migrations` résiduelle. Comparateur contrôlé (il détecte bien une différence).
+- ✅ Rejeu des migrations 017→065 après le retour complet : état final identique (seuls les horodatages des lignes d'amorçage diffèrent, normalisés).
+- ✅ Protection : 038 (signalement RESOLVED), 046 (campagne SIDEBAR) et 052 (annonce « Bureau ») **échouent comme annoncé, base inchangée, ligne `_migrations` conservée**.
+- ✅ `npm test` : 213 tests, 202 réussis, 0 échec, 11 ignorés (PostgreSQL absent dans le test automatique : non exécutés). Le test du dépôt est statique ; la preuve sur base réelle est celle ci-dessus, faite hors dépôt.
+- ✅ Essais de régression du test statique : script absent, ligne `_migrations` retirée, nouvelle migration sans script → détectés.
+**Limites / risques**
+- ⚠️ **Non testé sur la base Neon réelle** ni avec ses données de production : un retour arrière supprime des données (avis, consentements, journaux…). Toujours créer une branche Neon avant.
+- ⚠️ Volontairement **sans script** : 001–015 (socle) et 016 (factures et suppressions de compte, données comptables et légales) : seule la restauration d'une sauvegarde est sûre.
+- ⚠️ Les scripts 039–045, 050, 051, 058 n'ont toujours pas de transaction (non réécrits) ; testés et fonctionnels, mais pas « tout ou rien ».
+- ⬜ Le registre Excel n'est pas modifié : BUG-002 y reste « Ouverte » (à passer en « Résolue » après votre validation). Les retours arrière 059 à 064 existent aussi en un seul fichier : `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql`.
+
 ## Correctif définitif — « tour en bas » à l'actualisation + mémoire de 30 secondes (15 novembre 2026)
 **À réaliser** : à l'actualisation (tirer pour actualiser) l'écran ne doit plus passer par le bas ; après plus de 30 s hors du site, retour direct à l'accueil.
 **Cause réelle** (capture du propriétaire) : à chaque rechargement, le pied de page (statique dans `index.html`) s'affichait immédiatement sous une zone vide, avant que la page ne soit construite ; la page grandissait ensuite et se recalait en haut. Le correctif précédent (remontée du défilement) ne traitait pas ce point.

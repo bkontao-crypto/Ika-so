@@ -9,3 +9,4 @@ alter table ika_payments alter column listing_id set not null;
 delete from ika_offers where kind = 'PREMIUM';
 alter table ika_offers drop constraint if exists ika_offers_kind_check;
 alter table ika_offers drop column if exists kind;
+delete from _migrations where name = '044_premium_paiement.sql'; -- ajouté (BUG-002) : permet de rejouer la migration après le retour arrière

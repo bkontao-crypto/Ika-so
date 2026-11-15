@@ -9,3 +9,4 @@ alter table ika_analytics_events add constraint ika_analytics_events_event_type_
   'user_registered', 'user_login', 'user_logout',
   'verification_completed', 'report_created', 'payment_completed'));
 alter table ika_payments drop column if exists origin;
+delete from _migrations where name = '045_suivi_premium.sql'; -- ajouté (BUG-002) : permet de rejouer la migration après le retour arrière

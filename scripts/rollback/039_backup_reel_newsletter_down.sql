@@ -10,3 +10,4 @@ alter table ika_backup_log drop column if exists sha256;
 alter table ika_backup_log drop column if exists size_bytes;
 alter table ika_backup_log drop column if exists file_name;
 alter table ika_backup_log drop column if exists status;
+delete from _migrations where name = '039_backup_reel_newsletter.sql'; -- ajouté (BUG-002) : permet de rejouer la migration après le retour arrière

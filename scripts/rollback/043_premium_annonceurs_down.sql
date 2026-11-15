@@ -3,3 +3,4 @@ drop index if exists ika_messages_sender_idx;
 drop table if exists ika_premium_grants;
 drop index if exists ika_profiles_premium_idx;
 alter table ika_profiles drop column if exists premium_until;
+delete from _migrations where name = '043_premium_annonceurs.sql'; -- ajouté (BUG-002) : permet de rejouer la migration après le retour arrière
