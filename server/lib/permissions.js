@@ -1,3 +1,5 @@
+import { badRequest, forbidden } from "./errors.js";
+
 // Permissions nommées, refus par défaut. Module pur (sans base) : reflète l'amorçage de la migration 025,
 // plus 3 codes ajoutés ensuite (contenu.gerer, offres.tarifs, owner.stats) qui NE SONT PAS ENCORE en base :
 // une migration additive (ika_permissions + ika_role_permissions) est requise avant tout octroi individuel (clé étrangère).
@@ -25,10 +27,10 @@ export function can(role, permission, grants = []) {
 
 /** Règles d'octroi : seul un SUPERADMIN accorde ; jamais à soi-même ; jamais une permission non délégable ; cible = personnel. */
 export function assertCanGrant({ actorId, actorRole, targetId, targetRole, permission, reason }) {
-  if (!can(actorRole, "permissions.grant")) throw new Error("Réservé au super administrateur.");
-  if (actorId === targetId) throw new Error("Nul ne peut s'accorder une permission.");
-  if (!ALL_PERMISSIONS.includes(permission)) throw new Error("Permission inconnue.");
-  if (NON_DELEGABLE.includes(permission)) throw new Error("Permission non délégable.");
-  if (!["MODERATOR", "ADMIN"].includes(targetRole)) throw new Error("La cible doit être un administrateur ou un modérateur.");
-  if (!String(reason ?? "").trim()) throw new Error("Motif obligatoire.");
+  if (!can(actorRole, "permissions.grant")) throw forbidden("Réservé au super administrateur.");
+  if (actorId === targetId) throw forbidden("Nul ne peut s'accorder une permission.");
+  if (!ALL_PERMISSIONS.includes(permission)) throw badRequest("Permission inconnue.");
+  if (NON_DELEGABLE.includes(permission)) throw badRequest("Permission non délégable.");
+  if (!["MODERATOR", "ADMIN"].includes(targetRole)) throw badRequest("La cible doit être un administrateur ou un modérateur.");
+  if (!String(reason ?? "").trim()) throw badRequest("Motif obligatoire.");
 }

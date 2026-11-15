@@ -3,6 +3,7 @@ import { createAnalytics } from "./analytics.js";
 import { createStats } from "./stats.js";
 import { createOwnerCenter } from "./owner-center.js";
 import { createOwnerDelegations } from "./owner-delegations.js";
+import { createPermissionGrants } from "./permission-grants.js";
 import { createAdvertiserProfiles } from "./advertiser-profile.js";
 import { createAdvertiserCenter } from "./advertiser-center.js";
 import { createAdvertiserApplications } from "./advertiser-applications.js";
@@ -61,9 +62,10 @@ const superadminSettings = createSuperadminSettings(ctx);
   const places = createPlaces({ db, accounts });
   const ownerCenter = createOwnerCenter({ db, accounts, logger });
   const ownerDelegations = createOwnerDelegations({ db, accounts });
+  const permissionGrants = createPermissionGrants({ db, accounts });
   const advertiserCenter = createAdvertiserCenter({ db, accounts });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
-  return { superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, advertiserCenter, advertiserApplications };
+  return { superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

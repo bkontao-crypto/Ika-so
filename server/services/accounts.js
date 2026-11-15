@@ -21,7 +21,7 @@ import { smsConfigured } from "../config.js";
 import { assertNotBlacklisted } from "../lib/blacklist.js";
 import { iso } from "./cards.js";
 import { LEGAL_VERSION } from "../lib/legal.js";
-import { ROLE_PERMISSIONS, can } from "../lib/permissions.js";
+import { ROLE_PERMISSIONS, ALL_PERMISSIONS, can } from "../lib/permissions.js";
 
 const SESSION_DAYS = 30;
 const RESET_MINUTES = 30;
@@ -296,8 +296,15 @@ export function createAccounts(ctx) {
         const n = await db.query("select count(*)::int as n from ika_listings where status = 'PENDING'");
         pendingCount = Number(n[0]?.n ?? 0);
       }
+      // Permissions effectives (rôle + attributions individuelles) : pour l'interface seulement, le serveur contrôle chaque action.
+      let permissions = [];
+      if (profile.staff_role !== "USER" && profile.account_status === "ACTIVE") {
+        const grants = await activeGrants(userId);
+        permissions = ALL_PERMISSIONS.filter((code) => can(profile.staff_role, code, grants));
+      }
       return {
         staffRole: profile.staff_role,
+        permissions,
         accountStatus: profile.account_status,
         statusReason: profile.status_reason ?? "",
         phone: profile.phone,
