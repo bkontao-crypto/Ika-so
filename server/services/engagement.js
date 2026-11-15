@@ -329,7 +329,7 @@ export function createEngagement(ctx, accounts) {
 
     /** File de la modération : une ligne par personne signalée, la plus signalée d'abord. */
     async userReportsOpen(staffId) {
-      await accounts.requireStaff(staffId);
+      await accounts.requirePermission(staffId, "moderation.review");
       const rows = await db.query(
         `select r.reported_id, u.name, count(*)::int as reports,
                 (array_agg(r.reason order by r.created_at desc))[1] as last_reason,
@@ -342,7 +342,7 @@ export function createEngagement(ctx, accounts) {
     },
 
     async dismissUserReports(staffId, reportedId) {
-      await accounts.requireStaff(staffId);
+      await accounts.requirePermission(staffId, "moderation.review");
       await db.query("update ika_user_reports set status = 'DISMISSED' where reported_id = $1 and status = 'OPEN'", [String(reportedId).slice(0, 80)]);
       await accounts.audit(staffId, "DISMISS_USER_REPORTS", null, String(reportedId).slice(0, 80));
       return { ok: true };

@@ -415,7 +415,7 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
 
     // ---------- Modération (délai visé : 48 h, voir la procédure) ----------
     async reportsOpen(staffId) {
-      await accounts.requireStaff(staffId);
+      await accounts.requirePermission(staffId, "moderation.review");
       const rows = await db.query(
         `select r.id as review_id, r.body, r.rating, r.advertiser_id, count(x.id)::int as reports, (array_agg(x.reason order by x.created_at desc))[1] as last_reason,
                 coalesce(nullif(p.full_name, ''), u.name) as author_name
@@ -425,7 +425,7 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
       return rows.map((r) => ({ reviewId: r.review_id, body: r.body, rating: r.rating, advertiserId: r.advertiser_id, authorName: r.author_name, reports: r.reports, lastReason: r.last_reason }));
     },
     async hide(staffId, reviewId) {
-      await accounts.requireStaff(staffId);
+      await accounts.requirePermission(staffId, "moderation.review");
       const rows = await db.query("update ika_reviews set status = 'HIDDEN', updated_at = now() where id = $1 returning id, advertiser_id", [clean(reviewId)]);
       if (!rows[0]) throw notFound("Avis introuvable.");
       await db.query("update ika_review_reports set status = 'DISMISSED' where review_id = $1", [rows[0].id]);
@@ -433,7 +433,7 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
       return { ok: true };
     },
     async dismissReports(staffId, reviewId) {
-      await accounts.requireStaff(staffId);
+      await accounts.requirePermission(staffId, "moderation.review");
       await db.query("update ika_review_reports set status = 'DISMISSED' where review_id = $1", [clean(reviewId)]);
       await accounts.audit(staffId, "DISMISS_REVIEW_REPORTS", null, clean(reviewId));
       return { ok: true };

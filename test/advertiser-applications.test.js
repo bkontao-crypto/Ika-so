@@ -19,6 +19,8 @@ const staffAccounts = (extra = {}) => {
     audits,
     ensureProfile: async () => ({ account_status: "ACTIVE", full_name: "Awa" }),
     requireStaff: async (id) => { if (id !== "mod") { const e = new Error("Réservé."); e.status = 403; throw e; } return { staff_role: "MODERATOR" }; },
+    // Le service demande désormais la permission nommée (BUG-004, lot 3) : même simulation, même refus.
+    requirePermission: async (id) => { if (id !== "mod") { const e = new Error("Réservé."); e.status = 403; throw e; } return { staff_role: "MODERATOR" }; },
     audit: async (...a) => { audits.push(a); },
     ...extra,
   };

@@ -141,7 +141,7 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
 
     /** Lecture d'une pièce par l'équipe : seulement un fichier réellement joint à cette demande ; chaque lecture est journalisée. */
     async viewDocument(staffId, applicationId, documentId) {
-      await accounts.requireStaff(staffId, "MODERATOR");
+      await accounts.requirePermission(staffId, "moderation.review");
       const rows = await db.query("select user_id, documents from ika_advertiser_applications where id = $1", [String(applicationId ?? "")]);
       if (!rows[0]) throw notFound("Demande introuvable.");
       const entry = (Array.isArray(rows[0].documents) ? rows[0].documents : []).find((d) => d.id === documentId);
@@ -153,7 +153,7 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
     },
 
     async listForStaff(userId, { status = "PENDING" } = {}) {
-      await accounts.requireStaff(userId, "MODERATOR");
+      await accounts.requirePermission(userId, "moderation.review");
       return db.query(
         `select a.id, a.user_id, a.type, a.status, a.display_role_requested, a.data, a.admin_note, a.created_at,
                 u.name as user_name, p.full_name,
@@ -169,7 +169,7 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
     },
 
     async decide(userId, applicationId, { action, note }) {
-      await accounts.requireStaff(userId, "MODERATOR");
+      await accounts.requirePermission(userId, "moderation.review");
       const rows = await db.query("select * from ika_advertiser_applications where id = $1", [applicationId]);
       if (!rows.length) throw notFound("Demande introuvable.");
       const app = rows[0];

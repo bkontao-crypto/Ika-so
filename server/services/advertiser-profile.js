@@ -115,7 +115,7 @@ export function createAdvertiserProfiles(ctx, accounts) {
 
     /** Modération : masquer (ou rétablir) la couverture et la photo d'un profil. Motif obligatoire, tracé dans la même transaction. */
     async setImagesHidden(staffId, targetId, hidden, rawReason) {
-      await accounts.requireStaff(staffId);
+      await accounts.requirePermission(staffId, "moderation.review");
       const reason = String(rawReason ?? "").trim().slice(0, 300);
       if (reason.length < 3) throw badRequest("Indiquez le motif.");
       const id = String(targetId ?? "").slice(0, 80);

@@ -3,6 +3,21 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-004 (lot 3) — modération, avis, signalements et candidatures branchés sur les permissions nommées (15 novembre 2026)
+**À réaliser** : poursuivre la migration progressive de `requireStaff` vers `requirePermission`, droits inchangés.
+**Réalisé** (branche `feat/bug-004-lot-3`, 15 appels, 5 fichiers de service)
+- ✅ → `moderation.review` (niveau MODERATOR, comme avant) : `moderation.js` (file d'attente, décision, rejet d'un signalement, masquage d'un commentaire, liste des comptes), `reviews.js` (signalements ouverts, masquer, rejeter), `engagement.js` (signalements d'utilisateurs, 2), `advertiser-profile.js` (masquage des images), `advertiser-applications.js` (lecture d'une pièce, liste équipe, décision).
+- ✅ → `moderation.restrict` (MODERATOR) : première garde de `setAccountStatus` (les contrôles ADMIN/SUPERADMIN qui suivent, par rôle de l'acteur, restent inchangés).
+**Vérifié**
+- ✅ `npm test` : 191 tests, 188 réussis, 0 échec, 3 ignorés (PostgreSQL absent). Test d'équivalence avec `requireStaff` étendu (4 rôles × 3 statuts, y compris l'appel sans niveau = MODERATOR). Casses volontaires : code de permission mal écrit → échec ; garde retirée de `hideComment` → le test des routes `/staff/*` échoue ; fichiers restaurés.
+- ✅ La fausse couche `accounts` de `test/advertiser-applications.test.js` (qui n'avait que `requireStaff`) a reçu un `requirePermission` identique : 7 tests de ce fichier échouaient sinon. Aucun autre test touché.
+- ⬜ Site Render : non vérifié (pas d'accès).
+**Volontairement non migrés** (aucune permission existante ne correspond ; en attribuer une serait une décision de droits)
+- ADMIN : `partners.js` (6 : liste, création, modification, statut, suppression, logo), `homepage-settings.js` (2 : image, enregistrement), `moderation.setFeatured` (mise en avant d'une annonce). À définir avec le propriétaire (ex. « partenaires », « page d'accueil », « mise en avant »).
+- SUPERADMIN : 56 appels de `stats.js`, `places.js`, `owner-center.js`, `owner-delegations.js`, `advertiser-center.js`, `moderation.setStaffRole`, 2 dans `routes/index.js` ; `geo.js` et 3 appels de `routes/index.js` (à examiner).
+**Granularité** : tout le niveau MODERATOR est regroupé sous `moderation.review` pour garder les droits identiques. Pour pouvoir déléguer finement (ex. seulement les avis), il faudra scinder cette permission : décision du propriétaire.
+**À faire** : décider des permissions manquantes ci-dessus ; écran d'attribution des permissions ; DEC-003. BUG-004 reste « Ouverte » dans le registre Excel (non modifié).
+
 ## BUG-004 (lot 2) — paiements et statistiques branchés sur les permissions nommées (15 novembre 2026)
 **À réaliser** : poursuivre la migration progressive de `requireStaff` vers `requirePermission`, sans changer les droits.
 **Réalisé** (branche `feat/bug-004-lot-2`, 8 appels, 3 fichiers)
