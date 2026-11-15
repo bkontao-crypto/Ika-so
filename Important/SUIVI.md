@@ -3,6 +3,26 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-004 (partie 2) — permissions nommées : service `requirePermission` et premier lot branché (15 novembre 2026)
+**À réaliser** : brancher les permissions nommées selon `PLAN_ROLES_PERMISSIONS.md` (« Code A ») et `docs/etape-1/MATRICE_DROITS.md`, **sans changer les droits actuels** ; créer l'index `Dossier_Suivi/`.
+**Réalisé** (branche `feat/bug-004-permissions-service`)
+- ✅ `requirePermission(userId, permission)` ajouté à `server/services/accounts.js`, à côté de `requireStaff` (qui reste en place, aucun appelant modifié d'un coup). Même contrôle et mêmes messages ; droits par rang = ceux de la migration 025 ; s'ajoutent les permissions accordées individuellement (`ika_user_permissions`, non expirées). Refus par défaut : permission inconnue, compte ordinaire, banni, restreint. Une permission non délégable accordée par erreur n'ouvre rien ; une permission accordée ne contourne ni blocage ni restriction.
+- ✅ **Premier lot migré** dans `server/services/trust.js` (5 contrôles, seuils inchangés) : révocation de badge → `trust.badge_remove` ; liste noire (consulter, ajouter, retirer) → `trust.blacklist` ; décision sur une pièce → `trust.agency_badge` (agence) ou `trust.proof_review` (document). Les 113 autres appels `requireStaff` ne sont pas touchés.
+- ✅ `test/staff-routes-guard.test.js` : `requirePermission` ajouté aux gardes reconnues (limite annoncée dans BUG-008).
+- ✅ `Dossier_Suivi/00_INDEX.md` créé : index des documents (rien dupliqué, le suivi reste dans `Important/`).
+**Vérifié**
+- ✅ `test/permissions-service.test.js` (9 tests) : pour chaque contrôle migré, **4 rôles × 3 statuts de compte**, `requirePermission` donne exactement le même résultat et le même message que `requireStaff` ; permissions individuelles, non délégables, expirées, compte banni/restreint, requêtes inutiles évitées.
+- ✅ Essais de régression : 5 casses volontaires (liste noire abaissée au niveau modération, blocage ignoré, compte ordinaire pris en compte, permissions expirées acceptées, toute permission accordée) → chacune fait échouer des tests ; garde retirée de `blacklistAdd` → le test des routes `/staff/*` échoue. Fichiers restaurés.
+- ✅ `npm test` : 190 tests, 187 réussis, 0 échec, 3 ignorés (PostgreSQL absent). `stamp-sw:check` : à jour.
+**Non vérifié**
+- ⬜ Requête SQL `ika_user_permissions` jamais exécutée sur un vrai PostgreSQL (fausse base seulement). La table est vide et aucun code n'y écrit : aucune permission individuelle n'existe, donc **les droits en production sont identiques à ceux d'avant**. Site Render : non vérifié.
+**Risques**
+- ⚠️ Un modérateur qui appelle une route migrée sans avoir le droit déclenche désormais 1 requête de plus sur `ika_user_permissions` avant le refus 403 ; si la migration 025 manquait en base, ce cas renverrait une erreur 500 au lieu de 403 (la migration 025 est dans les migrations automatiques du démarrage).
+**À faire**
+- ⬜ Migrer les autres appels par lots (décision sur une annonce, restriction de compte, paiements, audit, statistiques, Premium…), un lot par branche, avec le même test d'équivalence. L'attribution de permissions (écran + `assertCanGrant`) n'est pas encore branchée : aucune permission ne peut encore être accordée.
+- ⬜ DEC-003 (modules de l'Owner Center délégables) toujours à confirmer avant de brancher `/staff/owner/*` (matrice : 29 délégables, 12 réservés).
+- ⬜ Registre Excel non modifié : BUG-004 reste « Ouverte » (partiel).
+
 ## BUG-004 (partie 1) — `can()` : un rôle inconnu est désormais refusé (15 novembre 2026)
 **À réaliser** : brancher les permissions nommées (BUG-004). Partie 1 = corriger l'écart relevé dans `can()` (`server/lib/permissions.js`), sans brancher la matrice.
 **Réalisé** (branche `fix/bug-004-permissions`, 1 ligne ajoutée dans `can()`)

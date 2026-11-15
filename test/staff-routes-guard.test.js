@@ -39,7 +39,7 @@ test("sans connexion, aucune route /staff/* n'atteint un service : toutes répon
 });
 
 // --- 2. Statique ----------------------------------------------------------------------------
-const GUARD = /\b(requireStaff|requireSuperadmin|requireOwner\w*|requireSuper\w*|assertStaff|requireRole|requireAdmin|requireModerator|guard|canAccess)\s*\(/;
+const GUARD = /\b(requireStaff|requirePermission|requireSuperadmin|requireOwner\w*|requireSuper\w*|assertStaff|requireRole|requireAdmin|requireModerator|guard|canAccess)\s*\(/;
 const routesText = readFileSync(new URL("../server/routes/index.js", import.meta.url), "utf8").split("\n");
 const starts = []; routesText.forEach((l, i) => { if (/^\s*router\.(get|post|put|patch|delete)\(\s*["'`]/.test(l)) starts.push(i); });
 const staffBlocks = [];

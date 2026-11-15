@@ -93,7 +93,7 @@ export function createTrust(ctx, accounts) {
       const proof = rows[0];
       if (!proof) throw notFound("Pièce introuvable.");
       // Un badge d'agence engage la plateforme plus qu'un document : réservé aux administrateurs.
-      await accounts.requireStaff(staffId, proof.kind === "AGENCE" ? "ADMIN" : "MODERATOR");
+      await accounts.requirePermission(staffId, proof.kind === "AGENCE" ? "trust.agency_badge" : "trust.proof_review");
       if (proof.status !== "PENDING") throw conflict("Pièce déjà traitée.");
       const text = String(note ?? "").trim().slice(0, 500);
       if (action === "REFUSE") {
@@ -123,7 +123,7 @@ export function createTrust(ctx, accounts) {
 
     /** Retirer un badge (pièce périmée, fraude découverte). Motif obligatoire, tracé. */
     async revokeBadge(staffId, { listingId, userId, reason }) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "trust.badge_remove");
       const text = String(reason ?? "").trim().slice(0, 500);
       if (text.length < 3) throw badRequest("Indiquez le motif du retrait.");
       if (listingId) await db.query("update ika_listings set document_verified_at = null where id = $1", [String(listingId)]);
@@ -135,13 +135,13 @@ export function createTrust(ctx, accounts) {
 
     // ---------- Liste noire ----------
     async blacklistList(staffId) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "trust.blacklist");
       const rows = await db.query("select id, kind, value, reason, created_at from ika_blacklist order by created_at desc limit 200");
       return rows.map((r) => ({ id: r.id, kind: r.kind, value: r.value, reason: r.reason, createdAt: r.created_at }));
     },
 
     async blacklistAdd(staffId, { kind, value, reason }) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "trust.blacklist");
       if (!["PHONE", "EMAIL"].includes(kind)) throw badRequest("Type inconnu.");
       const v = normalizeBlacklistValue(kind, value);
       const why = String(reason ?? "").trim().slice(0, 300);
@@ -163,7 +163,7 @@ export function createTrust(ctx, accounts) {
     },
 
     async blacklistRemove(staffId, id) {
-      await accounts.requireStaff(staffId, "ADMIN");
+      await accounts.requirePermission(staffId, "trust.blacklist");
       await db.query("delete from ika_blacklist where id = $1", [String(id)]);
       await accounts.audit(staffId, "BLACKLIST_REMOVE", null, String(id));
       return { ok: true };
