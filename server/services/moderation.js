@@ -23,7 +23,7 @@ export function createModeration(ctx, accounts, engagement) {
 
   return {
     async queue(userId) {
-      await accounts.requireStaff(userId);
+      await accounts.requirePermission(userId, "moderation.review");
       const pending = await db.query(
         `select ${LISTING_COLUMNS} from ika_listings where status = 'PENDING' order by created_at asc`,
       );
@@ -90,7 +90,7 @@ export function createModeration(ctx, accounts, engagement) {
     },
 
     async decide(userId, id, action, reason) {
-      await accounts.requireStaff(userId);
+      await accounts.requirePermission(userId, "moderation.review");
       asBadRequest(() => assertDecision(action, reason));
       if (action === "APPROVE") {
         // Publication et point d'historique de prix dans une seule instruction : l'un ne va pas sans l'autre.
@@ -134,14 +134,14 @@ export function createModeration(ctx, accounts, engagement) {
     },
 
     async dismissReport(userId, id) {
-      await accounts.requireStaff(userId);
+      await accounts.requirePermission(userId, "moderation.review");
       await db.query("update ika_reports set status = 'DISMISSED' where id = $1", [id]);
       await accounts.audit(userId, "DISMISS_REPORT", null, id);
       return { ok: true };
     },
 
     async hideComment(userId, id) {
-      await accounts.requireStaff(userId);
+      await accounts.requirePermission(userId, "moderation.review");
       const rows = await db.query(
         "update ika_comments set status = 'HIDDEN' where id = $1 returning id, listing_id",
         [id],
@@ -187,7 +187,7 @@ export function createModeration(ctx, accounts, engagement) {
     },
 
     async listAccounts(userId) {
-      await accounts.requireStaff(userId);
+      await accounts.requirePermission(userId, "moderation.review");
       const rows = await db.query(
         `select user_id, full_name, phone, staff_role, account_status, status_reason
          from ika_profiles order by created_at desc limit 100`,
@@ -203,7 +203,7 @@ export function createModeration(ctx, accounts, engagement) {
     },
 
     async setAccountStatus(userId, targetId, status, rawReason) {
-      const actor = await accounts.requireStaff(userId);
+      const actor = await accounts.requirePermission(userId, "moderation.restrict");
       const reason = String(rawReason ?? "").trim().slice(0, 500);
       if (targetId === userId) throw forbidden("Vous ne pouvez pas modifier votre propre compte.");
       asBadRequest(() => assertSanction(status, reason));

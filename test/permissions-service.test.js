@@ -32,6 +32,9 @@ const MIGRATED = [
   ["trust.blacklist", "ADMIN"],
   ["payments.manage", "ADMIN"], // lot 2 : server/services/payments.js
   ["analytics.read", "ADMIN"],  // lot 2 : server/services/stats.js
+  ["moderation.review", "MODERATOR"],   // lot 3 : modération, avis, signalements, candidatures d'annonceurs
+  ["moderation.review", undefined],     // lot 3 : requireStaff(userId) sans niveau = MODERATOR
+  ["moderation.restrict", "MODERATOR"], // lot 3 : première garde de setAccountStatus
 ];
 
 test("requirePermission : mêmes accès et mêmes messages que requireStaff, pour chaque rôle et chaque statut de compte", async () => {
