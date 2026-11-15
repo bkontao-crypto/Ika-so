@@ -174,7 +174,7 @@ dialog::backdrop { background: rgba(3, 10, 6, .62); backdrop-filter: blur(3px); 
   .site-header-inner { min-height: 64px; }
   .brand-logo { height: 38px; }
 }
-@media (max-width: 520px) { .header-publish { display: none; } }
+@media (max-width: 520px) { .site-header .header-publish { display: none; } } /* priorité > .btn de components.css (chargé en dernier) */
 @media (min-width: 1101px) { .bottom-nav { display: none; } }
 
 /* ---------- 7. Pied de page ---------- */
