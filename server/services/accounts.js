@@ -21,6 +21,7 @@ import { smsConfigured } from "../config.js";
 import { assertNotBlacklisted } from "../lib/blacklist.js";
 import { iso } from "./cards.js";
 import { LEGAL_VERSION } from "../lib/legal.js";
+import { ROLE_PERMISSIONS, can } from "../lib/permissions.js";
 
 const SESSION_DAYS = 30;
 const RESET_MINUTES = 30;
@@ -98,6 +99,32 @@ export function createAccounts(ctx) {
     return profile;
   }
 
+  /** Permissions accordées individuellement et non expirées (table ika_user_permissions, vide tant que personne n'en accorde). */
+  async function activeGrants(userId) {
+    const rows = await db.query(
+      "select permission_code from ika_user_permissions where user_id = $1 and (expires_at is null or expires_at > now())",
+      [userId],
+    );
+    return rows.map((r) => r.permission_code);
+  }
+
+  /**
+   * Même contrôle que requireStaff, exprimé en permission nommée (PLAN_ROLES_PERMISSIONS, « Code A »).
+   * Les droits par rang sont ceux de la migration 025 (identiques à requireStaff) ; s'y ajoutent les permissions
+   * accordées individuellement. Refus par défaut : permission inconnue, compte ordinaire, banni ou restreint.
+   */
+  async function requirePermission(userId, permission) {
+    const profile = await ensureProfile(userId);
+    let allowed = can(profile.staff_role, permission);
+    if (!allowed && profile.staff_role !== "USER") allowed = can(profile.staff_role, permission, await activeGrants(userId));
+    if (!allowed) {
+      throw forbidden(ROLE_PERMISSIONS.MODERATOR.includes(permission) ? "Réservé à la modération." : "Réservé aux administrateurs.");
+    }
+    if (profile.account_status === "BANNED") throw forbidden("Compte bloqué.");
+    if (profile.account_status === "RESTRICTED") throw forbidden("Compte restreint : droits de modération suspendus.");
+    return profile;
+  }
+
   /** `q` : db ou une transaction. Passer la transaction de l'action pour que l'action et sa trace réussissent ou échouent ensemble. */
   async function audit(actorId, action, listingId, note, q = db) {
     await q.query(
@@ -136,6 +163,7 @@ export function createAccounts(ctx) {
     assertCanPublishListing,
     requireActive,
     requireStaff,
+    requirePermission,
     audit,
 
     async register({ name, email, password, acceptTerms }) {
