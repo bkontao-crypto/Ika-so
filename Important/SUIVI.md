@@ -3,6 +3,21 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## BUG-003 (lot 1) — tests des modules purs de `server/lib/` (15 novembre 2026)
+**À réaliser** : BUG-003 (modules serveur sans test). Lot 1 = les modules purs de `server/lib/`, sans base de données, pour protéger les règles métier avant de les modifier. Aucun changement de code serveur.
+**Réalisé** (branche `test/modules-lib-bug-003`, fichier `test/lib-pures.test.js`, 35 tests)
+- ✅ Couverts : `slug`, `blacklist`, `digest`, `price-history`, `user-reports`, `error-sink`, `permissions`, `search`, `drafts`, `trust` (partie `lib`). Points protégés : refus de la liste noire (403, message neutre), photos de brouillon limitées à `/media/…` (10 au plus), seuils d'alerte de prix (40 % / 250 % de la médiane), limites de recherche (50 résultats, décalage 10 000), règles d'octroi des permissions (jamais à soi-même, jamais une permission non délégable, motif obligatoire), panne du service de suivi d'erreurs sans effet sur le site.
+**Vérifié**
+- ✅ `npm test` : 181 tests (146 avant), 177 réussis, 0 échec, 3 ignorés (PostgreSQL absent : non exécutés), 1 « todo » volontaire. `stamp-sw:check` : à jour.
+- ✅ Essais de régression : 7 casses volontaires du code (liste noire désactivée, non-délégables accordables, auto-octroi permis, photos externes acceptées, seuil de prix déplacé, limite de recherche retirée, panne du suivi propagée) → **chacune fait échouer exactement 1 test** ; fichiers restaurés ensuite (`git status` : seul le nouveau test apparaît).
+**Constat (non corrigé, rattaché à BUG-004)**
+- ⚠️ `can()` (`server/lib/permissions.js`) est documentée « rôle inconnu : refus », mais une permission accordée individuellement l'emporte aujourd'hui même pour un rôle inconnu (`can("X", "account.ban", ["account.ban"])` → vrai). Sans effet en production aujourd'hui (le module n'est branché nulle part), à trancher avant de brancher la matrice. Test marqué « todo » (`BUG-004`) qui deviendra un échec utile quand ce sera corrigé.
+**À faire**
+- ⬜ Lots suivants de BUG-003 (liste recalculée par nom de fichier, à confirmer ; l'audit en annonçait 24) : services `engagement`, `moderation`, `trust`, `crm`, `seo`, `analytics`, `homepage-settings`, `cards`, `imports`, `owner-delegations`, `properties`, `duplicates`, `geo` ; lib `geo`, `file-storage`, `fiche`, `aggregation`, `notifier`, `csv`, `logger`, `receipt-email` ; `seo/render`, `seo/guides`, `routes/seo`, `payments/paydunya`, `payments/cinetpay`. Les services touchent la base : à tester avec PostgreSQL (DEC-002).
+- ⬜ Le registre Excel n'a pas été modifié : BUG-003 y reste « Ouverte » (lot 1 sur plusieurs).
+- ⬜ `Dossier_Suivi` n'existe pas dans le dépôt : le suivi réel est dans `Important/` ; décision du propriétaire toujours attendue.
+**Risques** : aucun pour la production (seul un fichier de test est ajouté, aucun code exécuté par le site). La branche de test `test-acces-ecriture-tmp` créée lors du contrôle d'accès existe encore sur GitHub (suppression refusée par le proxy de l'agent) : à supprimer à la main.
+
 ## BUG-008 — contrôle d'accès des routes /staff/* qualifié et verrouillé par test (14 novembre 2026)
 **À réaliser** : qualifier route par route les 130 routes `/staff/*` (registre des anomalies, BUG-008 « À qualifier ») et empêcher qu'une route sans garde soit ajoutée sans que cela se voie.
 **Réalisé**
