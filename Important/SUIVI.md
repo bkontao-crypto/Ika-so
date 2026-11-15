@@ -3,6 +3,22 @@
 Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Correctif — en-tête mobile désaligné : bouton « Publier » réapparu (15 novembre 2026)
+**À réaliser** : sur téléphone, les éléments de l'en-tête n'étaient plus alignés (logo seul sur une ligne, boutons Publier / thème / Connexion / menu décalés en dessous).
+**Cause** : depuis la fusion du 14/11, `components.css` (chargé en dernier) déclare `.btn { display: inline-flex }`. Cette règle a la même priorité que `.header-publish { display: none }` (`modern.css` ≤ 560 px, `refonte.css` ≤ 520 px) mais passe après : le bouton « Publier » (masqué sur mobile, où la barre du bas a déjà « Publier ») s'affichait. Les 4 boutons (333 px) ne tenaient plus à côté du logo dans 328 px disponibles : passage à la ligne, et à 320 px débordement horizontal de la page. Avant la fusion (`9aca944`), « Publier » était masqué et tout tenait sur une ligne.
+**Réalisé**
+- ✅ `modern.css` et `refonte.css` : sélecteur renforcé `.site-header .header-publish` (priorité supérieure à `.btn`). Comportement d'avant la fusion rétabli à toutes les largeurs ; « Publier » reste visible à partir de 561 px.
+- ✅ `public/sw.js` : version du cache recalculée (`ika-so-c21a1bb343`), sinon les téléphones gardent l'ancien CSS.
+- ✅ Test `test/css-btn-priorite.test.js` (2 tests) : aucune feuille ne doit masquer un bouton avec une simple classe, sinon `.btn` de `components.css` l'emporte.
+**Vérifié** (navigateur Chromium, rendu réel du site, API absente)
+- ✅ Mesure à 11 largeurs (320, 360, 390, 412, 480, 520, 540, 600, 768, 1024, 1280 px) : avant correctif 320–412 px = 2 rangées (écart vertical 56 px), en-tête 96 px, débordement à 320 px ; après correctif = 1 rangée (écart 0 px), en-tête 64 px, aucun débordement, à toutes les largeurs. Capture avant/après comparée visuellement.
+- ✅ Audit : seul `.header-publish` était concerné ; l'attribut `hidden` reste respecté (`[hidden]{display:none !important}` dans `ika.css`), donc les boutons « Voir plus » ne sont pas touchés.
+- ✅ `npm test` : 215 tests, 204 réussis, 0 échec, 11 ignorés (PostgreSQL absent : non exécutés). Le nouveau test échoue bien sur l'ancien CSS.
+**Non vérifié / à faire**
+- ⬜ Rendu sur votre téléphone après déploiement (recharger la page deux fois pour renouveler le cache du service worker).
+- ⬜ Le rendu a été testé avec le navigateur du serveur de test, sans connexion à l'API : le bouton « Connexion » est celui d'un visiteur déconnecté. Un compte connecté (avatar au lieu de « Connexion ») n'a pas été testé.
+- ⬜ Application Android : son code (dossier `Android/`) charge le site en ligne (`https://ika-so.onrender.com/`), elle doit donc recevoir le correctif dès le déploiement, sans nouvelle version de l'APK. Non vérifié sur un appareil.
+
 ## BUG-002 — retours arrière des migrations 017 à 065, testés sur un vrai PostgreSQL (15 novembre 2026)
 **À réaliser** : le registre des anomalies signalait 40 migrations sans script de retour arrière (BUG-002).
 **Réalisé** (branche `fix/bug-002-retours-arriere`)

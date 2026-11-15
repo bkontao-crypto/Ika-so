@@ -259,7 +259,7 @@ label.field .input:focus, label.field select:focus, label.field input:focus { bo
   .search-top { flex-direction: column; align-items: flex-start; }
   .hero-panel { padding: 30px 22px; min-height: 420px; border-radius: 22px; }
   .hero h1 { font-size: 34px; }
-  .header-publish { display: none; }
+  .site-header .header-publish { display: none; } /* priorité > .btn de components.css (chargé en dernier) */
   .section-head, .sponsored-feed-head { flex-wrap: wrap; align-items: flex-start; }
   .text-link { white-space: normal; }
   #annonces-sponsorisees { padding: 18px 12px; border-radius: 18px; }
