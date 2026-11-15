@@ -69,13 +69,13 @@ export function createPartners({ db, accounts }) {
 
     /** Administrateurs : tous les partenaires, y compris masqués. */
     async listForStaff(userId) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       const rows = await db.query("select * from ika_partners order by position, created_at, id limit $1", [PARTNERS_MAX]);
       return { partners: rows.map((r) => view(r, true)), categories: PARTNER_CATEGORIES };
     },
 
     async create(userId, input) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       const f = await fields(input);
       const [{ n, next }] = await db.query("select count(*)::int as n, coalesce(max(position), 0) + 1 as next from ika_partners");
       if (n >= PARTNERS_MAX) throw badRequest(`Limite atteinte : ${PARTNERS_MAX} partenaires au maximum.`);
@@ -90,7 +90,7 @@ export function createPartners({ db, accounts }) {
     },
 
     async update(userId, id, input) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       const current = (await db.query("select * from ika_partners where id = $1", [id]))[0];
       if (!current) throw notFound("Partenaire introuvable.");
       const f = await fields(input, current);
@@ -107,7 +107,7 @@ export function createPartners({ db, accounts }) {
 
     /** Masquer (reste en base, invisible du public) ou réafficher. */
     async setStatus(userId, id, status) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       if (!["ACTIVE", "HIDDEN"].includes(status)) throw badRequest("Statut invalide.");
       const rows = await db.query("update ika_partners set status = $2, updated_at = now() where id = $1 returning *", [id, status]);
       if (!rows.length) throw notFound("Partenaire introuvable.");
@@ -116,7 +116,7 @@ export function createPartners({ db, accounts }) {
     },
 
     async remove(userId, id) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       const rows = await db.query("delete from ika_partners where id = $1 returning name", [id]);
       if (!rows.length) throw notFound("Partenaire introuvable.");
       await accounts.audit(userId, "PARTNER_DELETE", null, `${id} · ${rows[0].name}`);
@@ -125,7 +125,7 @@ export function createPartners({ db, accounts }) {
 
     /** Logo importé : stocké en base, utilisable seulement ensuite par « create » / « update ». */
     async uploadLogo(userId, dataUrl) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       let file;
       try { file = await storeDataUrl(db, dataUrl, { imagesOnly: true }); }
       catch (error) { throw badRequest(error?.message || "Impossible d'enregistrer ce logo."); }

@@ -5,6 +5,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createAccounts } from "../server/services/accounts.js";
 import { createTrust } from "../server/services/trust.js";
+import { createPayments } from "../server/services/payments.js";
 import { ALL_PERMISSIONS } from "../server/lib/permissions.js";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -35,6 +36,8 @@ const MIGRATED = [
   ["moderation.review", "MODERATOR"],   // lot 3 : modération, avis, signalements, candidatures d'annonceurs
   ["moderation.review", undefined],     // lot 3 : requireStaff(userId) sans niveau = MODERATOR
   ["moderation.restrict", "MODERATOR"], // lot 3 : première garde de setAccountStatus
+  ["contenu.gerer", "ADMIN"],           // lot 4 : partenaires, page d'accueil, mise en avant d'une annonce
+  ["owner.stats", "SUPERADMIN"],        // lot 4 : les 56 statistiques réservées au Superadmin
 ];
 
 test("requirePermission : mêmes accès et mêmes messages que requireStaff, pour chaque rôle et chaque statut de compte", async () => {
@@ -95,6 +98,34 @@ test("requirePermission : les permissions expirées sont écartées par la requ�
   const q = db.calls.find((c) => /ika_user_permissions/.test(c.sql));
   assert.match(q.sql, /expires_at is null or expires_at > now\(\)/);
   assert.deepEqual(q.params, ["u1"]);
+});
+
+// CHANGEMENT DE DROITS DÉCIDÉ PAR LE PROPRIÉTAIRE (lot 4) : le prix d'une offre n'est plus un droit d'administrateur par défaut.
+test("offres.tarifs : Superadmin par défaut, accordable à un administrateur précis, jamais à un modérateur non accordé", async () => {
+  assert.equal(await outcome(accountsFor({ role: "SUPERADMIN" }).acc.requirePermission("u1", "offres.tarifs")), "ok");
+  assert.equal(await outcome(accountsFor({ role: "ADMIN" }).acc.requirePermission("u1", "offres.tarifs")), "403:Réservé aux administrateurs.");
+  assert.equal(await outcome(accountsFor({ role: "MODERATOR" }).acc.requirePermission("u1", "offres.tarifs")), "403:Réservé aux administrateurs.");
+  assert.equal(await outcome(accountsFor({ role: "ADMIN", grants: ["offres.tarifs"] }).acc.requirePermission("u1", "offres.tarifs")), "ok");
+  // les autres actions de paiement restent au niveau administrateur
+  assert.equal(await outcome(accountsFor({ role: "ADMIN" }).acc.requirePermission("u1", "payments.manage")), "ok");
+});
+
+test("paiements : chaque action demande la bonne permission (prix d'une offre = offres.tarifs, le reste = payments.manage)", async () => {
+  const asked = [];
+  const stop = new Error("STOP");
+  const accounts = { requirePermission: async (_id, permission) => { asked.push(permission); throw stop; } };
+  const payments = createPayments({ db: { query: async () => [], transaction: async (fn) => fn({ query: async () => [] }) } }, accounts, null);
+  await assert.rejects(payments.setOffer("s1", "PREMIUM_7", { priceXof: 1000, active: true }), stop);
+  await assert.rejects(payments.adminOffers("s1"), stop);
+  await assert.rejects(payments.reconcile("s1"), stop);
+  await assert.rejects(payments.markRefunded("s1", "pay1", "raison"), stop);
+  assert.deepEqual(asked, ["offres.tarifs", "payments.manage", "payments.manage", "payments.manage"]);
+});
+
+test("owner.stats : Superadmin seulement, jamais délégable", async () => {
+  assert.equal(await outcome(accountsFor({ role: "SUPERADMIN" }).acc.requirePermission("u1", "owner.stats")), "ok");
+  assert.equal(await outcome(accountsFor({ role: "ADMIN" }).acc.requirePermission("u1", "owner.stats")), "403:Réservé aux administrateurs.");
+  assert.equal(await outcome(accountsFor({ role: "ADMIN", grants: ["owner.stats"] }).acc.requirePermission("u1", "owner.stats")), "403:Réservé aux administrateurs.");
 });
 
 // Une faute de frappe dans un code ferait refuser tout le monde sans bruit : tous les codes utilisés doivent exister.

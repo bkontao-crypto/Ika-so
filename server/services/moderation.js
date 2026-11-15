@@ -152,7 +152,7 @@ export function createModeration(ctx, accounts, engagement) {
     },
 
     async setFeatured(userId, id, on) {
-      await accounts.requireStaff(userId, "ADMIN");
+      await accounts.requirePermission(userId, "contenu.gerer");
       const rows = await db.query("select status, visibility from ika_listings where id = $1", [id]);
       if (!rows[0]) throw notFound("Annonce introuvable.");
       if (on) {
