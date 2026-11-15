@@ -863,6 +863,20 @@ router.get("/listings/:id", async (req, res) => {
     res.json(await services.ownerDelegations.revoke(requireUser(req), userId, module));
   });
 
+  // ---------- Permissions nommées accordées à titre individuel (BUG-004) : réservé à `permissions.grant`, contrôlé dans le service ----------
+  router.get("/staff/permissions", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await services.permissionGrants.list(requireUser(req)));
+  });
+  router.post("/staff/permissions/grant", async (req, res) => {
+    const { userId, permission, reason, days } = req.body ?? {};
+    res.json(await services.permissionGrants.grant(requireUser(req), { userId, permission, reason, days }));
+  });
+  router.post("/staff/permissions/revoke", async (req, res) => {
+    const { userId, permission } = req.body ?? {};
+    res.json(await services.permissionGrants.revoke(requireUser(req), { userId, permission }));
+  });
+
 router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await places.listForOwner(requireUser(req))); });
   router.post("/staff/owner/zones", async (req, res) => res.status(201).json(await places.createZone(requireUser(req), req.body ?? {})));
   router.post("/staff/owner/zones/bulk", async (req, res) => res.status(201).json(await places.createZones(requireUser(req), { countryCode: clean(req.body?.countryCode, 2), lines: clean(req.body?.lines, 30000) })));

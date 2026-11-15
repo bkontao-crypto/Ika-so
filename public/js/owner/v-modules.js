@@ -62,6 +62,45 @@ export const usersView = (ctx) => {
   });
 };
 
+// ---------- Permissions du personnel (BUG-004) ----------
+// Droits accordés à titre individuel à un administrateur ou un modérateur, en plus de ceux de leur rôle.
+// Le contrôle des droits reste côté serveur (permission « permissions.grant » : Superadmin) ; chaque octroi est tracé dans le journal d'audit.
+export const permissionsView = (ctx) => page(ctx, {
+  eyebrow: "SYSTÈME", title: "Permissions du personnel",
+  desc: "Droits accordés individuellement à un administrateur ou un modérateur, en plus de ceux de leur rôle. Chaque octroi et chaque retrait est tracé dans le journal d'audit.",
+  load: async () => { const [perm, accounts] = await Promise.all([api("/staff/permissions"), api("/staff/accounts")]); return { perm, accounts }; },
+  actions: ({ perm, accounts }, reload) => h("button", { class: "btn primary", type: "button", onClick: async () => {
+    const staff = accounts.filter((a) => a.staffRole === "ADMIN" || a.staffRole === "MODERATOR");
+    if (!staff.length) { toast("Aucun administrateur ni modérateur parmi les derniers comptes.", true); return; }
+    const v = await formDialog("Accorder une permission", [
+      { name: "userId", label: "Personne", type: "select", options: staff.map((a) => ({ value: a.userId, label: `${a.fullName} · ${a.staffRole}` })), required: true },
+      { name: "permission", label: "Permission", type: "select", options: perm.grantable.map((p) => ({ value: p.code, label: `${p.label} (${p.code})` })), required: true },
+      { name: "reason", label: "Motif (obligatoire, conservé dans le journal)", type: "textarea", required: true },
+      { name: "days", label: "Durée en jours (1 à 365 ; vide = sans échéance)", type: "number", max: 3 },
+    ], { submit: "Accorder", intro: "Une permission déjà donnée par le rôle ne peut pas être accordée. Les droits sensibles (rôles du personnel, attribution des permissions, statistiques Superadmin) ne sont jamais délégables." });
+    if (v) act(() => api("/staff/permissions/grant", { method: "POST", body: { userId: v.userId, permission: v.permission, reason: v.reason, days: v.days ? Number(v.days) : undefined } }), "Permission accordée.", reload);
+  } }, ico("check"), "Accorder une permission"),
+  build({ perm, accounts }, reload) {
+    const who = new Map(accounts.map((a) => [a.userId, a.fullName]));
+    const rows = perm.grants;
+    return [
+      minis(mini("Attributions en cours", nf(rows.length)), mini("Personnes concernées", nf(new Set(rows.map((r) => r.userId)).size)), mini("Avec échéance", nf(rows.filter((r) => r.expiresAt).length))),
+      panel(`Attributions en cours (${rows.length})`, "Les permissions expirées disparaissent d'elles-mêmes de cette liste.", rows.length ? table([
+        { label: "Personne", render: (r) => h("div", { class: "item" }, h("b", null, r.name), h("small", null, r.staffRole)) },
+        { label: "Permission", render: (r) => h("div", { class: "item" }, h("div", null, pill("info", r.permission)), h("small", null, perm.grantable.find((p) => p.code === r.permission)?.label ?? "")) },
+        { label: "Motif", render: (r) => h("span", { class: "small" }, r.reason || "—") },
+        { label: "Accordée", render: (r) => h("div", { class: "item" }, h("b", null, dateTime(r.grantedAt)), h("small", null, `par ${who.get(r.grantedBy) ?? r.grantedBy}`)) },
+        { label: "Échéance", render: (r) => (r.expiresAt ? pill("gold", dateOnly(r.expiresAt)) : pill("neutral", "Sans échéance")) },
+        { label: "", render: (r) => h("button", { class: "btn sm", type: "button", onClick: async () => {
+          if (await confirmDialog("Retirer cette permission ?", `${r.name} perdra « ${r.permission} » (ses droits de rôle ne changent pas).`, "Retirer")) {
+            act(() => api("/staff/permissions/revoke", { method: "POST", body: { userId: r.userId, permission: r.permission } }), "Permission retirée.", reload);
+          }
+        } }, "Retirer") },
+      ], rows) : empty("Aucune permission accordée à titre individuel : chacun a uniquement les droits de son rôle.", "shield")),
+    ];
+  },
+});
+
 export const agenciesView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Agences & annonceurs", desc: "Profils d'agence et annonceurs vérifiés.", load: () => api("/staff/owner/agencies"),
   build: (rows) => [minis(mini("Agences / annonceurs", nf(rows.length)), mini("Vérifiés", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
