@@ -37,6 +37,9 @@ const routes = [
 
 let sequence = 0; // numéro de la navigation en cours : une page arrivée trop tard ne doit pas écraser la bonne
 
+// Application Android / PWA : le navigateur ne doit pas restaurer une ancienne position de défilement (l'accueil s'ouvre toujours en haut).
+if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
 async function render() {
   const { path } = currentRoute();
   trackNav();
@@ -46,6 +49,7 @@ async function render() {
   const mine = ++sequence;
   const hit = routes.map(([re, file, name, arg]) => [re.exec(path), file, name, arg]).find(([m]) => m);
   mount(app, h("div", { class: "skeleton" }));
+  window.scrollTo(0, 0); // dès le chargement : sinon l'écran reste en bas jusqu'à la fin du rendu de la page
   try {
     if (hit) {
       const mod = await import(`/js/pages/${hit[1]}.js`);
