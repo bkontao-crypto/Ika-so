@@ -106,7 +106,8 @@ export async function favoritesPage() {
 }
 
 /** Réglages du compte (rôles, accès, alertes, données…) : contenu de l'onglet « Paramètres & Confidentialité » du profil. */
-export async function accountSettings(refresh = () => {}) {
+// embedded : utilisé dans « Mon profil » qui affiche déjà identité, rôle et lien du profil public (pas de doublon).
+export async function accountSettings(refresh = () => {}, { embedded = false } = {}) {
   await refreshSession();
   const m = S.meta;
   const prefs = await api("/me/notify-prefs").catch(() => null);
@@ -137,16 +138,16 @@ export async function accountSettings(refresh = () => {}) {
   } else if (access?.premium) {
     accessLinks.push(h("a", { class: "btn", href: "#/profil" }, "Compléter la certification"));
   }
-  accessLinks.push(h("a", { class: "btn", href: "#/mon-profil-public" }, "Mon profil public"));
+  if (!embedded) accessLinks.push(h("a", { class: "btn", href: "#/mon-profil-public" }, "Mon profil public"));
   if (access?.premium || m.staffRole !== "USER") {
     accessLinks.push(h("a", { class: "btn btn-outline", href: "#/partenaires" }, "Annonces sponsorisées"));
   }
 
   return h("div", { class: "stack" },
-    h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:12px 0" }, roles),
+    embedded ? null : h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:12px 0" }, roles),
     h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin-bottom:18px" }, accessLinks),
     h("div", { class: "grid" },
-      h("article", { class: "card pad stack" },
+      embedded ? null : h("article", { class: "card pad stack" },
         h("p", { class: "small muted" }, "Identité"), h("h2", null, m.fullName || S.user.name), h("p", { class: "muted" }, S.user.email),
         h("p", null, `Rôle affiché : ${m.displayRole || "—"}`),
         h("p", null, m.phoneVerified ? `Numéro confirmé : ${m.phone}${m.verifiedBySms ? " (SMS)" : ""}` : "Numéro pas encore vérifié.")),
