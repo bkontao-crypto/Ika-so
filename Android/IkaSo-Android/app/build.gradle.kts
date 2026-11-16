@@ -11,8 +11,8 @@ android {
         applicationId = "com.ikaso.app"
         minSdk = 29                 // Android 10+ : enregistrement des fichiers sans permission de stockage
         targetSdk = 34
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
 
         // >>> Adresse du site IKA SÔ (changez-la ici ET dans AndroidManifest.xml si le domaine change)
         buildConfigField("String", "BASE_URL", "\"https://ika-so.onrender.com/\"")

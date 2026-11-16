@@ -110,6 +110,10 @@ class MainActivity : AppCompatActivity() {
             }
             override fun shouldOverrideUrlLoading(v: WebView, req: WebResourceRequest): Boolean {
                 val u = req.url
+                // Connexion Google : Google refuse les WebViews. Elle se fait dans le navigateur du téléphone, puis revient ici par ticket.
+                if (u.scheme == "https" && u.host == host && u.path == "/api/auth/google") {
+                    openInBrowser(u.buildUpon().appendQueryParameter("app", "1").build()); return true
+                }
                 if (u.scheme == "https" && u.host == host) return false
                 openExternal(u); return true          // WhatsApp, appel, e-mail, page de paiement, autres sites
             }
@@ -190,7 +194,7 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
-        val start = intent?.data?.takeIf { it.host == host }?.toString() ?: BuildConfig.BASE_URL
+        val start = loginUrl(intent?.data) ?: intent?.data?.takeIf { it.host == host }?.toString() ?: BuildConfig.BASE_URL
         // Mémoire de 30 secondes : au-delà, l'application s'ouvre sur l'accueil (jamais sur une ancienne page ou position).
         val away = savedInstanceState?.getLong("bg", 0L)?.takeIf { it > 0 }?.let { System.currentTimeMillis() - it } ?: 0L
         if (savedInstanceState == null || away > MEMORY_MS) ui.web.loadUrl(start) else ui.web.restoreState(savedInstanceState)
@@ -232,6 +236,23 @@ class MainActivity : AppCompatActivity() {
 
     // ---------- Divers ----------
     fun toast(msg: String) = runOnUiThread { Toast.makeText(this, msg, Toast.LENGTH_LONG).show() }
+    /** ikaso://login?ticket=… (renvoyé par le site après la connexion Google) → échange du ticket dans la WebView. */
+    private fun loginUrl(uri: Uri?): String? {
+        if (uri?.scheme != "ikaso" || uri.host != "login") return null
+        val ticket = uri.getQueryParameter("ticket")?.takeIf { it.isNotBlank() && it.length < 200 } ?: return null
+        return BuildConfig.BASE_URL + "api/auth/app-handoff?ticket=" + Uri.encode(ticket)
+    }
+
+    /** Ouvre le site dans le navigateur par défaut, sans passer par cette application (sinon la boucle reviendrait ici). */
+    private fun openInBrowser(uri: Uri) {
+        val probe = Intent(Intent.ACTION_VIEW, Uri.parse("https://example.com"))
+        val browser = packageManager.resolveActivity(probe, PackageManager.MATCH_DEFAULT_ONLY)?.activityInfo?.packageName
+        if (browser == null || browser == packageName) { openExternal(uri); return }
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE).setPackage(browser))
+        } catch (e: ActivityNotFoundException) { toast("Aucun navigateur installé pour la connexion Google") }
+    }
+
     fun openExternal(uri: Uri) {
         try {
             val u = if (uri.scheme == "intent") Uri.parse(Intent.parseUri(uri.toString(), Intent.URI_INTENT_SCHEME).dataString) else uri
@@ -255,6 +276,7 @@ class MainActivity : AppCompatActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == ACTION_SETTINGS) ui.web.post { showSettings() }
+        loginUrl(intent.data)?.let { keepPage = true; ui.web.loadUrl(it) }   // retour de la connexion Google (ticket)
         intent.data?.takeIf { it.host == host }?.let { keepPage = true; ui.web.loadUrl(it.toString()) }     // retour de paiement, liens partagés
     }
     override fun onSaveInstanceState(outState: Bundle) { super.onSaveInstanceState(outState); ui.web.saveState(outState); outState.putLong("bg", backgroundedAt) }

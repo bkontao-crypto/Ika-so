@@ -11,6 +11,7 @@ Application native (Kotlin) qui embarque le site **IKA SÔ** — https://ika-so.
 - Nom **IKA SÔ**, logo officiel (icône adaptative, écran de démarrage, écran de verrouillage). Identifiant : `com.ikaso.app`.
 - Écrans de tout format : zoom autorisé (pincement), images et tableaux contenus, encoches/barres système gérées, clavier qui ne masque pas les champs.
 - Tirer vers le bas pour actualiser ; message « Réveil du serveur… » si l'hébergeur met du temps à répondre ; écran « Pas de connexion » avec reprise automatique au retour du réseau.
+- **Connexion Google** (version 1.0.3) : la connexion se fait dans le navigateur du téléphone (Google refuse les WebViews), puis revient dans l'application par `ikaso://login?ticket=…` (ticket à usage unique, 60 s). Non couverte : la liaison Google depuis « Mon profil » dans l'application (passer par le navigateur).
 - Session par cookie conservée (vous restez connecté). Bouton Retour : navigation arrière, puis « Appuyez encore pour quitter ».
 - **Géolocalisation** (« près de moi », carte) avec demande d'autorisation ; **photos / documents** via le sélecteur de fichiers et la caméra.
 - **Partage** d'annonces (feuille de partage Android), **impression / PDF** (`window.print`), fichiers `blob:` de l'espace admin enregistrés dans Téléchargements/IKA SO, téléchargements classiques avec la session.

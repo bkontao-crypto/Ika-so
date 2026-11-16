@@ -49,6 +49,13 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="ika-so.onrender.com" />
             </intent-filter>
+            <!-- Retour de la connexion Google (navigateur du téléphone) : ikaso://login?ticket=… -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="ikaso" android:host="login" />
+            </intent-filter>
             <!-- Appui long sur l'icône : Réglages de l'application -->
             <meta-data android:name="android.app.shortcuts" android:resource="@xml/shortcuts" />
         </activity>

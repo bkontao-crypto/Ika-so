@@ -39,6 +39,21 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⚠️ Les scripts 039–045, 050, 051, 058 n'ont toujours pas de transaction (non réécrits) ; testés et fonctionnels, mais pas « tout ou rien ».
 - ⬜ Le registre Excel n'est pas modifié : BUG-002 y reste « Ouverte » (à passer en « Résolue » après votre validation). Les retours arrière 059 à 064 existent aussi en un seul fichier : `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql`.
 
+## Connexion Google depuis l'application Android (16 novembre 2026)
+**À réaliser** : permettre la connexion Google dans l'application (Google refuse la connexion dans une WebView).
+**Réalisé** (branche `feat/app-connexion-google`)
+- ✅ Serveur : migration `068_tickets_connexion_application.sql` (table `ika_login_tickets`, haché, 60 s, usage unique) + retour arrière. Démarrage avec `app=1` : le retour Google ne crée **aucune session dans le navigateur** et renvoie `ikaso://login?ticket=…` ; `GET /api/auth/app-handoff?ticket=…` pose la session dans la WebView. Compte bloqué refusé à l'échange.
+- ✅ Application Android **1.0.3** (`versionCode` 4) : le bouton Google ouvre le navigateur du téléphone (navigateur par défaut, choisi hors de l'application pour éviter une boucle) ; le lien `ikaso://login` (filtre d'intention dans le manifeste) ouvre l'échange du ticket dans la WebView ; README mis à jour.
+**Vérifié**
+- ✅ `npm test` : 253 réussis sur 253 avec PostgreSQL (tests de routes avec faux Google, tests de base réelle : usage unique, expiration, compte bloqué, aucune session créée).
+- ✅ 5 casses volontaires sur les tickets (usage unique, expiration, compte bloqué, session créée à tort, démarrage sans marqueur) → toutes détectées.
+- ⬜ **Non compilé ni testé sur téléphone** : pas de SDK Android ici. Les modifications Kotlin ont été relues (types, appels), mais la compilation et le parcours complet (navigateur → retour → application connectée) restent à faire sur votre appareil.
+**Limites et risques**
+- ⬜ Liaison Google depuis « Mon profil » **dans l'application** : non prise en charge (le retour passerait par le navigateur, qui n'a pas la session). Elle reste possible depuis le navigateur du téléphone.
+- ⚠️ Un lien `ikaso://` peut, en théorie, être intercepté par une autre application installée qui déclare le même schéma : le ticket (60 s, usage unique) serait alors exposé. Le correctif propre : des liens App Links vérifiés (`/.well-known/assetlinks.json` avec l'empreinte SHA-256 de votre clé de signature) — à faire quand vous aurez la clé.
+- ⬜ Le retour Google depuis le navigateur exige que le site soit bien à la même adresse que dans la configuration Google (`PUBLIC_URL`).
+**Ce que vous devez faire** : compiler l'APK 1.0.3 (Build ▸ Build APK), tester la connexion Google sur téléphone, puis m'envoyer l'APK signé pour remplacer `public/downloads/ika-so.apk`.
+
 ## Deux méthodes de connexion par compte : mot de passe et Google (16 novembre 2026)
 **Décisions du propriétaire** : (1) la connexion reste e-mail + mot de passe, Google en plus ; le code SMS (OTP) reste réservé à la vérification du téléphone avant publication (aucune connexion par téléphone créée) ; (2) un compte à mot de passe se relie à Google **depuis « Mon profil », après connexion par mot de passe** (pas de liaison automatique) ; (3) la différence entre les méthodes se voit **dans « Mon profil »**.
 **Réalisé** (branche `feat/connexion-google-methodes`)
