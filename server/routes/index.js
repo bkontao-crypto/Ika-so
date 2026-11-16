@@ -103,9 +103,16 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     limiter.hit(`oauth:${req.ip}`, 20, 10 * 60_000);
     res.setHeader("Cache-Control", "no-store");
     if (!config.google?.enabled) return res.redirect(302, googleBack("/connexion?google=indisponible"));
+    // Liaison depuis « Mon profil » : compte déjà connecté, conditions déjà acceptées.
+    if (req.query.link === "1") {
+      if (!req.user) return res.redirect(302, googleBack("/connexion?google=connexion-requise"));
+      const state = newState();
+      res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: "/profil", t: 0, l: 1 }), config));
+      return res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
+    }
     if (req.query.terms !== "1") return res.redirect(302, googleBack("/connexion?google=conditions"));
     const state = newState();
-    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1 }), config));
+    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1, l: 0 }), config));
     res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
   });
 
@@ -113,13 +120,21 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     limiter.hit(`oauth:${req.ip}`, 20, 10 * 60_000);
     res.setHeader("Cache-Control", "no-store");
     const saved = readStateCookie(req.headers.cookie);
-    const fail = (code) => { res.setHeader("Set-Cookie", clearedStateCookie()); return res.redirect(302, googleBack(`/connexion?google=${code}`)); };
+    const linking = saved?.l === 1;
+    const fail = (code) => { res.setHeader("Set-Cookie", clearedStateCookie()); return res.redirect(302, googleBack(`${linking ? "/profil" : "/connexion"}?google=${code}`)); };
     if (!config.google?.enabled) return fail("indisponible");
     if (req.query.error) return fail("refus");
     if (!saved || !sameState(req.query.state, saved.s)) return fail("etat");
     try {
       const accessToken = await exchangeCode({ code: String(req.query.code ?? ""), clientId: config.google.clientId, clientSecret: config.google.clientSecret, redirectUri: config.google.redirectUri });
       const profile = await fetchProfile(accessToken);
+      if (linking) {
+        if (!req.user) return fail("connexion-requise");
+        await accounts.linkGoogle(req.user.id, profile);
+        ownerCenter?.recordSecurity("GOOGLE_LINK", { userId: req.user.id }, req);
+        res.setHeader("Set-Cookie", clearedStateCookie());
+        return res.redirect(302, googleBack("/profil?google=lie"));
+      }
       const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1 });
       track(req, "user_login", { userId: user.id });
       ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
@@ -127,55 +142,19 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
       res.append("Set-Cookie", clearedStateCookie());
       res.redirect(302, googleBack(saved.n));
     } catch (error) {
-      logger.warn("connexion_google_echec", { status: error?.status ?? 0 });
-      const code = error?.status === 409 ? "compte-existant" : error?.status === 400 ? "conditions" : error?.status === 403 ? "bloque" : "echec";
+      logger.warn("connexion_google_echec", { status: error?.status ?? 0, liaison: linking });
+      const code = linking
+        ? (error?.status === 409 ? "deja-lie" : error?.status === 400 ? "email-different" : "echec")
+        : (error?.status === 409 ? "compte-existant" : error?.status === 400 ? "conditions" : error?.status === 403 ? "bloque" : "echec");
       fail(code);
     }
   });
 
-  // Mot de passe oublié : réponse identique que le compte existe ou non ; freins par adresse IP et par e-mail.
-  router.post("/auth/forgot", async (req, res) => {
-    limiter.hit(`forgot:${req.ip}`, 10, 60 * 60_000);
-    limiter.hit(`forgotmail:${sha256(String(req.body?.email ?? "").trim().toLowerCase().slice(0, 200))}`, 5, 60 * 60_000);
-    res.json(await accounts.requestPasswordReset(req.body ?? {}));
-  });
-  router.post("/auth/reset", async (req, res) => {
-    limiter.hit(`reset:${req.ip}`, 10, 60 * 60_000);
-    res.json(await accounts.resetPassword(req.body ?? {}));
-  });
-  router.post("/staff/accounts/:id/reset-link", async (req, res) => {
-    res.setHeader("Cache-Control", "no-store");
-    res.json(await accounts.staffResetLink(requireUser(req), id(req)));
+  // Retrait du lien Google (refusé sans mot de passe, voir accounts.unlinkGoogle).
+  router.delete("/me/google", async (req, res) => {
+    res.json(await accounts.unlinkGoogle(requireUser(req)));
   });
 
-  router.post("/auth/logout", async (req, res) => {
-    if (req.user) { track(req, "user_logout", { userId: req.user.id }); ownerCenter?.recordSecurity("LOGOUT", { userId: req.user.id }, req); }
-    await accounts.logout(req.sessionToken);
-    clearSession(res);
-    res.json({ ok: true });
-  });
-
-  // Visiteur anonyme : { user: null } (pas une erreur).
-  router.get("/me", async (req, res) => {
-    if (!req.user) return res.json({ user: null });
-    res.json({ user: req.user, meta: await accounts.me(req.user.id) });
-  });
-
-  router.post("/me/otp", async (req, res) => {
-    const userId = requireUser(req);
-    limiter.hit(`otp:${req.ip}`, 20, 60 * 60_000);
-    res.json(await accounts.requestOtp(userId, req.body ?? {}));
-  });
-
-  router.post("/me/otp/verify", async (req, res) => {
-    const userId = requireUser(req);
-    limiter.hit(`otpv:${userId}`, 20, 60 * 60_000);
-    const out = await accounts.verifyOtp(userId, req.body?.code);
-    track(req, "verification_completed", { userId, metadata: { from: "phone" } });
-    res.json(out);
-  });
-
-  // Configuration publique de la carte : le jeton Mapbox « pk. » est fait pour le navigateur (restreint par adresse chez Mapbox).
   // Boutons de connexion affichés selon la configuration (aucun secret).
   router.get("/config/auth", (req, res) => {
     res.setHeader("Cache-Control", "no-store");

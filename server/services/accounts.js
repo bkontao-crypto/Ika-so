@@ -192,13 +192,13 @@ export function createAccounts(ctx) {
     async login({ email, password }) {
       const cleanEmail = String(email ?? "").trim().toLowerCase();
       const rows = await db.query(
-        "select id, email, name, password_hash from ika_users where email = $1",
+        "select id, email, name, password_hash, has_password from ika_users where email = $1",
         [cleanEmail],
       );
       const user = rows[0];
       // Même durée de calcul, que l'e-mail existe ou non.
       const ok = await verifyPassword(String(password ?? ""), user ? user.password_hash : DUMMY_HASH);
-      if (!user || !ok) throw unauthorized("E-mail ou mot de passe incorrect.");
+      if (!user || !ok || user.has_password === false) throw unauthorized("E-mail ou mot de passe incorrect.");
       const profile = await ensureProfile(user.id);
       if (profile.account_status === "BANNED") {
         throw forbidden(`Ce compte est bloqué.${profile.status_reason ? ` Motif : ${profile.status_reason}` : ""}`);
@@ -207,6 +207,34 @@ export function createAccounts(ctx) {
         token: await createSession(user.id),
         user: { id: user.id, email: user.email, name: user.name },
       };
+    },
+
+    /** Lie Google à un compte DÉJÀ connecté (preuve : mot de passe ou session). Même adresse e-mail exigée. */
+    async linkGoogle(userId, { sub, email }) {
+      const user = (await db.query("select email, google_sub from ika_users where id = $1", [userId]))[0];
+      if (!user) throw unauthorized("Connexion requise.");
+      if (user.google_sub === sub) return { ok: true };
+      if (user.google_sub) throw conflict("Un autre compte Google est déjà lié à ce compte.");
+      if (String(email ?? "").trim().toLowerCase() !== user.email) throw badRequest("Utilisez le compte Google qui porte la même adresse e-mail que votre compte.");
+      if ((await db.query("select 1 from ika_users where google_sub = $1", [sub]))[0]) throw conflict("Ce compte Google est déjà relié à un autre compte.");
+      await db.transaction(async (tx) => {
+        await tx.query("update ika_users set google_sub = $2 where id = $1", [userId, sub]);
+        await audit(userId, "GOOGLE_LINK", null, "Compte Google lié", tx);
+      });
+      return { ok: true };
+    },
+
+    /** Retire Google. Refusé si le compte n'a pas de mot de passe : l'utilisateur ne pourrait plus se connecter. */
+    async unlinkGoogle(userId) {
+      const user = (await db.query("select has_password, google_sub from ika_users where id = $1", [userId]))[0];
+      if (!user) throw unauthorized("Connexion requise.");
+      if (!user.google_sub) throw badRequest("Aucun compte Google n'est lié.");
+      if (!user.has_password) throw badRequest("Définissez d'abord un mot de passe : sans lui, vous ne pourriez plus vous connecter.");
+      await db.transaction(async (tx) => {
+        await tx.query("update ika_users set google_sub = null where id = $1", [userId]);
+        await audit(userId, "GOOGLE_UNLINK", null, "Compte Google retiré", tx);
+      });
+      return { ok: true };
     },
 
     /**
@@ -218,7 +246,7 @@ export function createAccounts(ctx) {
       await assertNotBlacklisted(db, "EMAIL", cleanEmail);
       let user = (await db.query("select id, email, name from ika_users where google_sub = $1", [sub]))[0];
       if (!user) {
-        const taken = conflict("Un compte existe déjà avec cet e-mail : connectez-vous avec votre mot de passe.");
+        const taken = conflict("Ce compte se connecte avec son mot de passe. Connectez-vous ainsi, puis liez Google depuis « Mon profil ».");
         if ((await db.query("select 1 from ika_users where email = $1", [cleanEmail]))[0]) throw taken;
         if (acceptTerms !== true) throw badRequest("Vous devez accepter les conditions d'utilisation et la politique de confidentialité.");
         const fromGoogle = String(name ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120);
@@ -226,7 +254,7 @@ export function createAccounts(ctx) {
         const id = newId("u");
         const unusable = await hashPassword(googleRandomBytes(32).toString("base64url")); // pas de mot de passe connu : connexion par Google seulement
         const rows = await db.query(
-          `insert into ika_users (id, email, name, password_hash, google_sub, terms_version, terms_accepted_at) values ($1, $2, $3, $4, $5, $6, now())
+          `insert into ika_users (id, email, name, password_hash, google_sub, has_password, terms_version, terms_accepted_at) values ($1, $2, $3, $4, $5, false, $6, now())
            on conflict (email) do nothing returning id, email, name`,
           [id, cleanEmail, cleanName, unusable, sub, LEGAL_VERSION],
         );
@@ -288,7 +316,7 @@ export function createAccounts(ctx) {
         );
         if (!rows[0]) throw badRequest("Ce lien n'est plus valable. Refaites une demande de mot de passe oublié.");
         const userId = rows[0].user_id;
-        await tx.query("update ika_users set password_hash = $2 where id = $1", [userId, newHash]);
+        await tx.query("update ika_users set password_hash = $2, has_password = true where id = $1", [userId, newHash]);
         await tx.query("delete from ika_sessions where user_id = $1", [userId]);
         await tx.query("delete from ika_password_resets where user_id = $1 and used_at is null", [userId]);
         return { ok: true };
@@ -323,6 +351,7 @@ export function createAccounts(ctx) {
 
     async me(userId) {
       const profile = await ensureProfile(userId);
+      const methods = (await db.query("select has_password, google_sub from ika_users where id = $1", [userId]))[0] ?? {};
       const favs = await db.query("select listing_id from ika_favorites where user_id = $1", [userId]);
       let pendingCount = 0;
       if (hasStaffRank(profile.staff_role, "MODERATOR")) {
@@ -337,6 +366,8 @@ export function createAccounts(ctx) {
       }
       return {
         staffRole: profile.staff_role,
+        // Méthodes de connexion du compte (mot de passe et/ou Google) : pour l'écran « Mon profil » seulement.
+        authMethods: { password: methods.has_password !== false, google: Boolean(methods.google_sub) },
         permissions,
         accountStatus: profile.account_status,
         statusReason: profile.status_reason ?? "",

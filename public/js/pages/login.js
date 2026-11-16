@@ -8,7 +8,7 @@ const GOOGLE_NOTES = {
   conditions: "Cochez l'acceptation des conditions pour continuer avec Google.",
   refus: "Connexion Google annulée.",
   etat: "La connexion Google a expiré. Réessayez.",
-  "compte-existant": "Un compte existe déjà avec cette adresse : connectez-vous avec votre mot de passe.",
+  "compte-existant": "Ce compte se connecte avec son mot de passe. Connectez-vous ainsi, puis liez Google depuis « Mon profil ».",
   bloque: "Ce compte est bloqué.",
   echec: "La connexion Google a échoué. Réessayez ou utilisez votre mot de passe.",
 };

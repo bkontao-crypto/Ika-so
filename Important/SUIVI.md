@@ -39,6 +39,27 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⚠️ Les scripts 039–045, 050, 051, 058 n'ont toujours pas de transaction (non réécrits) ; testés et fonctionnels, mais pas « tout ou rien ».
 - ⬜ Le registre Excel n'est pas modifié : BUG-002 y reste « Ouverte » (à passer en « Résolue » après votre validation). Les retours arrière 059 à 064 existent aussi en un seul fichier : `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql`.
 
+## Deux méthodes de connexion par compte : mot de passe et Google (16 novembre 2026)
+**Décisions du propriétaire** : (1) la connexion reste e-mail + mot de passe, Google en plus ; le code SMS (OTP) reste réservé à la vérification du téléphone avant publication (aucune connexion par téléphone créée) ; (2) un compte à mot de passe se relie à Google **depuis « Mon profil », après connexion par mot de passe** (pas de liaison automatique) ; (3) la différence entre les méthodes se voit **dans « Mon profil »**.
+**Réalisé** (branche `feat/connexion-google-methodes`)
+- ✅ Migration `067_methodes_de_connexion.sql` (`has_password`, additive) + retour arrière `scripts/rollback/067_methodes_de_connexion_down.sql`. Les comptes créés par Google n'ont pas de mot de passe connu (`has_password = false`) et ne peuvent pas se connecter par mot de passe ; « Mot de passe oublié » leur en définit un.
+- ✅ Un même compte peut avoir les deux méthodes. Liaison Google depuis le profil : compte connecté + même adresse e-mail + identifiant Google non déjà utilisé ailleurs. Retrait : refusé si le compte n'a pas de mot de passe (sinon l'utilisateur serait enfermé).
+- ✅ Connexion Google d'un compte déjà lié : même compte (identifiant Google). Compte à mot de passe non lié : refus avec consigne de se connecter par mot de passe puis de lier depuis « Mon profil ».
+- ✅ `GET /api/me` renvoie `authMethods { password, google }` ; `GET /api/auth/google?link=1` (session requise), `DELETE /api/me/google`.
+- ✅ « Mon profil » → onglet Paramètres → « Méthodes de connexion » : mot de passe (activé / non défini), Google (lié / non lié), boutons Lier / Retirer (Retirer grisé sans mot de passe), messages de retour.
+**Vérifié**
+- ✅ `npm test` : 251 réussis sur 251 avec PostgreSQL réel (migrations 066 et 067 appliquées) ; 238 sans base.
+- ✅ Base réelle : compte mot de passe, compte Google seul, les deux ; connexion par mot de passe refusée au compte Google seul ; liaison refusée si adresse différente (400) ou identifiant déjà pris (409) ; retrait refusé sans mot de passe ; réinitialisation donne un mot de passe au compte Google ; audit `GOOGLE_LINK`.
+- ✅ Routes (faux Google) : liaison sans session refusée, liaison réussie, erreurs renvoyées au profil, retrait.
+- ✅ Casses volontaires détectées : refus de retrait sans mot de passe, refus d'adresse différente, contrôle de session pour la liaison, retrait sans lien.
+- ✅ Navigateur (session simulée, deux types de compte) : section affichée, boutons corrects, « Retirer » grisé sans mot de passe, aucune erreur JavaScript.
+**Non vérifié / limites**
+- ⬜ Le vrai échange avec Google (identifiants non posés ici). Le retour de liaison dépend du cookie de session : à tester après configuration.
+- ⬜ Application Android : la connexion et la liaison Google sont impossibles dans la WebView (voir section précédente) — pas de changement côté APK.
+- Deux gardes sont redondantes (défense en profondeur) : le contrôle `has_password` à la connexion par mot de passe et le contrôle `req.user` de la liaison ; leur suppression ne change aucun résultat testé.
+**À faire** : Render : rien de plus que la configuration Google déjà décrite (la migration 067 s'applique seule).
+**Risques** : un compte Google seul qui oublie son mot de passe doit passer par « Mot de passe oublié » (e-mail ou SMS).
+
 ## Connexion avec Google (16 novembre 2026)
 **À réaliser** : permettre de se connecter (ou de créer son compte) avec Google, sur le site, sans changer la connexion par mot de passe.
 **Réalisé** (branche `feat/connexion-google`)

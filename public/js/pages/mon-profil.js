@@ -19,13 +19,23 @@ let currentTab = "publications";
 let listingFilter = "all";
 let editingAbout = false;
 
+const GOOGLE_RESULT = {
+  lie: "Compte Google lié à ce compte.",
+  "deja-lie": "Ce compte Google est déjà relié à un autre compte.",
+  "email-different": "Utilisez le compte Google qui porte la même adresse e-mail que votre compte.",
+  "connexion-requise": "Connectez-vous pour lier Google à votre compte.",
+  echec: "La liaison avec Google a échoué. Réessayez.",
+};
+
 export async function profilePage() {
   if (needLogin()) return;
+  const googleResult = new URLSearchParams(location.hash.split("?")[1] ?? "").get("google");
+  if (googleResult) setTimeout(() => toast(GOOGLE_RESULT[googleResult] ?? "Opération Google terminée.", googleResult !== "lie"), 300);
   const wanted = new URLSearchParams(location.hash.split("?")[1] ?? "").get("tab");
   if (TABS.some(([id]) => id === wanted)) currentTab = wanted;
   await refreshSession();
   const id = S.user.id;
-  const [edit, pub, listings, score, reviews, consent, proofs, followers, following, followSettings, team] = await Promise.all([
+  const [edit, pub, listings, score, reviews, consent, proofs, followers, following, followSettings, team, googleCfg] = await Promise.all([
     api("/me/public-profile"),
     api(`/advertisers/${encodeURIComponent(id)}`).catch(() => null),
     api("/me/listings").catch(() => []),
@@ -37,8 +47,11 @@ export async function profilePage() {
     api("/me/following").catch(() => []),
     api("/me/follow-settings").catch(() => ({ anonymousByDefault: false })),
     api("/me/team-requests").catch(() => ({ members: [], received: [], sent: [] })),
+    api("/config/auth").catch(() => ({ google: false })),
   ]);
   const m = S.meta ?? {};
+  // Méthodes de connexion du compte : mot de passe et/ou Google (les deux peuvent coexister).
+  const authMethods = m.authMethods ?? { password: true, google: false };
   const pr = edit.profile;
   const can = (k) => edit.allowed.includes(k);
   const name = m.fullName || S.user.name;
@@ -259,6 +272,17 @@ export async function profilePage() {
             m.phoneVerified ? badge("green", "✓ Vérifié") : h("a", { class: "mp-btn mp-btn-primary sm", href: "#/publier" }, "Vérifier")),
           setting("Justificatifs", proofs.length ? proofs.slice(0, 3).map((p) => `${p.kind === "AGENCE" ? "RCCM" : p.listingTitle || "Titre foncier"} : ${proofLabel[p.status] ?? p.status}`).join(" · ") : "Aucun document soumis",
             agencyRole ? h("button", { class: "mp-btn mp-btn-primary sm", type: "button", onClick: () => rccm.click() }, "Envoyer le RCCM") : h("a", { class: "mp-btn mp-btn-outline sm", href: "#/mes-annonces" }, "Joindre à une annonce"), agencyRole ? rccm : null)),
+        h("div", { class: "mp-group" }, h("h4", null, "Méthodes de connexion"),
+          setting("Mot de passe", h("span", null, "E-mail et mot de passe : ", h("span", { class: authMethods.password ? "ok" : "warn" }, authMethods.password ? "activé" : "non défini")),
+            h("a", { class: "mp-btn mp-btn-outline sm", href: "#/mot-de-passe-oublie" }, authMethods.password ? "Changer" : "Définir un mot de passe")),
+          setting("Google", h("span", null, authMethods.google ? "Lié à ce compte" : "Non lié"),
+            !googleCfg?.google ? h("span", { class: "small muted" }, "Indisponible pour le moment")
+              : authMethods.google
+                ? h("button", { class: "mp-btn mp-btn-outline sm", type: "button", disabled: !authMethods.password, title: authMethods.password ? "" : "Définissez d'abord un mot de passe", onClick: async () => {
+                    if (!window.confirm("Retirer la connexion Google de ce compte ? Vous continuerez à vous connecter avec votre mot de passe.")) return;
+                    try { await api("/me/google", { method: "DELETE" }); toast("Google retiré de ce compte."); location.reload(); } catch (error) { fail(error); }
+                  } }, "Retirer")
+                : h("a", { class: "mp-btn mp-btn-primary sm", href: "/api/auth/google?link=1" }, "Lier Google"))),
         h("div", { class: "mp-group" }, h("h4", null, "Données & Sécurité"),
           setting("Exporter mes données", "Télécharger une copie de mes données", h("a", { class: "mp-btn mp-btn-outline", href: "/api/me/export", download: "mes-donnees-ika-so.json" }, "Exporter")),
           setting("Supprimer mon compte", "Action irréversible : voir « Mes données » plus bas", h("button", { class: "mp-btn mp-btn-outline danger", type: "button", onClick: () => { const d = settingsHost.querySelector("details"); d?.setAttribute("open", ""); (d ?? settingsHost).scrollIntoView({ behavior: "smooth", block: "center" }); } }, "Supprimer"))))));
