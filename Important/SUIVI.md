@@ -3,6 +3,14 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Centre de contrôle : retour au site et photo du compte (16 novembre 2026)
+**À réaliser** : (1) un bouton pour revenir sur le site ; (2) la photo de profil du Owner Control Center liée à celle du compte.
+**Réalisé** : bouton « Retour au site » (lien vers `/`) dans la barre du haut, texte masqué sur petit écran. Photo : le centre de contrôle lit la photo du profil public (`/api/me/public-profile`, champ `profile.avatarUrl`, même source que « Mon profil ») et l'affiche dans la barre latérale et en haut ; sans photo, les initiales restent. Styles dans `owner.css`, service worker restamped.
+**Vérifié** : `npm test` (268 tests, 254 pass, 0 fail, sans PostgreSQL de test). Test réel sur PostgreSQL 16 locale et serveur lancé : photo téléversée sur le compte, affichée aux deux emplacements dans le centre de contrôle ; bouton retour ramène sur `/` ; pas de débordement horizontal (1280 px et 390 px) ; aucune erreur JavaScript ni API.
+**En cours** : aucun.
+**À faire** : contrôle visuel par le propriétaire après déploiement.
+**Risques** : aucun connu. Le centre de contrôle ne montre la photo qu'après téléversement sur « Mon profil public ».
+
 ## Régression corrigée : routes de session et de mot de passe supprimées (16 novembre 2026)
 **À réaliser** : vérifier que le Centre de contrôle (`/owner`) fonctionne réellement.
 **Constat** : le commit `dfeaf61` (« deux méthodes de connexion », fusionné par `340da2c`) avait supprimé 7 routes de `server/routes/index.js` sans rapport avec la tâche : `GET /api/me` (session), `POST /api/auth/logout`, `POST /api/auth/forgot`, `POST /api/auth/reset`, `POST /api/me/otp`, `POST /api/me/otp/verify`, `POST /api/staff/accounts/:id/reset-link`. Conséquences en production si ce commit y est déployé : session non restaurée à chaque chargement, déconnexion, mot de passe oublié et vérification SMS inopérants. Les tests ne l'ont pas vu.
