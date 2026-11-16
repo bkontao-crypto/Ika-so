@@ -22,8 +22,7 @@ export function trustPage() {
     h("p", { class: "muted small" }, DOCUMENT_DISCLAIMER),
     h("p", { class: "muted small" }, "Aucune adresse IP n'est enregistrée dans les statistiques. Le texte de confidentialité et les conditions d'utilisation doivent encore être validés par un juriste malien avant l'ouverture publique."),
     h("div", { class: "row wrap gap-sm" },
-      h("a", { href: "#/reclamations", class: "btn btn-outline" }, "Déposer une réclamation"),
-      h("a", { href: "#/", class: "btn btn-quiet" }, "Retour au catalogue")
+      h("a", { href: "#/reclamations", class: "btn btn-outline" }, "Déposer une réclamation")
     )
   ));
 }

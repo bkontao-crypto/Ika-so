@@ -1,7 +1,7 @@
 import { h, mount } from "/js/dom.js";
 import { icon } from "/js/icons.js";
 import { S } from "/js/core/state.js";
-import { currentRoute, go } from "/js/core/router.js";
+import { currentRoute } from "/js/core/router.js";
 
 // Navigation de la refonte : Accueil, Acheter, Louer, Terrains, Carte, Annonceurs, Partenaires.
 // Toutes les routes d'origine restent accessibles (Favoris et Messages : icônes d'en-tête et menu du profil ;
@@ -45,40 +45,6 @@ function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
 }
 
-// ---------- Bouton « Retour » ----------
-// Pile des pages visitées dans cette session : un retour revient à la page précédente réelle ;
-// s'il n'y en a pas (page ouverte directement par un lien), on remonte vers la page « parent ».
-const navStack = [];
-export function trackNav() {
-  const here = location.hash || "#/";
-  if (navStack.length >= 2 && navStack[navStack.length - 2] === here) navStack.pop(); // retour du navigateur
-  else if (navStack[navStack.length - 1] !== here) navStack.push(here);
-  if (navStack.length > 50) navStack.shift();
-}
-/** Page de repli quand il n'y a pas d'historique dans l'application. */
-function parentOf(path) {
-  if (/^\/annonce\/[^/]+$/.test(path)) return "/annonces";
-  if (/^\/boite\/[^/]+$/.test(path)) return "/boite";
-  if (/^\/(modifier|localiser)\/[^/]+$/.test(path)) return "/mes-annonces";
-  if (/^\/annonceur\/[^/]+$/.test(path)) return "/annonceurs";
-  if (path === "/centre") return "/profil";
-  if (path === "/premium") return "/partenaires";
-  if (path === "/mon-profil-public" || path === "/mes-annonces" || path === "/paiements" || path === "/agence") return "/profil";
-  return "/";
-}
-function goBack() {
-  if (navStack.length > 1) history.back();
-  else go(parentOf(currentRoute().path));
-}
-function renderBackbar(path) {
-  const bar = document.getElementById("backbar");
-  if (!bar) return;
-  bar.hidden = path === "/";
-  if (path === "/") return mount(bar);
-  mount(bar, h("button", { class: "back-btn", type: "button", onClick: goBack, "aria-label": "Retour à la page précédente" },
-    icon("arrow-left"), h("span", null, "Retour")));
-}
-
 function openMenu(opener) {
   const close = () => { backdrop.remove(); panel.remove(); document.removeEventListener("keydown", onKey); opener.focus(); };
   const onKey = (e) => { if (e.key === "Escape") close(); };
@@ -112,7 +78,6 @@ if (typeof window !== "undefined" && window.visualViewport) {
 export function renderChrome() {
   const { path, params } = currentRoute();
   document.body.classList.toggle("is-home", path === "/");
-  renderBackbar(path);
 
   const link = (item, cls, badgeCls) => {
     const active = item.match(path, params);

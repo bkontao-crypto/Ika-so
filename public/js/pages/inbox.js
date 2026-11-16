@@ -151,7 +151,6 @@ export async function threadPage(id) {
   mount(app,
     h("section", { class: "chat" },
       h("header", { class: "chat-head" },
-        h("a", { href: "#/boite?onglet=messages", class: "btn btn-quiet btn-small", "aria-label": "Retour aux discussions" }, "Retour"),
         avatar(t.otherName),
         h("div", { class: "chat-who" }, h("h1", null, t.otherName || "Conversation"), h("a", { class: "small", href: `#/annonce/${encodeURIComponent(t.listingId)}` }, t.title)),
         h("div", { class: "chat-actions" },

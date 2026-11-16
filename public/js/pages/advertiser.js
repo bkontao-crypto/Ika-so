@@ -279,7 +279,6 @@ export async function advertiserPage(id) {
   }
 
   const root = h("div", { class: `pa pa-${agency ? "agency" : "person"}` },
-    h("a", { href: "#/annonceurs", class: "pa-back" }, "← Retour aux annonceurs"),
     ...head,
     ownerSpace,
     h("div", { class: "pa-layout" }, aside, h("div", { class: "pa-col pa-main" }, panel, contactCard, h("div", { class: "pa-row" }, shareBtn))));

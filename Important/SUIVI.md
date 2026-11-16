@@ -11,6 +11,23 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 **En cours** : compilation de l'APK non vérifiée (pas de SDK Android dans l'environnement). Kotlin relu manuellement uniquement.
 **À faire** : compiler la version 1.0.4 dans Android Studio, la tester sur téléphone (ajout depuis galerie et appareil photo, après plus de 30 secondes), puis remplacer `public/downloads/Ika-So.apk`.
 **Risques** : le même correctif concerne aussi les pièces justificatives (même sélecteur). Le téléphone doit avoir la version 1.0.4 pour que le correctif s'applique.
+## Boutons « Retour » retirés du site public : retour du téléphone uniquement (16 novembre 2026)
+**À réaliser** : sur demande du propriétaire (capture de la page annonceur : bouton « ← Retour » flottant + lien « ← Retour aux annonceurs »), retirer les boutons Retour ; la navigation arrière se limite au retour du téléphone / du navigateur.
+**Réalisé**
+- ✅ Barre « Retour » globale supprimée : `#backbar` (`index.html`), `renderBackbar`, pile de navigation `trackNav` / `goBack` / `parentOf` (`chrome.js`, `app.js`). Elle s'affichait sous l'en-tête de toutes les pages sauf l'accueil.
+- ✅ Liens « Retour » de pure navigation retirés : « Retour aux annonceurs » (`advertiser.js`), « Retour au catalogue » (`listing.js`, `trust.js`), « Retour à mes annonces » (`localisation.js`), « Retour à mon profil » (`profile-edit.js`), « Retour » du fil de conversation (`inbox.js`), « ← Liste » du détail d'un bien (`compte-unifie.js`).
+- ✅ `public/sw.js` : version du cache recalculée (`ika-so-ed276cd8eb`).
+- ✅ Test `test/no-back-buttons.test.js` (3 tests) : tout nouveau « Retour » hors liste d'exceptions justifiées fait échouer les tests.
+**Volontairement conservés** (pas de la navigation arrière, ou aucune autre sortie) : « Retour à l'accueil » des pages d'erreur / introuvable (`app.js`) et « Retour au profil / à mon profil » / « Retour » des écrans d'erreur (`centre.js`, `complaints.js`, `compte-unifie.js`) ; « Retour » de la facture ouverte (`payments.js`, réaffiche la liste sans changer d'adresse : le retour du téléphone quitterait la page) ; « ← Retour à la connexion » (`password-reset.js`, page ouverte depuis un lien d'e-mail, sans historique). **Hors périmètre, non modifiés** : console d'administration (`admin.js`) et centre de contrôle (`owner/`, dont le bouton « Retour au site » ajouté ce matin à votre demande).
+**Vérifié**
+- ✅ `npm test` : 271 tests, 257 réussis, 0 échec, 14 ignorés (PostgreSQL absent : non exécutés). Le nouveau test échoue bien si un bouton ou `#backbar` est réintroduit.
+- ✅ Navigateur (Chromium), 10 routes × 2 tailles (ordinateur 1114 px, téléphone 360 px) : aucune erreur JavaScript, aucun `#backbar`, aucun bouton « Retour » visible hors écrans d'erreur ; en-tête intact ; rendu de la page Confiance contrôlé visuellement.
+- ✅ Retour du téléphone : l'application Android appelle `canGoBack()` → `goBack()` (`MainActivity.kt`), et les écrans de détail (`#/boite/…`, `#/profil?tab=biens&id=…`) changent bien d'adresse.
+**Non vérifié / risques**
+- ⬜ Les pages avec données (annonceur, annonce, messagerie, localisation, profil public) n'ont pas pu être affichées (pas d'API dans mon environnement) : retrait contrôlé par la syntaxe, le diff et le test, pas à l'écran. À regarder sur le site après déploiement.
+- ⚠️ Une page ouverte directement par un lien n'a plus de repli « page parent » : le retour du téléphone sort de l'application (l'Android demande un second appui pour quitter). L'en-tête et la barre du bas restent disponibles.
+- ⬜ Les règles CSS `.backbar` / `.pa-back` sont devenues inutilisées et laissées en place (inoffensives).
+- ⬜ Étendre aussi à la console d'administration et au centre de contrôle : décision du propriétaire.
 
 ## Mon profil : doublons d'identité supprimés (16 novembre 2026)
 **À réaliser** : signalement de deux blocs « profil » dans l'interface Mon profil.

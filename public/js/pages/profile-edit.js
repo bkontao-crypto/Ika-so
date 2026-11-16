@@ -43,7 +43,6 @@ export async function profileEditPage() {
   };
 
   mount(app,
-    h("a", { href: `#/annonceur/${encodeURIComponent(S.user.id)}`, class: "btn btn-quiet btn-small" }, "Retour à mon profil"),
     h("h1", { class: "title" }, "Mon profil public"),
     h("p", { class: "muted" }, `Ce que voient les acheteurs. Tout est facultatif. Type de compte : ${m.role}.`),
     pr.imagesHidden ? h("p", { class: "banner" }, "Vos photos ont été masquées par la modération. Envoyez-en de nouvelles.") : null,

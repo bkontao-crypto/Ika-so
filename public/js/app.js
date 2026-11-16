@@ -2,7 +2,7 @@
 import { api, h, loadPlaces, mount, replaceTextIn } from "/js/dom.js";
 import { app, onSession, refreshSession, refreshUnread } from "/js/core/state.js";
 import { currentRoute } from "/js/core/router.js";
-import { renderChrome, trackNav } from "/js/components/chrome.js";
+import { renderChrome } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
 
 // Chaque route : fichier de la page, fonction à lancer, et façon de lire l'identifiant dans l'adresse.
@@ -42,7 +42,6 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 
 async function render() {
   const { path } = currentRoute();
-  trackNav();
   renderChrome();
   api("/e", { method: "POST", body: { pagePath: path } }).catch(() => undefined);
   document.body.classList.remove("in-chat");
