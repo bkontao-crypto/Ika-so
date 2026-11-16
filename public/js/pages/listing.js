@@ -104,7 +104,6 @@ export async function listingPage(id) {
   const fact = (label, value) => h("div", { class: "fact" }, h("span", null, label), h("strong", null, value));
   const geoBox = h("div", { class: "stack", hidden: true });
   mount(app,
-    h("a", { href: "#/", class: "btn btn-quiet btn-small" }, "Retour au catalogue"),
     h("article", { class: "card" },
       h("div", { class: "gallery-main" }, main), thumbs,
       h("div", { class: "pad stack" },

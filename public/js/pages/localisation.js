@@ -117,7 +117,6 @@ export async function localisationPage(id) {
   removeBtn = btn("Supprimer le point choisi", () => { map.removeSelected(); }, "btn-quiet");
   removeBtn.disabled = true;
   mount(app,
-    h("a", { href: "#/mes-annonces", class: "btn btn-quiet btn-small" }, "Retour à mes annonces"),
     h("h1", { class: "title" }, "Localiser le bien"),
     h("p", { class: "muted small" }, `${item.title} · ${item.neighborhood}`),
     h("div", { class: "card pad stack" },

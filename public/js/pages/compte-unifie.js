@@ -358,8 +358,7 @@ export async function compteUnifiePage() {
         const listings = b.listings || [];
         return h("section", { class: "stack", style: "display:grid;gap:16px" },
           h("div", { class: "row-between" },
-            h("h2", null, b.title),
-            h("a", { href: "#/profil?tab=biens", class: "btn btn-quiet" }, "← Liste")
+            h("h2", null, b.title)
           ),
           h("div", { class: "card" },
             h("p", { class: "muted small" }, [b.category, b.neighborhood, b.address, b.surface_m2 ? `${b.surface_m2} m²` : null].filter(Boolean).join(" · ") || "—"),
