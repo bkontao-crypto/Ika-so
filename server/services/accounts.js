@@ -241,7 +241,7 @@ export function createAccounts(ctx) {
      * Connexion ou inscription avec Google. Le lien se fait par l'identifiant Google (sub), jamais seulement par l'e-mail :
      * un compte créé par mot de passe avec la même adresse n'est PAS relié automatiquement (il pourrait avoir été créé par un tiers).
      */
-    async loginWithGoogle({ sub, email, name }, { acceptTerms } = {}) {
+    async loginWithGoogle({ sub, email, name }, { acceptTerms, session = true } = {}) {
       const cleanEmail = String(email ?? "").trim().toLowerCase();
       await assertNotBlacklisted(db, "EMAIL", cleanEmail);
       let user = (await db.query("select id, email, name from ika_users where google_sub = $1", [sub]))[0];
@@ -266,7 +266,30 @@ export function createAccounts(ctx) {
       if (profile.account_status === "BANNED") {
         throw forbidden(`Ce compte est bloqué.${profile.status_reason ? ` Motif : ${profile.status_reason}` : ""}`);
       }
-      return { token: await createSession(user.id), user: { id: user.id, email: user.email, name: user.name } };
+      return { token: session ? await createSession(user.id) : null, user: { id: user.id, email: user.email, name: user.name } };
+    },
+
+    /** Ticket de connexion pour l'application : 60 secondes, un seul usage, seul son hachage est en base. */
+    async issueLoginTicket(userId) {
+      const ticket = googleRandomBytes(32).toString("base64url");
+      await db.query("delete from ika_login_tickets where expires_at < now()");
+      await db.query("insert into ika_login_tickets (token_hash, user_id, expires_at) values ($1, $2, now() + interval '60 seconds')", [sha256(ticket), userId]);
+      return ticket;
+    },
+
+    /** Échange le ticket contre une session (une seule fois). Refuse un compte bloqué. */
+    async consumeLoginTicket(ticket) {
+      const rows = await db.query(
+        "delete from ika_login_tickets where token_hash = $1 and expires_at > now() returning user_id",
+        [sha256(String(ticket ?? "").slice(0, 200))],
+      );
+      const userId = rows[0]?.user_id;
+      if (!userId) throw unauthorized("Ce lien de connexion a expiré. Recommencez depuis l'application.");
+      const user = (await db.query("select id, email, name from ika_users where id = $1", [userId]))[0];
+      if (!user) throw unauthorized("Ce lien de connexion a expiré. Recommencez depuis l'application.");
+      const profile = await ensureProfile(userId);
+      if (profile.account_status === "BANNED") throw forbidden("Ce compte est bloqué.");
+      return { token: await createSession(userId), user: { id: user.id, email: user.email, name: user.name } };
     },
 
     /**

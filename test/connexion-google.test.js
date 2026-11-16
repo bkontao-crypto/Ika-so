@@ -30,7 +30,7 @@ test("sameState : comparaison exacte, refus des états vides ou de longueur diff
 
 test("état en cookie : aller-retour, page d'arrivée sûre uniquement", () => {
   const cookie = `autre=1; ${g.STATE_COOKIE}=${g.packState({ s: "S1", n: "/annonces", t: 1, l: 0 })}`;
-  assert.deepEqual(g.readStateCookie(cookie), { s: "S1", n: "/annonces", t: 1, l: 0 });
+  assert.deepEqual(g.readStateCookie(cookie), { s: "S1", n: "/annonces", t: 1, l: 0, a: 0 });
   assert.equal(g.readStateCookie("rien=1"), null);
   assert.equal(g.readStateCookie(`${g.STATE_COOKIE}=pas-du-json`), null);
   for (const bad of ["//evil.example", "https://evil.example", "/\\evil", "annonces"]) assert.equal(g.safeNext(bad), "/", bad);
@@ -71,7 +71,11 @@ test("configuration Google : activée seulement avec identifiant, secret et adre
 /** Routes avec un faux service de comptes et un faux Google (aucun appel réseau réel). */
 function setup({ enabled = true, login } = {}) {
   const calls = { login: [], sessions: [] };
-  const accounts = { loginWithGoogle: async (profile, opts) => { calls.login.push({ profile, opts }); if (login) return login(profile, opts); return { token: "T1", user: { id: "u1", email: profile.email, name: profile.name } }; } };
+  const accounts = {
+    loginWithGoogle: async (profile, opts) => { calls.login.push({ profile, opts }); if (login) return login(profile, opts); return { token: opts?.session === false ? null : "T1", user: { id: "u1", email: profile.email, name: profile.name } }; },
+    issueLoginTicket: async (uid) => { calls.tickets = (calls.tickets ?? 0) + 1; return `TKT-${uid}`; },
+    consumeLoginTicket: async (ticket) => { if (ticket !== "TKT-u1") throw Object.assign(new Error("expiré"), { status: 401 }); return { token: "T2", user: { id: "u1" } }; },
+  };
   const config = { production: false, publicUrl: "https://ika.example", google: enabled ? { clientId: "cid", clientSecret: "sec", enabled: true, redirectUri: "https://ika.example/api/auth/google/callback" } : { enabled: false } };
   const router = buildRoutes({
     services: { accounts, db: {} }, config, limiter: { hit() {}, check() {}, record() {}, forget() {} }, logger: { info() {}, warn() {}, error() {} }, counters: {},
@@ -240,4 +244,26 @@ test("retrait Google : DELETE /me/google retire le lien de l'utilisateur connect
   const refused = await anon.router.call("DELETE", "/me/google", {});
   assert.ok(refused.error, "sans session : erreur");
   assert.equal(anon.calls.unlink.length, 0);
+});
+
+test("application Android : démarrage marqué, retour par ticket sans session dans le navigateur, échange du ticket dans la WebView", async () => {
+  const { router, calls } = setup();
+  const start = await router.call("GET", "/auth/google", { query: { terms: "1", app: "1" } });
+  const back = g.readStateCookie([].concat(start.headers["set-cookie"])[0].split(";")[0]);
+  assert.equal(back.a, 1);
+  const cookie = `ika_oauth=${g.packState({ s: back.s, n: "/", t: 1, l: 0, a: 1 })}`;
+  await withFakeGoogle(async () => {
+    const out = await router.call("GET", "/auth/google/callback", { query: { code: "C", state: back.s }, headers: { cookie } });
+    assert.match(out.location, /^ikaso:\/\/login\?ticket=TKT-u1$/);
+    const set = [].concat(out.headers["set-cookie"] ?? []);
+    assert.ok(!set.some((c) => c.startsWith("ika_session=")), "aucune session dans le navigateur");
+  });
+  assert.equal(calls.login[0].opts.session, false);
+  assert.equal(calls.tickets, 1);
+  const ok = await router.call("GET", "/auth/app-handoff", { query: { ticket: "TKT-u1" } });
+  assert.equal(ok.location, "/");
+  assert.ok([].concat(ok.headers["set-cookie"]).some((c) => c === "ika_session=T2"), "session posée dans la WebView");
+  const bad = await router.call("GET", "/auth/app-handoff", { query: { ticket: "vieux" } });
+  assert.equal(bad.location, "/#/connexion?google=ticket-expire");
+  assert.equal(bad.headers["set-cookie"], undefined);
 });

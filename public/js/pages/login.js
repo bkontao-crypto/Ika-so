@@ -11,6 +11,7 @@ const GOOGLE_NOTES = {
   "compte-existant": "Ce compte se connecte avec son mot de passe. Connectez-vous ainsi, puis liez Google depuis « Mon profil ».",
   bloque: "Ce compte est bloqué.",
   echec: "La connexion Google a échoué. Réessayez ou utilisez votre mot de passe.",
+  "ticket-expire": "Ce lien de connexion a expiré. Recommencez depuis l'application.",
 };
 
 export async function loginPage() {

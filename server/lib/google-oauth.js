@@ -63,13 +63,13 @@ export function safeNext(raw) {
   return v.startsWith("/") && !v.startsWith("//") && !v.includes("\\") && v.length < 200 ? v : "/";
 }
 
-/** Lit le cookie d'état : { s: état, n: page d'arrivée, t: 1 si conditions acceptées, l: 1 si liaison depuis Mon profil }, ou null. */
+/** Lit le cookie d'état : { s: état, n: page d'arrivée, t: 1 si conditions acceptées, l: 1 si liaison depuis Mon profil, a: 1 si connexion lancée depuis l'application }, ou null. */
 export function readStateCookie(cookieHeader) {
   const raw = String(cookieHeader ?? "").split(";").map((c) => c.trim()).find((c) => c.startsWith(`${STATE_COOKIE}=`));
   if (!raw) return null;
   try {
     const v = JSON.parse(decodeURIComponent(raw.slice(STATE_COOKIE.length + 1)));
-    return typeof v?.s === "string" ? { s: v.s, n: safeNext(v.n), t: v.t === 1 ? 1 : 0, l: v.l === 1 ? 1 : 0 } : null;
+    return typeof v?.s === "string" ? { s: v.s, n: safeNext(v.n), t: v.t === 1 ? 1 : 0, l: v.l === 1 ? 1 : 0, a: v.a === 1 ? 1 : 0 } : null;
   } catch { return null; }
 }
 export const packState = (obj) => encodeURIComponent(JSON.stringify(obj));

@@ -107,12 +107,13 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     if (req.query.link === "1") {
       if (!req.user) return res.redirect(302, googleBack("/connexion?google=connexion-requise"));
       const state = newState();
-      res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: "/profil", t: 0, l: 1 }), config));
+      res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: "/profil", t: 0, l: 1, a: 0 }), config));
       return res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
     }
     if (req.query.terms !== "1") return res.redirect(302, googleBack("/connexion?google=conditions"));
     const state = newState();
-    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1, l: 0 }), config));
+    // a = 1 : connexion lancée depuis l'application Android (retour par ticket, voir /auth/app-handoff).
+    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
     res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
   });
 
@@ -135,6 +136,15 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
         res.setHeader("Set-Cookie", clearedStateCookie());
         return res.redirect(302, googleBack("/profil?google=lie"));
       }
+      if (saved.a === 1) {
+        // Application : aucune session dans le navigateur ; un ticket à usage unique ramène l'application à la session.
+        const { user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1, session: false });
+        track(req, "user_login", { userId: user.id });
+        ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
+        const ticket = await accounts.issueLoginTicket(user.id);
+        res.setHeader("Set-Cookie", clearedStateCookie());
+        return res.redirect(302, `ikaso://login?ticket=${encodeURIComponent(ticket)}`);
+      }
       const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1 });
       track(req, "user_login", { userId: user.id });
       ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
@@ -147,6 +157,19 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
         ? (error?.status === 409 ? "deja-lie" : error?.status === 400 ? "email-different" : "echec")
         : (error?.status === 409 ? "compte-existant" : error?.status === 400 ? "conditions" : error?.status === 403 ? "bloque" : "echec");
       fail(code);
+    }
+  });
+
+  // Application Android : le ticket (60 s, une fois) ouvre la session dans la WebView de l'application.
+  router.get("/auth/app-handoff", async (req, res) => {
+    limiter.hit(`handoff:${req.ip}`, 20, 10 * 60_000);
+    res.setHeader("Cache-Control", "no-store");
+    try {
+      const { token } = await accounts.consumeLoginTicket(req.query.ticket);
+      setSession(res, token);
+      res.redirect(302, "/");
+    } catch (error) {
+      res.redirect(302, googleBack("/connexion?google=ticket-expire"));
     }
   });
 

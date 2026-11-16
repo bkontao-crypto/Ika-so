@@ -107,3 +107,33 @@ test("deux méthodes par compte : mot de passe seul, Google seul, les deux ; rè
     await db.close();
   }
 });
+
+test("tickets de connexion application : usage unique, expiration, compte bloqué refusé", { skip }, async () => {
+  const { createDb } = await import("../server/db.js");
+  const { migrate } = await import("../server/migrate.js");
+  const { createAccounts } = await import("../server/services/accounts.js");
+  const db = createDb(url);
+  await migrate(db, () => {});
+  const accounts = createAccounts({ db, config: {} });
+  const tag = `tk${Date.now()}`;
+  const email = `${tag}@test.invalid`;
+  try {
+    const { user } = await accounts.loginWithGoogle({ sub: `${tag}-s`, email, name: "Ticket" }, { acceptTerms: true, session: false });
+    assert.equal((await db.query("select count(*)::int as n from ika_sessions where user_id = $1", [user.id]))[0].n, 0, "aucune session créée pour l'application");
+    const t1 = await accounts.issueLoginTicket(user.id);
+    const first = await accounts.consumeLoginTicket(t1);
+    assert.equal(first.user.id, user.id);
+    assert.ok(first.token);
+    assert.equal((await outcome(accounts.consumeLoginTicket(t1))).status, 401, "un ticket ne sert qu'une fois");
+    const t2 = await accounts.issueLoginTicket(user.id);
+    await db.query("update ika_login_tickets set expires_at = now() - interval '1 second' where user_id = $1", [user.id]);
+    assert.equal((await outcome(accounts.consumeLoginTicket(t2))).status, 401, "ticket expiré refusé");
+    const t3 = await accounts.issueLoginTicket(user.id);
+    await db.query("insert into ika_profiles (user_id, account_status, status_reason) values ($1, 'BANNED', 'essai') on conflict (user_id) do update set account_status = 'BANNED'", [user.id]);
+    assert.equal((await outcome(accounts.consumeLoginTicket(t3))).status, 403, "compte bloqué refusé");
+    assert.equal((await outcome(accounts.consumeLoginTicket("n-importe-quoi"))).status, 401);
+  } finally {
+    await db.query("delete from ika_users where email = $1", [email]).catch(() => undefined);
+    await db.close();
+  }
+});
