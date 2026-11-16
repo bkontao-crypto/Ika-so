@@ -63,13 +63,20 @@ function paintBell() {
 }
 const closeMenu = () => { side?.classList.remove("open"); scrim?.classList.remove("open"); };
 
+function avatarNode() {
+  const name = me.fullName || "Owner";
+  return me.avatarUrl
+    ? h("div", { class: "avatar", title: name }, h("img", { src: me.avatarUrl, alt: `Photo de ${name}`, loading: "lazy" }))
+    : h("div", { class: "avatar", title: name }, initials(name));
+}
+
 function shell() {
   navEl = h("div", { class: "navwrap" });
   side = h("aside", { class: "side", "aria-label": "Navigation Owner" },
     h("div", { class: "brand" }, h("img", { src: "/media/logo-ika-so.webp", alt: "IKA SO" }), h("div", null, h("b", null, "IKA SO IMMOBILIER"), h("small", null, "OWNER CONTROL CENTER"))),
     h("div", { class: "role" }, h("span", { class: "live" }), h("div", null, h("small", null, "SESSION SÉCURISÉE"), h("strong", null, "SUPERADMIN · Contrôle total"))),
     navEl,
-    h("div", { class: "sidefoot" }, h("div", { class: "avatar" }, initials(me.fullName || "Owner")), h("div", null, h("b", null, me.fullName || "Propriétaire plateforme"), h("small", null, "Accès SUPERADMIN"))));
+    h("div", { class: "sidefoot" }, avatarNode(), h("div", null, h("b", null, me.fullName || "Propriétaire plateforme"), h("small", null, "Accès SUPERADMIN"))));
   scrim = h("div", { class: "scrim", onClick: closeMenu });
   crumb = h("b", null, "Vue générale");
   bellBadge = h("span", { class: "dot-badge" }); bellBadge.hidden = true;
@@ -77,8 +84,9 @@ function shell() {
   const top = h("header", { class: "top" },
     h("div", { class: "row" }, h("button", { class: "iconbtn menu-btn", type: "button", "aria-label": "Menu", onClick: () => { side.classList.add("open"); scrim.classList.add("open"); } }, ico("menu")), h("div", { class: "crumb" }, "Administration /", crumb)),
     h("div", { class: "topright" }, h("button", { class: "search", type: "button", onClick: openPalette }, ico("search"), h("span", null, "Rechercher un module, un compte…"), h("kbd", null, "Ctrl K")),
+      h("a", { class: "site-back", href: "/", title: "Retour au site IKA SÔ" }, ico("home"), h("span", null, "Retour au site")),
       h("a", { class: "iconbtn", href: "/admin", title: "Centre de contrôle classique", "aria-label": "Centre de contrôle classique" }, ico("external")),
-      h("button", { class: "iconbtn", type: "button", title: "Thème clair / sombre", "aria-label": "Changer de thème", onClick: toggleTheme }, ico("sun")), bell, h("div", { class: "avatar", title: me.fullName }, initials(me.fullName || "Owner"))));
+      h("button", { class: "iconbtn", type: "button", title: "Thème clair / sombre", "aria-label": "Changer de thème", onClick: toggleTheme }, ico("sun")), bell, avatarNode()));
   content = h("div", { class: "content", id: "content", tabindex: "-1" });
   root.className = ""; root.replaceChildren(h("div", { class: "shell" }, side, h("main", null, top, content)), scrim);
 }
@@ -142,6 +150,9 @@ async function start() {
     if (!session.user) return gate("Connexion requise", "Ouvrez une session SUPERADMIN pour accéder au centre de commandement.", h("a", { class: "btn primary", href: "/#/connexion?next=%2Fprofil" }, "Connexion"));
     me = session.meta; ctx.userId = session.user.id;
     if (me.staffRole !== "SUPERADMIN") return gate("Accès réservé", "Le Owner Control Center est réservé au propriétaire (SUPERADMIN).", h("a", { class: "btn", href: "/admin" }, "Centre de contrôle de mon rôle"));
+    // Photo du compte : celle du profil public (même source que « Mon profil »). Absente = initiales.
+    const pub = await api("/me/public-profile").catch(() => null);
+    me.avatarUrl = pub?.profile?.avatarUrl || null;
     shell(); window.addEventListener("hashchange", () => { closeMenu(); route(); }); route();
   } catch (e) { gate("Chargement impossible", e.message || "Réessayez dans un instant.", h("button", { class: "btn", type: "button", onClick: () => location.reload() }, "Réessayer")); }
 }
