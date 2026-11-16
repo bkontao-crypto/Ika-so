@@ -3,6 +3,16 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Régression corrigée : routes de session et de mot de passe supprimées (16 novembre 2026)
+**À réaliser** : vérifier que le Centre de contrôle (`/owner`) fonctionne réellement.
+**Constat** : le commit `dfeaf61` (« deux méthodes de connexion », fusionné par `340da2c`) avait supprimé 7 routes de `server/routes/index.js` sans rapport avec la tâche : `GET /api/me` (session), `POST /api/auth/logout`, `POST /api/auth/forgot`, `POST /api/auth/reset`, `POST /api/me/otp`, `POST /api/me/otp/verify`, `POST /api/staff/accounts/:id/reset-link`. Conséquences en production si ce commit y est déployé : session non restaurée à chaque chargement, déconnexion, mot de passe oublié et vérification SMS inopérants. Les tests ne l'ont pas vu.
+**Réalisé** : routes restaurées à l'identique (bloc placé après la connexion Google, avant la route de retrait du lien Google). Le reste du commit (Google) est conservé. Nouveau test `test/routes-essentielles.test.js` : 15 contrôles de présence des routes essentielles (échoue sur l'ancienne version : 8 échecs).
+**Vérifié** : `npm test` 268 tests, 254 pass, 0 fail (sans PostgreSQL de test). Test sur une vraie base PostgreSQL 16 locale (migrations 1 à 68 appliquées) avec le serveur lancé en mode développement : `/api/me` (sans et avec session), déconnexion, connexion, demande de réinitialisation, réinitialisation (jeton invalide refusé), toutes les routes `/api/staff/owner/*` (tableau de bord, vue d'ensemble, journal, résumé, catalogue, sécurité, traçage, export CSV) : 200 avec données réelles ; accès refusé (403) à un compte non superadmin, 401 sans session.
+**Centre de contrôle `/owner`** : page ouverte, les 23 modules du menu ouverts un par un dans le navigateur : aucune erreur JavaScript, aucune erreur API.
+**En cours** : aucun.
+**À faire** : déploiement Render puis contrôle du site par le propriétaire (connexion, déconnexion, mot de passe oublié, `/owner`).
+**Risques** : polices `/fonts/PlusJakartaSans-Variable.woff2` et `Outfit-Variable.woff2` absentes du dépôt (404 dans le navigateur ; le dossier ne contient que `LISEZMOI.txt`). Non traité : décision de l'hébergement des polices.
+
 ## Mot de passe : bouton afficher / masquer (16 novembre 2026)
 **À réaliser** : permettre de voir ou masquer le mot de passe pendant la saisie.
 **Réalisé** : composant `passwordField()` (`public/js/components/ui.js`) ajoutant un bouton « Afficher » / « Masquer » (bascule `type` password ↔ text, `aria-pressed`, `aria-label`). Appliqué à : connexion / inscription (`login.js`), nouveau mot de passe et confirmation (`password-reset.js`), suppression de compte (`account.js`). Style `.pw-toggle` dans `components.css`. Service worker restamped.
