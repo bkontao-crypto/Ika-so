@@ -5,6 +5,7 @@ import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
+import { authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie } from "../lib/google-oauth.js";
 
 const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
@@ -95,6 +96,43 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     res.json({ user });
   });
 
+  // ---------- Connexion avec Google (flux « code » côté serveur) ----------
+  // Retour vers l'accueil (#/) ou la page demandée ; les erreurs reviennent sur /#/connexion?google=<code>.
+  const googleBack = (path) => `/#${path}`;
+  router.get("/auth/google", (req, res) => {
+    limiter.hit(`oauth:${req.ip}`, 20, 10 * 60_000);
+    res.setHeader("Cache-Control", "no-store");
+    if (!config.google?.enabled) return res.redirect(302, googleBack("/connexion?google=indisponible"));
+    if (req.query.terms !== "1") return res.redirect(302, googleBack("/connexion?google=conditions"));
+    const state = newState();
+    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1 }), config));
+    res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
+  });
+
+  router.get("/auth/google/callback", async (req, res) => {
+    limiter.hit(`oauth:${req.ip}`, 20, 10 * 60_000);
+    res.setHeader("Cache-Control", "no-store");
+    const saved = readStateCookie(req.headers.cookie);
+    const fail = (code) => { res.setHeader("Set-Cookie", clearedStateCookie()); return res.redirect(302, googleBack(`/connexion?google=${code}`)); };
+    if (!config.google?.enabled) return fail("indisponible");
+    if (req.query.error) return fail("refus");
+    if (!saved || !sameState(req.query.state, saved.s)) return fail("etat");
+    try {
+      const accessToken = await exchangeCode({ code: String(req.query.code ?? ""), clientId: config.google.clientId, clientSecret: config.google.clientSecret, redirectUri: config.google.redirectUri });
+      const profile = await fetchProfile(accessToken);
+      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1 });
+      track(req, "user_login", { userId: user.id });
+      ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
+      setSession(res, token);
+      res.append("Set-Cookie", clearedStateCookie());
+      res.redirect(302, googleBack(saved.n));
+    } catch (error) {
+      logger.warn("connexion_google_echec", { status: error?.status ?? 0 });
+      const code = error?.status === 409 ? "compte-existant" : error?.status === 400 ? "conditions" : error?.status === 403 ? "bloque" : "echec";
+      fail(code);
+    }
+  });
+
   // Mot de passe oublié : réponse identique que le compte existe ou non ; freins par adresse IP et par e-mail.
   router.post("/auth/forgot", async (req, res) => {
     limiter.hit(`forgot:${req.ip}`, 10, 60 * 60_000);
@@ -138,6 +176,12 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   });
 
   // Configuration publique de la carte : le jeton Mapbox « pk. » est fait pour le navigateur (restreint par adresse chez Mapbox).
+  // Boutons de connexion affichés selon la configuration (aucun secret).
+  router.get("/config/auth", (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ google: Boolean(config.google?.enabled) });
+  });
+
   router.get("/config/map", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({ mapbox: config.mapbox?.token ? { token: config.mapbox.token } : null });

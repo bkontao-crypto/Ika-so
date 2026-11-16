@@ -58,6 +58,14 @@ export function getConfig(env = process.env) {
       infobipApiKey: get("INFOBIP_API_KEY"),
       infobipFrom: get("INFOBIP_FROM"),
     },
+    // Connexion avec Google (OAuth 2.0, code d'autorisation côté serveur). Vide = bouton absent.
+    // Adresse de retour à déclarer chez Google : PUBLIC_URL + /api/auth/google/callback
+    google: (() => {
+      const clientId = get("GOOGLE_CLIENT_ID");
+      const clientSecret = get("GOOGLE_CLIENT_SECRET");
+      const publicUrl = get("PUBLIC_URL").replace(/\/+$/, "");
+      return { clientId, clientSecret, enabled: Boolean(clientId && clientSecret && publicUrl.startsWith("https://")), redirectUri: publicUrl ? `${publicUrl}/api/auth/google/callback` : "" };
+    })(),
     // WhatsApp Business (Meta Cloud API) : secrets lus dans l'environnement, jamais dans le code. Vide = désactivé.
     whatsapp: {
       token: get("WHATSAPP_TOKEN"),

@@ -39,6 +39,29 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⚠️ Les scripts 039–045, 050, 051, 058 n'ont toujours pas de transaction (non réécrits) ; testés et fonctionnels, mais pas « tout ou rien ».
 - ⬜ Le registre Excel n'est pas modifié : BUG-002 y reste « Ouverte » (à passer en « Résolue » après votre validation). Les retours arrière 059 à 064 existent aussi en un seul fichier : `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql`.
 
+## Connexion avec Google (16 novembre 2026)
+**À réaliser** : permettre de se connecter (ou de créer son compte) avec Google, sur le site, sans changer la connexion par mot de passe.
+**Réalisé** (branche `feat/connexion-google`)
+- ✅ Flux « code d'autorisation » côté serveur (`server/lib/google-oauth.js`) : le secret ne va jamais au navigateur ; état aléatoire vérifié à temps constant, cookie d'état de 10 min limité à `/api/auth/google`, jeton Google jeté après lecture du profil, e-mail Google exigé « confirmé ».
+- ✅ Routes : `GET /api/auth/google` (exige l'acceptation des conditions), `GET /api/auth/google/callback`, `GET /api/config/auth` (indique seulement si Google est activé). Bouton « Continuer avec Google » sur la page de connexion (`public/js/pages/login.js`), messages d'erreur lisibles.
+- ✅ Règles de compte (`accounts.loginWithGoogle`) : liaison **par identifiant Google seulement** ; un compte créé avec un mot de passe et la même adresse **n'est pas relié automatiquement** (refus « connectez-vous avec votre mot de passe ») ; nouveau compte = conditions obligatoires ; compte bloqué refusé ; le compte Google reçoit un mot de passe aléatoire inconnu de tous.
+- ✅ Migration `066_connexion_google.sql` (colonne `google_sub`, additive) + retour arrière `scripts/rollback/066_connexion_google_down.sql`.
+- ✅ Configuration : `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (et `PUBLIC_URL` en https). Sans ces trois valeurs, le bouton n'apparaît pas.
+**Vérifié**
+- ✅ `npm test` : 246 tests, 246 réussis avec PostgreSQL réel (migration 066 appliquée) ; 234 réussis sans base.
+- ✅ Tests de routes (faux Google, aucun appel réseau) : refus sans acceptation, état faux ou absent, refus de Google, succès (session posée, cookie d'état effacé, retour à la page demandée), codes d'erreur ; 7 casses volontaires sur le cœur de la sécurité détectées (vérification d'état, échange du code, e-mail confirmé, page d'arrivée sûre, acceptation des conditions).
+- ✅ Test de base réelle : création, reconnexion, refus de liaison à un compte à mot de passe, conditions, compte bloqué ; casses détectées sur les conditions et le blocage.
+- ✅ Navigateur : bouton présent, aucune navigation sans case cochée, navigation vers `/api/auth/google?terms=1` une fois cochée, mise en page correcte à 400 px, aucune erreur JavaScript.
+- ⬜ **Non vérifié : le vrai échange avec Google** (pas d'identifiants ici). Un point : la vérification d'e-mail est aussi couverte par la contrainte d'unicité de la base ; la casse correspondante n'a pas été détectée par les tests, le comportement reste correct.
+**Non fait / décisions**
+- ⛔ **Application Android** : Google refuse la connexion dans une WebView (erreur 403 « disallowed_useragent »). La règle actuelle ouvre `accounts.google.com` dans le navigateur externe, où le retour ne retrouvera pas le cookie d'état : la connexion Google échouera dans l'APK (« La connexion Google a expiré »). Il faut une évolution Android (onglet personnalisé Chrome + retour par lien de l'application). Non fait.
+- ⛔ Comptes existants avec la même adresse : pas de liaison automatique (choix de sécurité). Si vous voulez la liaison, il faut d'abord une vérification de l'adresse de ces comptes : votre décision.
+**Ce que vous devez faire**
+1. Google Cloud Console → Identifiants → « ID client OAuth » type **Application Web**. Adresse de redirection autorisée : `https://ika-so.onrender.com/api/auth/google/callback`. Écran de consentement : nom « IKA SÔ », e-mail d'assistance, domaine `ika-so.onrender.com`, portées `openid`, `email`, `profile` (non sensibles : pas de vérification Google nécessaire).
+2. Render → service → Environment : ajoutez `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` (secret : ne le mettez pas dans le dépôt). Vérifiez `PUBLIC_URL=https://ika-so.onrender.com`.
+3. Redéployez : la migration 066 s'applique seule. Testez sur le navigateur d'un ordinateur puis d'un téléphone.
+**Risques** : tant que les trois variables ne sont pas posées, rien ne change pour les utilisateurs. Le bouton ne s'affiche qu'une fois la configuration complète.
+
 ## Correctif définitif — « tour en bas » à l'actualisation + mémoire de 30 secondes (15 novembre 2026)
 **À réaliser** : à l'actualisation (tirer pour actualiser) l'écran ne doit plus passer par le bas ; après plus de 30 s hors du site, retour direct à l'accueil.
 **Cause réelle** (capture du propriétaire) : à chaque rechargement, le pied de page (statique dans `index.html`) s'affichait immédiatement sous une zone vide, avant que la page ne soit construite ; la page grandissait ensuite et se recalait en haut. Le correctif précédent (remontée du défilement) ne traitait pas ce point.
