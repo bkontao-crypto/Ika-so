@@ -88,6 +88,8 @@ export async function minePage() {
           item.status !== "ARCHIVED" ? h("a", { class: "btn btn-small", href: `#/localiser/${encodeURIComponent(item.id)}` }, "Localiser") : null,
           ["PUBLISHED", "REJECTED", "EXPIRED", "PENDING"].includes(item.status) ? h("a", { class: "btn btn-small", href: `#/modifier/${encodeURIComponent(item.id)}` }, "Modifier") : null,
           item.status === "PUBLISHED" && offers.length ? btn("Mettre à la une", () => boost(item.id), "btn-gold") : null,
+          item.status === "PUBLISHED" && !offers.length ? h("span", { class: "small muted" }, "Mise à la une : ") : null,
+          item.status === "PUBLISHED" && !offers.length ? h("a", { class: "btn btn-small btn-gold", href: "#/reclamations" }, "Contactez directement IKA SÔ") : null,
           item.status === "PUBLISHED" ? btn("Prolonger 45 jours", () => act(item.id, "RENEW")) : null,
           item.status === "PUBLISHED" ? btn(item.transactionType === "Location" ? "Marquer loué" : "Marquer vendu", () => act(item.id, item.transactionType === "Location" ? "RENTED" : "SOLD")) : null,
           item.status === "REJECTED" || item.status === "EXPIRED" ? btn("Renvoyer", () => act(item.id, "RESUBMIT"), "btn-primary") : null,

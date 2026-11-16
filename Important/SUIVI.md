@@ -3,6 +3,23 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Mise à la une : message clair quand aucune formule n'est ouverte (16 novembre 2026)
+**À réaliser** : au lieu d'un espace vide, afficher un message clair et un lien de contact direct.
+**Cause** : le bouton « Mettre à la une » de « Mes annonces » n'est affiché que si une formule payante est active et que le fournisseur de paiement est configuré. Aucune formule n'a de prix (décision du propriétaire), donc rien n'apparaissait.
+**Réalisé** : sur une annonce en ligne sans formule disponible, « Mise à la une : » suivi du bouton « Contactez directement IKA SÔ » (lien vers `#/reclamations`). Aucun tarif fixé, aucune règle de gestion modifiée.
+**Vérifié** : `npm test` (271 au total, 257 pass, 0 échec). Test sur serveur et PostgreSQL locaux, annonce simulée en ligne : le lien apparaît, le bouton de paiement est absent, aucune erreur JavaScript ; le clic ouvre la page des réclamations. Rendu mobile contrôlé.
+**En cours** : aucun.
+**À faire** : décision du propriétaire sur le contenu : la page « Réclamations » est un formulaire (motif et détails), pas une messagerie. Une messagerie directe avec IKA SÔ demande une décision de votre part.
+**Risques** : le libellé « Mise à la une : » peut être perçu comme un bouton ; à valider après déploiement.
+
+## Application Android : ajout de photos impossible (16 novembre 2026)
+**À réaliser** : permettre d'ajouter des photos d'annonce depuis le téléphone (application Android).
+**Cause** : à l'ouverture de la galerie ou de l'appareil photo, `onStop` note l'heure. Au retour, `onStart` recharge l'accueil si l'application est restée plus de 30 s en arrière-plan (règle de mémoire de session), ce qui efface la photo choisie. Au-delà de 60 s, le verrouillage biométrique pouvait aussi se déclencher.
+**Réalisé** : `MainActivity.kt` : drapeau `pickerOpen` posé à l'ouverture du sélecteur de fichiers, consommé au retour ; le retour du sélecteur ne recharge plus l'accueil et ne verrouille plus l'application. Version `1.0.4` (versionCode 5) dans `build.gradle.kts`.
+**Vérifié** : sur le site (Chromium en émulation mobile, serveur et PostgreSQL locaux) : ajout d'une photo JPEG de 22 Mo puis d'un PNG, compteur « Photos (n/5) » mis à jour, aucune erreur JavaScript ni API. Le bogue est situé côté application, pas côté site.
+**En cours** : compilation de l'APK non vérifiée (pas de SDK Android dans l'environnement). Kotlin relu manuellement uniquement.
+**À faire** : compiler la version 1.0.4 dans Android Studio, la tester sur téléphone (ajout depuis galerie et appareil photo, après plus de 30 secondes), puis remplacer `public/downloads/Ika-So.apk`.
+**Risques** : le même correctif concerne aussi les pièces justificatives (même sélecteur). Le téléphone doit avoir la version 1.0.4 pour que le correctif s'applique.
 ## Boutons « Retour » retirés du site public : retour du téléphone uniquement (16 novembre 2026)
 **À réaliser** : sur demande du propriétaire (capture de la page annonceur : bouton « ← Retour » flottant + lien « ← Retour aux annonceurs »), retirer les boutons Retour ; la navigation arrière se limite au retour du téléphone / du navigateur.
 **Réalisé**
