@@ -1,7 +1,7 @@
 import { api, fail, h, mount, toast } from "/js/dom.js";
 import { S, app, refreshSession } from "/js/core/state.js";
 import { currentRoute, go } from "/js/core/router.js";
-import { field } from "/js/components/ui.js";
+import { field, passwordField } from "/js/components/ui.js";
 
 const GOOGLE_NOTES = {
   indisponible: "La connexion avec Google n'est pas disponible pour le moment.",
@@ -41,7 +41,7 @@ export async function loginPage() {
       } },
         reg ? field("Nom affiché", h("input", { class: "input", autocomplete: "name", required: true, value: form.name, onInput: (e) => (form.name = e.target.value) })) : null,
         field("Adresse e-mail", h("input", { class: "input", type: "email", autocomplete: "email", required: true, value: form.email, onInput: (e) => (form.email = e.target.value) })),
-        field("Mot de passe (8 caractères au moins)", h("input", { class: "input", type: "password", autocomplete: reg ? "new-password" : "current-password", required: true, minlength: "8", value: form.password, onInput: (e) => (form.password = e.target.value) })),
+        passwordField("Mot de passe (8 caractères au moins)", h("input", { class: "input", type: "password", autocomplete: reg ? "new-password" : "current-password", required: true, minlength: "8", value: form.password, onInput: (e) => (form.password = e.target.value) })),
         reg ? h("label", { class: "row small" },
           h("input", { type: "checkbox", required: true, checked: form.acceptTerms, onChange: (e) => (form.acceptTerms = e.target.checked) }),
           h("span", null, "J'accepte les ", h("a", { href: "/conditions", target: "_blank", rel: "noopener" }, "conditions d'utilisation"), " et la ", h("a", { href: "/confidentialite", target: "_blank", rel: "noopener" }, "politique de confidentialité"), " et je confirme avoir 18 ans ou plus.")) : null,

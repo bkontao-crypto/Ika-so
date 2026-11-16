@@ -2,7 +2,7 @@
 import { api, fail, h, mount, toast } from "/js/dom.js";
 import { S, app } from "/js/core/state.js";
 import { currentRoute, go } from "/js/core/router.js";
-import { field } from "/js/components/ui.js";
+import { field, passwordField } from "/js/components/ui.js";
 
 export async function passwordResetPage() {
   if (S.user) return go("/profil");
@@ -43,8 +43,8 @@ function resetForm(token) {
         go("/connexion");
       } catch (error) { fail(error); }
     } },
-      field("Nouveau mot de passe (8 caractères au moins)", h("input", { class: "input", type: "password", autocomplete: "new-password", required: true, minlength: "8", onInput: (e) => (f.password = e.target.value) })),
-      field("Confirmer le mot de passe", h("input", { class: "input", type: "password", autocomplete: "new-password", required: true, minlength: "8", onInput: (e) => (f.confirm = e.target.value) })),
+      passwordField("Nouveau mot de passe (8 caractères au moins)", h("input", { class: "input", type: "password", autocomplete: "new-password", required: true, minlength: "8", onInput: (e) => (f.password = e.target.value) })),
+      passwordField("Confirmer le mot de passe", h("input", { class: "input", type: "password", autocomplete: "new-password", required: true, minlength: "8", onInput: (e) => (f.confirm = e.target.value) })),
       h("button", { class: "btn btn-primary", type: "submit" }, "Enregistrer le mot de passe")),
     h("p", { class: "small muted" }, "Pour votre sécurité, vous serez déconnecté de tous vos appareils.")));
 }

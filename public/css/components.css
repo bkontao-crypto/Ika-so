@@ -450,3 +450,13 @@ textarea:focus {
   outline-offset: 2px;
   border-radius: var(--radius-sm, 12px);
 }
+
+/* Mot de passe : bouton afficher / masquer */
+.pw-wrap { position: relative; display: block; }
+.pw-wrap .input { padding-right: 84px; width: 100%; }
+.pw-toggle {
+  position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+  border: 0; background: transparent; color: var(--green-text); font-size: 13px; font-weight: 600;
+  padding: 6px 10px; border-radius: 999px;
+}
+.pw-toggle:hover { background: var(--ika-100); }

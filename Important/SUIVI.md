@@ -1,7 +1,15 @@
 # Ika So — Suivi du projet
 
-Mis à jour le 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
+Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
+
+## Mot de passe : bouton afficher / masquer (16 novembre 2026)
+**À réaliser** : permettre de voir ou masquer le mot de passe pendant la saisie.
+**Réalisé** : composant `passwordField()` (`public/js/components/ui.js`) ajoutant un bouton « Afficher » / « Masquer » (bascule `type` password ↔ text, `aria-pressed`, `aria-label`). Appliqué à : connexion / inscription (`login.js`), nouveau mot de passe et confirmation (`password-reset.js`), suppression de compte (`account.js`). Style `.pw-toggle` dans `components.css`. Service worker restamped.
+**Vérifié** : `npm test` 253 tests, 239 pass, 0 fail (sans PostgreSQL de test). Contrôle Playwright sur la page de connexion : type passe de `password` à `text` puis revient, valeur conservée, `aria-pressed` mis à jour, aucune erreur JS.
+**En cours** : aucun.
+**À faire** : vérification visuelle par le propriétaire sur le site après déploiement.
+**Risques** : aucun connu (ajout purement visuel, aucune donnée ni route modifiée).
 
 ## Correctif — en-tête mobile désaligné : bouton « Publier » réapparu (15 novembre 2026)
 **À réaliser** : sur téléphone, les éléments de l'en-tête n'étaient plus alignés (logo seul sur une ligne, boutons Publier / thème / Connexion / menu décalés en dessous).
