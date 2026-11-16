@@ -62,7 +62,7 @@ export function createTimeline(ctx, { onMore } = {}) {
         h("div", { class: "tl-meta" }, h("b", null, timeOf(ev.at)), who ?? "Visiteur")));
     }
     el.replaceChildren(...out);
-    more.replaceChildren(next && onMore ? h("button", { class: "btn", type: "button", onClick: onMore }, ico("chevron"), "Charger plus") : null);
+    more.replaceChildren(...(next && onMore ? [h("button", { class: "btn", type: "button", onClick: onMore }, ico("chevron"), "Charger plus")] : []));
   }
   return {
     el: wrap,

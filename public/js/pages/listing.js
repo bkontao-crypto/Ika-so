@@ -14,12 +14,13 @@ export async function listingPage(id) {
     if (p.rating?.count) pills.push(h("span", { class: "pill pill-gold" }, `★ ${String(p.rating.average).replace(".", ",")}/5 (${p.rating.count})`));
     if (p.trust?.label) pills.push(h("span", { class: "pill pill-green" }, p.trust.label));
     if (p.agencyVerified) pills.push(h("span", { class: "pill" }, "Agence vérifiée"));
-    ownerSummary.replaceChildren(
+    // filter(Boolean) : replaceChildren écrit « null » à la place d'un élément absent.
+    ownerSummary.replaceChildren(...[
       h("h3", { style: "margin:0 0 8px" }, p.name || "Annonceur"),
       pills.length ? h("div", { class: "row wrap gap-sm", style: "margin-bottom:8px" }, ...pills) : null,
       p.trust?.detail ? h("p", { class: "small muted" }, p.trust.detail) : null,
       h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}`, style: "margin-top:8px" }, "Voir le profil")
-    );
+    ].filter(Boolean));
   }).catch(() => {
     ownerSummary.replaceChildren(h("p", { class: "muted small" }, "Informations annonceur indisponibles."));
   });
