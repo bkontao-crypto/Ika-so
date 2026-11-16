@@ -3,6 +3,15 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Mon profil : doublons d'identité supprimés (16 novembre 2026)
+**À réaliser** : signalement de deux blocs « profil » dans l'interface Mon profil.
+**Cause** : « Mon profil » affiche l'identité dans son en-tête, puis réintégrait le module de réglages du compte, qui répétait la carte « Identité », le rôle et le lien « Mon profil public ».
+**Réalisé** : `accountSettings(refresh, { embedded: true })` (`account.js`) n'affiche plus, dans « Mon profil », la carte Identité, la rangée de rôles ni le lien « Mon profil public ». Les autres réglages (statut, Premium, préférences, accès) sont conservés. Service worker restamped.
+**Vérifié** : `npm test` (268 tests, 254 pass, 0 fail, sans PostgreSQL de test). Test réel sur PostgreSQL 16 locale, serveur lancé, onglet Paramètres : identité, « Mon profil public » et rôle n'apparaissent plus en double ; à 390 px comme à 1280 px ; aucune erreur JavaScript ni API.
+**En cours** : aucun.
+**À faire** : contrôle sur téléphone après déploiement.
+**Risques** : les liens de l'espace (Owner Control Center, Centre Premium, Partenaires) restent dans le module de réglages.
+
 ## Centre de contrôle : retour au site et photo du compte (16 novembre 2026)
 **À réaliser** : (1) un bouton pour revenir sur le site ; (2) la photo de profil du Owner Control Center liée à celle du compte.
 **Réalisé** : bouton « Retour au site » (lien vers `/`) dans la barre du haut, texte masqué sur petit écran. Photo : le centre de contrôle lit la photo du profil public (`/api/me/public-profile`, champ `profile.avatarUrl`, même source que « Mon profil ») et l'affiche dans la barre latérale et en haut ; sans photo, les initiales restent. Styles dans `owner.css`, service worker restamped.

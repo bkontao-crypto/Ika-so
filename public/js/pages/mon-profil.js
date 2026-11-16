@@ -287,7 +287,7 @@ export async function profilePage() {
           setting("Exporter mes données", "Télécharger une copie de mes données", h("a", { class: "mp-btn mp-btn-outline", href: "/api/me/export", download: "mes-donnees-ika-so.json" }, "Exporter")),
           setting("Supprimer mon compte", "Action irréversible : voir « Mes données » plus bas", h("button", { class: "mp-btn mp-btn-outline danger", type: "button", onClick: () => { const d = settingsHost.querySelector("details"); d?.setAttribute("open", ""); (d ?? settingsHost).scrollIntoView({ behavior: "smooth", block: "center" }); } }, "Supprimer"))))));
   const settingsHost = h("div", { class: "mp-more" }, h("h3", null, "Autres réglages du compte"));
-  accountSettings(reload).then((node) => settingsHost.append(node)).catch(() => {});
+  accountSettings(reload, { embedded: true }).then((node) => settingsHost.append(node)).catch(() => {});
   const parametres = h("div", { class: "mp-stack" }, parametresTab, settingsHost);
 
   /* ---------- Assemblage et onglets ---------- */
