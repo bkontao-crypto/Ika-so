@@ -22,7 +22,7 @@ export async function listingPage(id) {
       h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}`, style: "margin-top:8px" }, "Voir le profil")
     ].filter(Boolean));
   }).catch(() => {
-    ownerSummary.replaceChildren(h("p", { class: "muted small" }, "Informations annonceur indisponibles."));
+    ownerSummary.replaceChildren(h("p", { class: "muted small" }, "Informations annonceur indisponibles."), h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}` }, "Voir le profil"));
   });
   let photo = 0;
   const main = h("img", { src: item.photos[0] ?? item.imageUrl, alt: item.title });
@@ -118,7 +118,7 @@ export async function listingPage(id) {
           item.agencyVerified ? h("span", { class: "pill pill-green" }, `Agence vérifiée${item.agencyName ? ` : ${item.agencyName}` : ""}`) : null,
           item.phoneVerified ? h("span", { class: "pill pill-green" }, "Numéro vérifié par SMS") : h("span", { class: "pill" }, "Numéro non vérifié par SMS")),
         h("p", null, h("strong", null, item.ownerName), ` · ${item.ownerRole}`),
-        item.ownerId ? h("div", { class: "row" }, h("a", { class: "btn btn-small", href: `#/annonceur/${encodeURIComponent(item.ownerId)}` }, "Voir le profil de l'annonceur"), ownerSummary) : null,
+        item.ownerId ? h("div", { class: "row" }, ownerSummary) : null,
         h("p", { class: "notice" }, DOCUMENT_DISCLAIMER, " Document déclaré : ", h("strong", null, item.declaredDocument ?? "non précisé"), "."),
         h("div", { class: "grid facts" },
           fact("Superficie", item.surfaceLabel), fact("Accès", item.roadAccess ?? "—"),

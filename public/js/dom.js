@@ -105,7 +105,14 @@ export const digits = (value) => String(value).replace(/\D/g, "");
 
 /** Réduit une photo à 1200 px et l'encode en JPEG léger, dans le navigateur, avant tout envoi. */
 export async function compressPhoto(file, maxBytes = 450_000) {
-  const bitmap = await createImageBitmap(file);
+  // Certains téléphones (stockage, WebView Android) échouent avec createImageBitmap : repli sur <img>.
+  let bitmap;
+  try { bitmap = await createImageBitmap(file); } catch {
+    const src = URL.createObjectURL(file);
+    try {
+      bitmap = await new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = () => reject(new Error("Format de photo non pris en charge. Choisissez une photo JPG ou PNG.")); img.src = src; });
+    } finally { setTimeout(() => URL.revokeObjectURL(src), 10_000); }
+  }
   const scale = Math.min(1, 1200 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement("canvas");
   canvas.width = Math.round(bitmap.width * scale);

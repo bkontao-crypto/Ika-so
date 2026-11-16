@@ -107,3 +107,6 @@
 .pa-follow-menu button+button{border-top:1px solid var(--pa-line,#e7e5dc)}
 .pa-follow-menu button:hover{background:var(--pa-mint,#e9f2e9)}
 .pa-statlink{color:inherit;text-decoration:underline;text-underline-offset:3px}
+
+/* Mobile : le contenu de l'onglet passe avant la colonne « Présentation » */
+@media (max-width:800px){.pa-layout>.pa-main{order:-1}}

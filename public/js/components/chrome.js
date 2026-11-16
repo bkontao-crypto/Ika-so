@@ -1,7 +1,7 @@
-import { h, mount } from "/js/dom.js";
+import { api, fail, h, mount, toast } from "/js/dom.js";
 import { icon } from "/js/icons.js";
-import { S } from "/js/core/state.js";
-import { currentRoute } from "/js/core/router.js";
+import { S, clearSession } from "/js/core/state.js";
+import { currentRoute, go } from "/js/core/router.js";
 
 // Navigation de la refonte : Accueil, Acheter, Louer, Terrains, Carte, Annonceurs, Partenaires.
 // Toutes les routes d'origine restent accessibles (Favoris et Messages : icônes d'en-tête et menu du profil ;
@@ -54,7 +54,11 @@ function openMenu(opener) {
   const panel = h("aside", { class: "rx-drawer stack", role: "dialog", "aria-modal": "true", "aria-label": "Menu", tabindex: "-1" },
     h("div", { class: "row-between" }, h("strong", { class: "title" }, "Menu"), h("button", { class: "btn btn-small btn-quiet", type: "button", onClick: close, "aria-label": "Fermer le menu" }, icon("x"))),
     h("nav", { class: "rx-menu-list", "aria-label": "Menu principal" }, items.map((it) => h("a", { href: it.href, class: it.match(path, params) ? "active" : "", "aria-current": it.match(path, params) ? "page" : null, onClick: close }, icon(it.icon), it.label))),
-    h("a", { class: "btn btn-gold btn-block", href: "#/publier", onClick: close }, icon("plus"), "Publier une annonce"));
+    h("a", { class: "btn btn-gold btn-block", href: "#/publier", onClick: close }, icon("plus"), "Publier une annonce"),
+    S.user ? h("button", { class: "btn btn-block", type: "button", onClick: async () => {
+      try { await api("/auth/logout", { method: "POST", body: {} }); } catch (error) { fail(error); return; }
+      clearSession(); close(); toast("Déconnecté."); go("/");
+    } }, "Se déconnecter") : null);
   document.body.append(backdrop, panel);
   document.addEventListener("keydown", onKey);
   panel.focus();
