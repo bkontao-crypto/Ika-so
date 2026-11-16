@@ -29,8 +29,8 @@ test("sameState : comparaison exacte, refus des états vides ou de longueur diff
 });
 
 test("état en cookie : aller-retour, page d'arrivée sûre uniquement", () => {
-  const cookie = `autre=1; ${g.STATE_COOKIE}=${g.packState({ s: "S1", n: "/annonces", t: 1 })}`;
-  assert.deepEqual(g.readStateCookie(cookie), { s: "S1", n: "/annonces", t: 1 });
+  const cookie = `autre=1; ${g.STATE_COOKIE}=${g.packState({ s: "S1", n: "/annonces", t: 1, l: 0 })}`;
+  assert.deepEqual(g.readStateCookie(cookie), { s: "S1", n: "/annonces", t: 1, l: 0 });
   assert.equal(g.readStateCookie("rien=1"), null);
   assert.equal(g.readStateCookie(`${g.STATE_COOKIE}=pas-du-json`), null);
   for (const bad of ["//evil.example", "https://evil.example", "/\\evil", "annonces"]) assert.equal(g.safeNext(bad), "/", bad);
@@ -171,4 +171,73 @@ test("/auth/google/callback : sans acceptation des conditions dans le cookie, le
     await router.call("GET", "/auth/google/callback", { query: { code: "C", state: "BON" }, headers: { cookie } });
   });
   assert.equal(calls.login[0].opts.acceptTerms, false);
+});
+
+/** Faux service de comptes avec liaison : utilisé pour la liaison depuis « Mon profil ». */
+function setupLink({ session = true, link } = {}) {
+  const calls = { link: [], unlink: [] };
+  const accounts = {
+    loginWithGoogle: async () => { throw new Error("ne doit pas servir en liaison"); },
+    linkGoogle: async (uid, profile) => { calls.link.push({ uid, profile }); if (link) return link(uid, profile); return { ok: true }; },
+    unlinkGoogle: async (uid) => { calls.unlink.push(uid); return { ok: true }; },
+  };
+  const config = { production: false, publicUrl: "https://ika.example", google: { clientId: "cid", clientSecret: "sec", enabled: true, redirectUri: "https://ika.example/api/auth/google/callback" } };
+  const router = buildRoutes({
+    services: { accounts, db: {} }, config, limiter: { hit() {}, check() {}, record() {}, forget() {} }, logger: { info() {}, warn() {}, error() {} }, counters: {},
+    requireUser: (req) => { if (!req.user?.id) throw new Error("connexion requise"); return req.user.id; }, setSession() {}, clearSession() {},
+  });
+  return { router, calls, user: session ? { id: "u9" } : undefined };
+}
+
+test("liaison Google : sans session → retour à la connexion ; avec session → redirection Google sans conditions, cookie de liaison", async () => {
+  const anon = setupLink({ session: false });
+  assert.equal((await anon.router.call("GET", "/auth/google", { query: { link: "1" } })).location, "/#/connexion?google=connexion-requise");
+  const me = setupLink();
+  const out = await me.router.call("GET", "/auth/google", { query: { link: "1" }, user: me.user });
+  assert.equal(new URL(out.location).origin, "https://accounts.google.com");
+  const back = g.readStateCookie([].concat(out.headers["set-cookie"])[0].split(";")[0]);
+  assert.equal(back.l, 1);
+  assert.equal(back.n, "/profil");
+  assert.equal(back.t, 0);
+});
+
+test("liaison Google : succès → lien enregistré pour l'utilisateur connecté, retour au profil ; erreurs renvoyées au profil", async () => {
+  const cookie = `ika_oauth=${g.packState({ s: "BON", n: "/profil", t: 0, l: 1 })}`;
+  const ok = setupLink();
+  await withFakeGoogle(async () => {
+    const out = await ok.router.call("GET", "/auth/google/callback", { query: { code: "C", state: "BON" }, headers: { cookie }, user: ok.user });
+    assert.equal(out.location, "/#/profil?google=lie");
+  });
+  assert.equal(ok.calls.link[0].uid, "u9");
+  assert.equal(ok.calls.link[0].profile.email, "ali@example.ml");
+
+  const cases = [[conflict("x"), "deja-lie"], [badRequest("x"), "email-different"], [new Error("x"), "echec"]];
+  for (const [err, code] of cases) {
+    const r = setupLink({ link: async () => { throw err; } });
+    await withFakeGoogle(async () => {
+      const out = await r.router.call("GET", "/auth/google/callback", { query: { code: "C", state: "BON" }, headers: { cookie }, user: r.user });
+      assert.equal(out.location, `/#/profil?google=${code}`, code);
+    });
+  }
+});
+
+test("liaison Google : retour sans session pendant le callback → refus, aucun lien", async () => {
+  const cookie = `ika_oauth=${g.packState({ s: "BON", n: "/profil", t: 0, l: 1 })}`;
+  const r = setupLink({ session: false });
+  await withFakeGoogle(async () => {
+    const out = await r.router.call("GET", "/auth/google/callback", { query: { code: "C", state: "BON" }, headers: { cookie } });
+    assert.equal(out.location, "/#/profil?google=connexion-requise");
+  });
+  assert.equal(r.calls.link.length, 0);
+});
+
+test("retrait Google : DELETE /me/google retire le lien de l'utilisateur connecté, refus si anonyme", async () => {
+  const r = setupLink();
+  const out = await r.router.call("DELETE", "/me/google", { user: r.user });
+  assert.deepEqual(out.body, { ok: true });
+  assert.deepEqual(r.calls.unlink, ["u9"]);
+  const anon = setupLink({ session: false });
+  const refused = await anon.router.call("DELETE", "/me/google", {});
+  assert.ok(refused.error, "sans session : erreur");
+  assert.equal(anon.calls.unlink.length, 0);
 });

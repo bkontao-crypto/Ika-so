@@ -52,3 +52,58 @@ test("loginWithGoogle : création, reconnexion par identifiant Google, refus de 
     await db.close();
   }
 });
+
+test("deux méthodes par compte : mot de passe seul, Google seul, les deux ; règles de liaison et de retrait", { skip }, async () => {
+  const { createDb } = await import("../server/db.js");
+  const { migrate } = await import("../server/migrate.js");
+  const { createAccounts } = await import("../server/services/accounts.js");
+  const { sha256 } = await import("../server/lib/security.js");
+  const db = createDb(url);
+  await migrate(db, () => {});
+  const accounts = createAccounts({ db, config: {} });
+  const tag = `dm${Date.now()}`;
+  const emails = [`a${tag}@test.invalid`, `b${tag}@test.invalid`, `c${tag}@test.invalid`];
+  try {
+    // A : compte avec mot de passe (sans Google)
+    await accounts.register({ name: "Compte A", email: emails[0], password: "motdepasse1", acceptTerms: true });
+    const a = (await db.query("select id from ika_users where email = $1", [emails[0]]))[0].id;
+    assert.deepEqual((await accounts.me(a)).authMethods, { password: true, google: false });
+
+    // B : compte créé par Google (sans mot de passe connu)
+    const gb = await accounts.loginWithGoogle({ sub: `${tag}-b`, email: emails[1], name: "Compte B" }, { acceptTerms: true });
+    const b = gb.user.id;
+    assert.deepEqual((await accounts.me(b)).authMethods, { password: false, google: true });
+    assert.equal((await outcome(accounts.login({ email: emails[1], password: "n-importe-quoi" }))).status, 401, "pas de connexion par mot de passe pour un compte Google seul");
+    assert.equal((await outcome(accounts.unlinkGoogle(b))).status, 400, "retrait refusé : il ne resterait aucune connexion");
+
+    // Réinitialisation du mot de passe : le compte Google obtient aussi un mot de passe
+    await db.query("insert into ika_password_resets (token_hash, user_id, expires_at) values ($1, $2, now() + interval '1 hour')", [sha256(`tok-${tag}`), b]);
+    await accounts.resetPassword({ token: `tok-${tag}`, password: "nouveau-mdp-1" });
+    assert.deepEqual((await accounts.me(b)).authMethods, { password: true, google: true });
+    assert.ok((await accounts.login({ email: emails[1], password: "nouveau-mdp-1" })).token, "connexion par mot de passe après réinitialisation");
+
+    // Liaison : A relie Google avec la même adresse, puis se connecte par Google
+    assert.equal((await outcome(accounts.linkGoogle(a, { sub: `${tag}-a`, email: emails[2] }))).status, 400, "adresse Google différente refusée");
+    assert.equal((await outcome(accounts.linkGoogle(a, { sub: `${tag}-b`, email: emails[0] }))).status, 409, "identifiant Google déjà relié à un autre compte refusé");
+    assert.equal((await outcome(accounts.linkGoogle(a, { sub: `${tag}-a`, email: emails[0] }))).ok, true);
+    assert.equal((await accounts.unlinkGoogle(b)).ok, true, "retrait autorisé : le mot de passe existe");
+    assert.deepEqual((await accounts.me(b)).authMethods, { password: true, google: false });
+    assert.deepEqual((await accounts.me(a)).authMethods, { password: true, google: true });
+    const viaGoogle = await accounts.loginWithGoogle({ sub: `${tag}-a`, email: emails[0], name: "A" }, { acceptTerms: false });
+    assert.equal(viaGoogle.user.id, a, "même compte par les deux méthodes");
+    assert.ok((await accounts.login({ email: emails[0], password: "motdepasse1" })).token, "même compte par mot de passe");
+    const audit = await db.query("select action from ika_audit where actor_id = $1 order by created_at", [a]);
+    assert.deepEqual(audit.map((x) => x.action), ["GOOGLE_LINK"]);
+
+    // Un compte à mot de passe avec une autre adresse Google : la connexion Google ne le relie pas toute seule
+    const refused = await outcome(accounts.loginWithGoogle({ sub: `${tag}-c`, email: emails[0], name: "C" }, { acceptTerms: true }));
+    assert.equal(refused.status, 409);
+    assert.match(refused.message, /mot de passe/);
+    // Retrait possible maintenant que le mot de passe existe
+    assert.equal((await accounts.unlinkGoogle(a)).ok, true);
+    assert.equal((await outcome(accounts.unlinkGoogle(a))).status, 400, "rien à retirer une seconde fois");
+  } finally {
+    await db.query("delete from ika_users where email = any($1)", [emails]).catch(() => undefined);
+    await db.close();
+  }
+});
