@@ -173,6 +173,48 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     }
   });
 
+  // Mot de passe oublié : réponse identique que le compte existe ou non ; freins par adresse IP et par e-mail.
+  router.post("/auth/forgot", async (req, res) => {
+    limiter.hit(`forgot:${req.ip}`, 10, 60 * 60_000);
+    limiter.hit(`forgotmail:${sha256(String(req.body?.email ?? "").trim().toLowerCase().slice(0, 200))}`, 5, 60 * 60_000);
+    res.json(await accounts.requestPasswordReset(req.body ?? {}));
+  });
+  router.post("/auth/reset", async (req, res) => {
+    limiter.hit(`reset:${req.ip}`, 10, 60 * 60_000);
+    res.json(await accounts.resetPassword(req.body ?? {}));
+  });
+  router.post("/staff/accounts/:id/reset-link", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await accounts.staffResetLink(requireUser(req), id(req)));
+  });
+
+  router.post("/auth/logout", async (req, res) => {
+    if (req.user) { track(req, "user_logout", { userId: req.user.id }); ownerCenter?.recordSecurity("LOGOUT", { userId: req.user.id }, req); }
+    await accounts.logout(req.sessionToken);
+    clearSession(res);
+    res.json({ ok: true });
+  });
+
+  // Visiteur anonyme : { user: null } (pas une erreur).
+  router.get("/me", async (req, res) => {
+    if (!req.user) return res.json({ user: null });
+    res.json({ user: req.user, meta: await accounts.me(req.user.id) });
+  });
+
+  router.post("/me/otp", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`otp:${req.ip}`, 20, 60 * 60_000);
+    res.json(await accounts.requestOtp(userId, req.body ?? {}));
+  });
+
+  router.post("/me/otp/verify", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`otpv:${userId}`, 20, 60 * 60_000);
+    const out = await accounts.verifyOtp(userId, req.body?.code);
+    track(req, "verification_completed", { userId, metadata: { from: "phone" } });
+    res.json(out);
+  });
+
   // Retrait du lien Google (refusé sans mot de passe, voir accounts.unlinkGoogle).
   router.delete("/me/google", async (req, res) => {
     res.json(await accounts.unlinkGoogle(requireUser(req)));
