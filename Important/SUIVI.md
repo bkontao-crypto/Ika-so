@@ -38,6 +38,15 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⬜ Les règles CSS `.backbar` / `.pa-back` sont devenues inutilisées et laissées en place (inoffensives).
 - ⬜ Étendre aussi à la console d'administration et au centre de contrôle : décision du propriétaire.
 
+## Correctifs mobile : profil annonceur, Centre de contrôle, menu, fiche annonce, photos (16 novembre 2026)
+
+- **À réaliser :** 5 remarques du propriétaire (captures téléphone).
+- **Réalisé :** (1) profil annonceur : sur ≤800 px le contenu de l'onglet passe avant la colonne « Présentation » (`profil.css`). (2) Centre de contrôle : barre du haut sur une seule ligne, tiroir fermé sans ombre ni zone cliquable (`owner.css`). (3) menu du site : bouton « Se déconnecter » (visible si connecté) (`chrome.js`). (4) fiche annonce : bouton « Voir le profil de l'annonceur » supprimé, la carte Annonceur garde « Voir le profil » (même route ; repli si l'API échoue) (`listing.js`). (5) photos : fichier du stockage accepté même sans type MIME (d'après l'extension), décodage de repli via `<img>`, message si fichier non image (`listing-form.js`, `dom.js`).
+- **Vérifié :** `npm test` 257 OK / 0 échec ; Chromium 390 px : tiroir Owner s'ouvre/se ferme, bouton déconnexion présent dans le menu, en-tête Owner alignée. SW re-estampillé.
+- **Non vérifié :** rendu sur vrai téléphone ; import photo réel depuis le stockage Android (WebView) ; profil annonceur avec données réelles.
+- **Risques :** si l'import de photos échoue encore sur l'appli Android, la cause serait dans l'APK (`MainActivity.kt`, sélecteur déjà présent) : un nouvel APK devra être compilé hors de cet environnement.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
+
 ## Mon profil : doublons d'identité supprimés (16 novembre 2026)
 **À réaliser** : signalement de deux blocs « profil » dans l'interface Mon profil.
 **Cause** : « Mon profil » affiche l'identité dans son en-tête, puis réintégrait le module de réglages du compte, qui répétait la carte « Identité », le rôle et le lien « Mon profil public ».
