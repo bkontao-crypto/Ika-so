@@ -1,4 +1,5 @@
 import { AppError, badRequest, conflict, forbidden, tooMany, unauthorized } from "../lib/errors.js";
+import { randomBytes as googleRandomBytes } from "node:crypto";
 import {
   OTP_LENGTH,
   OTP_MAX_ATTEMPTS,
@@ -206,6 +207,38 @@ export function createAccounts(ctx) {
         token: await createSession(user.id),
         user: { id: user.id, email: user.email, name: user.name },
       };
+    },
+
+    /**
+     * Connexion ou inscription avec Google. Le lien se fait par l'identifiant Google (sub), jamais seulement par l'e-mail :
+     * un compte créé par mot de passe avec la même adresse n'est PAS relié automatiquement (il pourrait avoir été créé par un tiers).
+     */
+    async loginWithGoogle({ sub, email, name }, { acceptTerms } = {}) {
+      const cleanEmail = String(email ?? "").trim().toLowerCase();
+      await assertNotBlacklisted(db, "EMAIL", cleanEmail);
+      let user = (await db.query("select id, email, name from ika_users where google_sub = $1", [sub]))[0];
+      if (!user) {
+        const taken = conflict("Un compte existe déjà avec cet e-mail : connectez-vous avec votre mot de passe.");
+        if ((await db.query("select 1 from ika_users where email = $1", [cleanEmail]))[0]) throw taken;
+        if (acceptTerms !== true) throw badRequest("Vous devez accepter les conditions d'utilisation et la politique de confidentialité.");
+        const fromGoogle = String(name ?? "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 120);
+        const cleanName = fromGoogle.length >= 2 ? fromGoogle : "Membre";
+        const id = newId("u");
+        const unusable = await hashPassword(googleRandomBytes(32).toString("base64url")); // pas de mot de passe connu : connexion par Google seulement
+        const rows = await db.query(
+          `insert into ika_users (id, email, name, password_hash, google_sub, terms_version, terms_accepted_at) values ($1, $2, $3, $4, $5, $6, now())
+           on conflict (email) do nothing returning id, email, name`,
+          [id, cleanEmail, cleanName, unusable, sub, LEGAL_VERSION],
+        );
+        if (!rows[0]) throw taken;
+        await ensureProfile(id);
+        user = rows[0];
+      }
+      const profile = await ensureProfile(user.id);
+      if (profile.account_status === "BANNED") {
+        throw forbidden(`Ce compte est bloqué.${profile.status_reason ? ` Motif : ${profile.status_reason}` : ""}`);
+      }
+      return { token: await createSession(user.id), user: { id: user.id, email: user.email, name: user.name } };
     },
 
     /**

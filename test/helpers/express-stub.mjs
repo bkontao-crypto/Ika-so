@@ -21,6 +21,8 @@ export function Router() {
         send(b) { out.body = b; out.sent = true; return res; },
         sendStatus(code) { out.status = code; out.sent = true; return res; },
         cookie() { return res; }, clearCookie() { return res; },
+        redirect(code, url) { out.status = code; out.location = url; out.sent = true; return res; },
+        append(k, v) { const prev = out.headers[k.toLowerCase()]; out.headers[k.toLowerCase()] = [].concat(prev ?? [], v); return res; },
       };
       try { for (const h of r.handlers) await h(req, res, () => {}); } catch (e) { out.error = e; }
       return out;
