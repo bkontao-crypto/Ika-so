@@ -2,7 +2,7 @@ import { api, daysLeft, fail, formatPrice, h, mount, readProofFile, toast } from
 import { S, app, clearSession, refreshSession } from "/js/core/state.js";
 import { go, needLogin } from "/js/core/router.js";
 import { listingCard } from "/js/components/listing-card.js";
-import { field } from "/js/components/ui.js";
+import { field, passwordField } from "/js/components/ui.js";
 
 const STATUS_LABEL = { PENDING: "En attente", PUBLISHED: "En ligne", REJECTED: "Refusée", SOLD: "Vendue", RENTED: "Louée", ARCHIVED: "Archivée", EXPIRED: "Expirée", DRAFT: "Brouillon" };
 
@@ -194,7 +194,7 @@ export async function accountSettings(refresh = () => {}) {
           const f = new FormData(e.target);
           try { await api("/me/delete", { method: "POST", body: { password: f.get("password"), confirm: f.get("confirm") } }); clearSession(); toast("Compte supprimé."); go("/"); } catch (error) { fail(error); }
         } },
-          field("Mot de passe", h("input", { class: "input", name: "password", type: "password", autocomplete: "current-password", required: true })),
+          passwordField("Mot de passe", h("input", { class: "input", name: "password", type: "password", autocomplete: "current-password", required: true })),
           field("Tapez SUPPRIMER pour confirmer", h("input", { class: "input", name: "confirm", autocomplete: "off", required: true })),
           h("button", { class: "btn btn-dark", type: "submit" }, "Supprimer définitivement")))),
     h("div", { class: "row" },
