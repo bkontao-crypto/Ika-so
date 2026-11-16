@@ -39,6 +39,13 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⚠️ Les scripts 039–045, 050, 051, 058 n'ont toujours pas de transaction (non réécrits) ; testés et fonctionnels, mais pas « tout ou rien ».
 - ⬜ Le registre Excel n'est pas modifié : BUG-002 y reste « Ouverte » (à passer en « Résolue » après votre validation). Les retours arrière 059 à 064 existent aussi en un seul fichier : `docs/FUSION/ANNULATION_MIGRATIONS_059_064.sql`.
 
+## Correctif — « null » affiché sur la carte annonceur d'une annonce (16 novembre 2026)
+**À réaliser** : la carte « Annonceur » de la fiche annonce ne doit plus afficher « null ».
+**Cause** : `replaceChildren(...)` écrit le texte « null » pour une valeur `null` (au contraire de `h()`, qui l'ignore). La carte passait `null` quand il n'y avait pas de badge ni de détail de confiance.
+**Réalisé** : `public/js/pages/listing.js` (carte annonceur) filtre les éléments absents ; même défaut corrigé dans `public/js/owner/v-activity.js` (« Charger plus » du journal d'activité du Centre propriétaire). Autres appels `replaceChildren` vérifiés : passent `null` seulement en attributs (sans effet).
+**Vérifié** : navigateur (Chromium, fiche annonce simulée) : avant « nullVoir le profil », après « Voir le profil » seul ; aucune erreur JavaScript ; `npm test` sans régression.
+**Non vérifié** : Centre propriétaire (« Charger plus ») dans un navigateur avec session propriétaire. Site Render : non vérifié.
+
 ## Connexion Google depuis l'application Android (16 novembre 2026)
 **À réaliser** : permettre la connexion Google dans l'application (Google refuse la connexion dans une WebView).
 **Réalisé** (branche `feat/app-connexion-google`)
