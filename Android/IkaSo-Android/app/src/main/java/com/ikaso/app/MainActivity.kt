@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     private var backgroundedAt = 0L
     private var locked = false
     private var keepPage = false                  // lien reçu (paiement, partage) : ne pas renvoyer à l'accueil
+    private var pickerOpen = false                // galerie / appareil photo ouverts : le retour ne doit ni recharger la page ni verrouiller
     @Volatile var refreshBlocked = false          // renseigné par le site au toucher (voir INJECT_JS)
     private val host: String = BuildConfig.SITE_HOST
 
@@ -131,6 +132,7 @@ class MainActivity : AppCompatActivity() {
             // Photos des annonces, pièces justificatives…
             override fun onShowFileChooser(v: WebView, cb: ValueCallback<Array<Uri>>, p: FileChooserParams): Boolean {
                 fileCallback?.onReceiveValue(null); fileCallback = cb
+                pickerOpen = true
                 return try { filePicker.launch(p.createIntent()); true } catch (e: ActivityNotFoundException) { fileCallback = null; false }
             }
             // Géolocalisation (« près de moi », carte) : uniquement pour le site de l'application
@@ -222,9 +224,12 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         val away = if (backgroundedAt > 0) System.currentTimeMillis() - backgroundedAt else 0L
-        if (away > MEMORY_MS && !keepPage) { ui.web.loadUrl(BuildConfig.BASE_URL); ui.web.scrollTo(0, 0) }   // retour après plus de 30 s : accueil
+        val fromPicker = pickerOpen
+        pickerOpen = false
+        // Le sélecteur de photos fait partie du même parcours : pas de retour à l'accueil, pas de verrouillage.
+        if (away > MEMORY_MS && !keepPage && !fromPicker) { ui.web.loadUrl(BuildConfig.BASE_URL); ui.web.scrollTo(0, 0) }   // retour après plus de 30 s : accueil
         keepPage = false
-        if (away > 60_000) lockIfNeeded()   // reverrouillage après 1 min en arrière-plan   // reverrouillage après 1 min en arrière-plan
+        if (away > 60_000 && !fromPicker) lockIfNeeded()   // reverrouillage après 1 min en arrière-plan   // reverrouillage après 1 min en arrière-plan
     }
 
     // ---------- Réglages natifs (appui long sur l'icône ▸ Réglages de l'application) ----------
