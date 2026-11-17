@@ -1,22 +1,76 @@
 import { badRequest } from "../lib/errors.js";
-import { IMPORT_MAX_BYTES, csvToListings } from "../lib/csv.js";
-import { validateListing } from "../lib/rules.js";
+import { IMPORT_MAX_BYTES, csvTemplate, csvToListings, parseCsv, rowsToListings } from "../lib/csv.js";
+import { buildXlsx, readXlsxRows } from "../lib/xlsx.js";
+import { CATEGORIES, DOCUMENTS, ROAD_ACCESS, TRANSACTIONS, validateListing } from "../lib/rules.js";
+import { ZONES } from "../lib/places.js";
 import { normalizeText } from "../lib/search.js";
 import { findSimilar } from "./duplicates.js";
 
 export function createImports(ctx, accounts, listings) {
   const { db } = ctx;
   return {
-    /**
-     * Import CSV, tout ou rien : si une ligne est refusée, rien n'est créé et le rapport dit laquelle et pourquoi.
-     * Les annonces importées passent par la modération comme les autres. `dryRun` : contrôle seulement.
-     */
-    async importCsv(userId, text, { dryRun = false } = {}) {
-      // Contrôle du statut annonceur dès le contrôle à blanc (dryRun), pas seulement à la création.
+    /** Droit d'importer : annonceur approuvé (ou équipe) et numéro vérifié par SMS. Même règle pour le modèle, le contrôle et l'import. */
+    async assertCanImport(userId) {
       const profile = await accounts.assertCanPublishListing(userId);
       if (!profile.phone_verified_at) throw badRequest("Vérifiez votre numéro avant d'importer des annonces.");
+      return profile;
+    },
+
+    /** Indique à l'interface si le bouton d'import peut être activé, et pourquoi sinon. */
+    async importStatus(userId) {
+      try {
+        await this.assertCanImport(userId);
+        return { canImport: true, reason: null };
+      } catch (error) {
+        return { canImport: false, reason: error.message ?? "Import indisponible pour ce compte." };
+      }
+    },
+
+    /** Import CSV, tout ou rien : si une ligne est refusée, rien n'est créé et le rapport dit laquelle et pourquoi. */
+    async importCsv(userId, text, { dryRun = false } = {}) {
+      // Contrôle du statut annonceur dès le contrôle à blanc (dryRun), pas seulement à la création.
+      const profile = await this.assertCanImport(userId);
       if (String(text ?? "").length > IMPORT_MAX_BYTES) throw badRequest("Fichier trop volumineux (400 Ko au plus).");
-      const { items, problems } = csvToListings(text, { fullName: profile.full_name || "Annonceur", ownerRole: profile.display_role });
+      return this.importParsed(userId, profile, csvToListings(text, { fullName: profile.full_name || "Annonceur", ownerRole: profile.display_role }), { dryRun });
+    },
+
+    /** Import Excel (.xlsx) : mêmes règles, même rapport et même traitement que le CSV. `buffer` : fichier brut. */
+    async importXlsx(userId, buffer, { dryRun = false } = {}) {
+      const profile = await this.assertCanImport(userId);
+      const rows = readXlsxRows(buffer);
+      return this.importParsed(userId, profile, rowsToListings(rows, { fullName: profile.full_name || "Annonceur", ownerRole: profile.display_role }), { dryRun });
+    },
+
+    /** Modèle Excel à remplir : feuille « Annonces » (en-têtes et deux exemples valides) et feuille « Valeurs acceptées ». */
+    modeleXlsx() {
+      const [header, ...examples] = parseCsv(csvTemplate());
+      const aide = [
+        ["Colonne", "Valeurs acceptées ou format attendu", "Obligatoire"],
+        ["titre", "Texte court, unique parmi vos annonces actives", "Oui"],
+        ["description", "Texte libre décrivant le bien", "Non"],
+        ["type", CATEGORIES.join(" ; "), "Oui"],
+        ["transaction", TRANSACTIONS.join(" ; "), "Oui"],
+        ["quartier", ZONES.map((z) => z.name).join(" ; "), "Oui"],
+        ["prix", "Nombre en FCFA, sans espaces (ex. 45000000)", "Oui"],
+        ["superficie", "Texte libre (ex. 500 m²)", "Non"],
+        ["superficie m2", "Nombre entier en m² (ex. 500)", "Non"],
+        ["acces routier", `${ROAD_ACCESS.join(" ; ")} (terrains seulement)`, "Non"],
+        ["chambres", "Nombre entier (habitations seulement)", "Non"],
+        ["salles de bain", "Nombre entier (habitations seulement)", "Non"],
+        ["meuble", "oui ou non (habitations seulement)", "Non"],
+        ["document", DOCUMENTS.join(" ; "), "Non"],
+        [],
+        ["Les annonces importées passent par la modération avant publication."],
+        ["Gardez la première ligne (en-têtes). Un fichier refusé ne crée aucune annonce : le rapport indique la ligne et la raison."],
+      ];
+      return buildXlsx([
+        { name: "Annonces", rows: [header, ...examples], widths: [40, 50, 14, 14, 16, 14, 14, 14, 16, 11, 14, 10, 18] },
+        { name: "Valeurs acceptées", rows: aide, widths: [18, 90, 12] },
+      ]);
+    },
+
+    /** Traitement commun CSV et Excel : contrôle de chaque ligne, puis création de toutes les annonces ou d'aucune. */
+    async importParsed(userId, profile, { items, problems }, { dryRun = false } = {}) {
       const errors = problems.filter((p) => p.line !== 1 || !/ignorée/.test(p.message)).map((p) => ({ ...p }));
       const warnings = problems.filter((p) => p.line === 1 && /ignorée/.test(p.message));
       const seen = new Map();
