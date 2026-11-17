@@ -23,6 +23,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/rollback/065_permissions_cont
 | 038 | des signalements en `IN_PROGRESS`, `RESOLVED` ou `CLOSED` | les clôturer ou les rouvrir |
 | 046 | des campagnes de type `SIDEBAR` | les supprimer |
 | 052 | des annonces « Local commercial » ou « Bureau » | les recatégoriser |
+| 069 | des réclamations sans annonce liée | les exporter puis les supprimer |
 
 ## Migrations sans script (volontaire)
 - **001 à 015** : socle (utilisateurs, annonces, paiements…). Les supprimer détruirait les données principales.

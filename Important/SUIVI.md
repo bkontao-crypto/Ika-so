@@ -38,6 +38,15 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⬜ Les règles CSS `.backbar` / `.pa-back` sont devenues inutilisées et laissées en place (inoffensives).
 - ⬜ Étendre aussi à la console d'administration et au centre de contrôle : décision du propriétaire.
 
+## Correctifs mobile n°2 : réclamations, thème sombre, menus, profil à photos cliquables (17 novembre 2026)
+
+- **À réaliser :** 5 remarques du propriétaire (captures téléphone).
+- **Réalisé :** (1) **Réclamation « Envoyer »** : cause = `ika_reports.listing_id` était `not null` alors que le formulaire n'envoie pas d'annonce → erreur serveur. Migration **069** (`drop not null`, additive) + script de retour arrière (refuse s'il existe des réclamations sans annonce). Champs du formulaire mis en forme (`label.field`, `input` typé). (2) Espace annonceur : bouton ☰ plus flottant sur le contenu (inséré dans la page, libellé « Menu ») ; bloc « Découvrir Premium » lisible en mode nuit (`espace.css`). (3) Centre de contrôle (admin) : onglets en bande défilante dans la page, plus de liste flottante (`components.css`, `admin.js`). (4) « Espace de visibilité » conforme au mode nuit (`refonte.css`). (5) Mon profil : photo de profil et couverture cliquables, petit menu « Changer / Retirer / Annuler », boutons supprimés, pastille 📷 (`mon-profil.js`, `mon-profil.css`).
+- **Vérifié :** `npm test` 257 OK / 0 échec. PostgreSQL local : migrations 001→069 appliquées, insertion d'une réclamation sans annonce OK, rollback 069 refusé s'il y a une telle ligne puis accepté, migration rejouée. Chromium 390 px : formulaire réclamation envoie `{reason, details}` et affiche « Réclamation envoyée » (API simulée) ; onglets admin en ligne ; bandeau/teaser en mode nuit lisibles. SW re-estampillé.
+- **Non vérifié :** rendu sur vrai téléphone ; menu des photos du profil (non rendu faute de données API simulables) ; réclamation sur la vraie base Neon (la migration 069 s'applique au démarrage de Render).
+- **Risques :** la migration 069 doit s'exécuter au déploiement ; si la réclamation échoue encore, vérifier les journaux Render.
+- **Retour arrière :** `git revert -m 1` du commit de fusion (+ script 069 si la colonne doit redevenir obligatoire).
+
 ## Correctifs mobile : profil annonceur, Centre de contrôle, menu, fiche annonce, photos (16 novembre 2026)
 
 - **À réaliser :** 5 remarques du propriétaire (captures téléphone).
