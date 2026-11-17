@@ -1161,3 +1161,4 @@ Branche : `fix/profil-equipe-avis` (depuis `origin/main` 2cf342b). Non fusionné
 - **En cours :** validation par le propriétaire sur le site réel (aucune fusion dans `main` sans accord écrit).
 - **À faire :** après validation, décider de la fusion dans `main` ; la réponse à l'invitation (accepter / refuser) n'a pas été rejouée de bout en bout côté second compte.
 - **Risques :** les polices `Outfit` et `PlusJakartaSans` référencées par `public/css/refonte.css` sont absentes de `public/fonts/` (404 en local, préexistant, non traité) ; le compte de test « Agence Recette » et son annonce ont été créés uniquement dans la base de test `ika_test`.
+- **Complément (17/11/2026) :** acceptation de l'invitation testée côté second compte (API, `POST /me/team-requests/:id/accept`) : statut `ACCEPTED`, membre visible des deux côtés. Test local uniquement.
