@@ -23,10 +23,10 @@ export async function complaintsPage() {
     } catch (e) { fail(e); }
   } },
     h("h3", null, "Nouvelle réclamation"),
-    h("label", null, "Motif"),
-    h("input", { name: "reason", required: true, maxlength: 200, placeholder: "Décrivez brièvement le problème" }),
-    h("label", null, "Détails (optionnel)"),
-    h("textarea", { name: "details", maxlength: 1000, rows: 3 }),
+    h("label", { class: "field" }, "Motif",
+      h("input", { class: "input", type: "text", name: "reason", required: true, maxlength: 200, placeholder: "Décrivez brièvement le problème" })),
+    h("label", { class: "field" }, "Détails (optionnel)",
+      h("textarea", { class: "input", name: "details", maxlength: 1000, rows: 4 })),
     h("button", { class: "btn", type: "submit" }, "Envoyer")
   );
 

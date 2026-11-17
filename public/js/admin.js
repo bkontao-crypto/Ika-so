@@ -118,8 +118,7 @@ function draw() {
   const burger = document.getElementById("admin-burger");
   const tabsEl = document.getElementById("admin-tabs");
   if (burger && tabsEl) {
-    burger.style.display = window.innerWidth <= 900 ? "" : "none";
-    burger.onclick = () => tabsEl.classList.toggle("open");
+    burger.style.display = "none"; // onglets en bande défilante (plus de menu flottant)
   }
   const logoutBtn = document.getElementById("admin-logout");
   if (logoutBtn) {

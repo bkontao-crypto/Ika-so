@@ -5,7 +5,7 @@
 .mp-cover { position: relative; height: 220px; background: linear-gradient(135deg, #0b3b27, #12734b); background-size: cover; background-position: center; }
 .mp-cover-tools { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
 .mp-info { position: relative; display: flow-root; padding: 0 24px 24px; }
-.mp-avatar { position: absolute; top: -80px; left: 24px; width: 160px; height: 160px; border-radius: 50%; border: 5px solid var(--card); background: var(--page); overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); }
+.mp-avatar { position: absolute; top: -80px; left: 24px; width: 160px; height: 160px; border-radius: 50%; border: 5px solid var(--card); background: var(--page); padding: 0; cursor: pointer; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); }
 .mp-avatar-in { width: 100%; height: 100%; border-radius: 50%; border: 4px solid var(--green); background: var(--green-soft) center / cover; color: var(--green-text); display: grid; place-items: center; font: 800 3.2rem var(--display); }
 .mp-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
 .mp-details { margin-top: 50px; }
@@ -122,3 +122,15 @@
 .mp-person-body small { color: var(--muted); }
 .mp-miniava { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%; object-fit: cover; display: grid; place-items: center; background: var(--ika-100); color: var(--green-text); font-weight: 700; font-size: .85rem; }
 .mp-miniava.anon { background: var(--line); }
+
+/* Photos cliquables (profil / couverture) + petit menu */
+.mp-cover { cursor: pointer; }
+.mp-cover:focus-visible, .mp-avatar:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.mp-cam { display: inline-flex; align-items: center; justify-content: center; background: rgba(7, 22, 15, .62); color: #fff; border: 1px solid rgba(255, 255, 255, .3); backdrop-filter: blur(6px); font-weight: 700; }
+.mp-cam-cover { position: absolute; right: 12px; bottom: 12px; padding: 6px 12px; border-radius: 999px; font-size: .78rem; }
+.mp-cam-avatar { position: absolute; right: 4px; bottom: 4px; width: 34px; height: 34px; border-radius: 50%; font-size: .95rem; }
+.mp-sheet-back { position: fixed; inset: 0; z-index: 1000; display: grid; place-items: end center; background: rgba(0, 0, 0, .55); padding: 16px; }
+.mp-sheet { width: min(100%, 360px); display: grid; gap: 10px; padding: 18px; border-radius: 18px; background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); box-shadow: var(--shadow-lg); }
+.mp-sheet strong { font: 800 1.05rem var(--display); }
+.mp-sheet .mp-btn.block { margin-top: 0; width: 100%; }
+@media (min-width: 700px) { .mp-sheet-back { place-items: center; } }

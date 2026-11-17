@@ -148,7 +148,11 @@ export function listingForm({ f, title, submitLabel, onSubmit, withPhone, saveDr
         f.photos.length > 1 ? h("button", { type: "button", onClick: () => { f.photos.splice(i, 1); drawPhotos(); save(); } }, "Retirer") : null)));
     }
     async function addFiles(files) {
-      for (const file of [...files].filter((x) => x.type.startsWith("image/"))) {
+      // Le stockage d'un téléphone renvoie parfois un type vide : on accepte aussi d'après l'extension.
+      const isImage = (x) => x.type.startsWith("image/") || (!x.type && /\.(jpe?g|png|webp|gif|bmp|heic|heif)$/i.test(x.name || ""));
+      const list = [...files];
+      if (list.length && !list.some(isImage)) toast("Ce fichier n'est pas une photo. Choisissez une image (JPG, PNG…).", true);
+      for (const file of list.filter(isImage)) {
         if (f.photos.length >= MAX_PHOTOS) { toast(`${MAX_PHOTOS} photos au maximum.`, true); break; }
         try { f.photos.push(await compressPhoto(file)); } catch (error) { fail(error); }
       }

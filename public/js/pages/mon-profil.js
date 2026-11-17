@@ -72,19 +72,36 @@ export async function profilePage() {
   const coverInput = upload("cover", "Photo de couverture");
   const avatarInput = upload("avatar", "Photo de profil");
 
+  /* Petit menu au clic sur une photo : changer ou retirer */
+  const photoMenu = (kind, title, has) => {
+    const input = kind === "cover" ? coverInput : avatarInput;
+    const onKey = (e) => { if (e.key === "Escape") close(); };
+    const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); };
+    const overlay = h("div", { class: "mp-sheet-back", onClick: (e) => { if (e.target === overlay) close(); } },
+      h("div", { class: "mp-sheet", role: "dialog", "aria-modal": "true", "aria-label": title },
+        h("strong", null, title),
+        h("button", { class: "mp-btn mp-btn-primary block", type: "button", onClick: () => { input.click(); close(); } }, has ? "Changer la photo" : "Ajouter une photo"),
+        has ? h("button", { class: "mp-btn mp-btn-outline danger block", type: "button", onClick: () => { close(); removeImage(kind); } }, "Retirer la photo") : null,
+        h("button", { class: "mp-btn mp-btn-outline block", type: "button", onClick: close }, "Annuler")));
+    document.body.append(overlay);
+    document.addEventListener("keydown", onKey);
+    overlay.querySelector("button")?.focus();
+  };
+
   /* ---------- En-tête ---------- */
   const place = pr.city ? ` · ${pr.city}, Mali` : "";
   const header = h("section", { class: "mp-header" },
-    h("div", { class: "mp-cover", style: pr.coverUrl ? `background-image:linear-gradient(rgba(7,22,15,.25),rgba(7,22,15,.25)),url('${pr.coverUrl}')` : null },
-      h("div", { class: "mp-cover-tools" },
-        h("button", { class: "mp-btn mp-btn-glass", type: "button", onClick: () => coverInput.click() }, pr.coverUrl ? "Changer la couverture" : "Ajouter une couverture"),
-        pr.coverUrl ? h("button", { class: "mp-btn mp-btn-glass", type: "button", onClick: () => removeImage("cover") }, "Retirer") : null), coverInput),
+    h("div", { class: "mp-cover", role: "button", tabindex: "0", "aria-label": "Modifier la photo de couverture", style: pr.coverUrl ? `background-image:linear-gradient(rgba(7,22,15,.25),rgba(7,22,15,.25)),url('${pr.coverUrl}')` : null,
+      onClick: () => photoMenu("cover", "Photo de couverture", !!pr.coverUrl),
+      onKeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); photoMenu("cover", "Photo de couverture", !!pr.coverUrl); } } },
+      h("span", { class: "mp-cam mp-cam-cover", "aria-hidden": "true" }, "📷 ", pr.coverUrl ? "Modifier" : "Ajouter une couverture")),
+    coverInput, avatarInput,
     h("div", { class: "mp-info" },
-      h("div", { class: "mp-avatar" }, h("div", { class: "mp-avatar-in", style: pr.avatarUrl ? `background-image:url('${pr.avatarUrl}')` : null, role: "img", "aria-label": `Photo de ${name}` }, pr.avatarUrl ? null : initials(name))),
+      h("button", { class: "mp-avatar", type: "button", "aria-label": "Modifier la photo de profil", onClick: () => photoMenu("avatar", "Photo de profil", !!pr.avatarUrl) },
+        h("span", { class: "mp-avatar-in", style: pr.avatarUrl ? `background-image:url('${pr.avatarUrl}')` : null, role: "img", "aria-label": `Photo de ${name}` }, pr.avatarUrl ? null : initials(name)),
+        h("span", { class: "mp-cam mp-cam-avatar", "aria-hidden": "true" }, "📷")),
       h("div", { class: "mp-actions" },
-        h("button", { class: "mp-btn mp-btn-outline", type: "button", onClick: () => avatarInput.click() }, "Modifier la photo"),
-        pr.avatarUrl ? h("button", { class: "mp-btn mp-btn-outline", type: "button", onClick: () => removeImage("avatar") }, "Retirer") : null,
-        h("button", { class: "mp-btn mp-btn-primary", type: "button", onClick: () => show("parametres") }, "Gérer mon compte"), avatarInput),
+        h("button", { class: "mp-btn mp-btn-primary", type: "button", onClick: () => show("parametres") }, "Gérer mon compte")),
       h("div", { class: "mp-details" },
         h("h1", null, name, edit.role ? h("span", { class: "mp-role" }, ` (${edit.role})`) : null),
         h("p", null, `Membre depuis ${monthYear(pub?.memberSince) || "—"}${place}`),

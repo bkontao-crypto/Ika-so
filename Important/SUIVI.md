@@ -3,6 +3,20 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Demande de mise à la une (17 novembre 2026)
+**À réaliser** : remplacer le lien vers Réclamations par une demande gratuite envoyée directement à l'équipe, et une interface « Demande de mise à la une » pour les administrateurs (superadmin inclus). Aucun paiement ni tarif lié.
+**Réalisé** :
+- Migration `070_demandes_mise_a_la_une.sql` (renumérotée : `069` est déjà prise par les réclamations sur `main`) + rollback `070_..._down.sql`. Table `ika_featured_requests`, une seule demande en attente par annonce.
+- Service `server/services/featured-requests.js` : création (annonce en ligne possédée, sans demande en attente), liste staff (permission `moderation.review`), décision. Acceptation = mise à la une via l'existant (`moderation.setFeatured`, contrôle de permission conservé) ; refus = motif obligatoire ; verrou de statut contre le double clic.
+- Routes `/api/me/featured-requests` (GET, POST) et `/api/staff/featured-requests` (GET, `?status=DONE`), `/api/staff/featured-requests/:id/decision`.
+- Notifications : staff (ADMIN, SUPERADMIN, MODERATOR) à la création ; annonceur à la décision.
+- Côté annonceur (« Mes annonces ») : bouton « Demander la mise à la une » ouvrant un formulaire (message facultatif, 500 caractères) ; « en attente » après envoi ; aucun bouton si l'annonce est déjà à la une. Le bouton de paiement reste masqué sans tarif.
+- Côté admin (`admin.html`, onglet « Demande de mise à la une (n) ») : demandes en attente, « Mettre à la une » (ADMIN et SUPERADMIN), « Refuser » avec motif, traitées récentes.
+**Vérifié** : `npm test` 275 tests, 261 pass, 0 échec (sans PostgreSQL de test), dont 4 tests de validation du service. Test réel sur PostgreSQL 16 locale, serveur lancé : création (201), doublon (409), annonce non possédée (404), staff (200), utilisateur simple (403), refus sans motif (400), refus avec motif (200), acceptation (200, annonce à la une 7 jours via le mécanisme existant), notifications staff et annonceur présentes, aucune erreur serveur. Navigateur : bouton, formulaire et état « en attente » côté annonceur ; onglet et liste côté admin, sans erreur JavaScript ni API.
+**En cours** : aucun.
+**À faire** : contrôle sur le site après déploiement : envoi depuis un téléphone, traitement depuis l'espace admin.
+**Risques** : la migration 069 existe dans deux dépôts (réclamations sur `main`, demandes ici) ; seule la 070 est propre à cette tâche. Une annonce à la une n'est pas bloquée côté service si une demande est acceptée à nouveau : la mise à la une est simplement prolongée, comme aujourd'hui. Le libellé « Demande de mise à la une » est à valider.
+
 ## Mise à la une : message clair quand aucune formule n'est ouverte (16 novembre 2026)
 **À réaliser** : au lieu d'un espace vide, afficher un message clair et un lien de contact direct.
 **Cause** : le bouton « Mettre à la une » de « Mes annonces » n'est affiché que si une formule payante est active et que le fournisseur de paiement est configuré. Aucune formule n'a de prix (décision du propriétaire), donc rien n'apparaissait.
@@ -37,6 +51,24 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - ⚠️ Une page ouverte directement par un lien n'a plus de repli « page parent » : le retour du téléphone sort de l'application (l'Android demande un second appui pour quitter). L'en-tête et la barre du bas restent disponibles.
 - ⬜ Les règles CSS `.backbar` / `.pa-back` sont devenues inutilisées et laissées en place (inoffensives).
 - ⬜ Étendre aussi à la console d'administration et au centre de contrôle : décision du propriétaire.
+
+## Correctifs mobile n°2 : réclamations, thème sombre, menus, profil à photos cliquables (17 novembre 2026)
+
+- **À réaliser :** 5 remarques du propriétaire (captures téléphone).
+- **Réalisé :** (1) **Réclamation « Envoyer »** : cause = `ika_reports.listing_id` était `not null` alors que le formulaire n'envoie pas d'annonce → erreur serveur. Migration **069** (`drop not null`, additive) + script de retour arrière (refuse s'il existe des réclamations sans annonce). Champs du formulaire mis en forme (`label.field`, `input` typé). (2) Espace annonceur : bouton ☰ plus flottant sur le contenu (inséré dans la page, libellé « Menu ») ; bloc « Découvrir Premium » lisible en mode nuit (`espace.css`). (3) Centre de contrôle (admin) : onglets en bande défilante dans la page, plus de liste flottante (`components.css`, `admin.js`). (4) « Espace de visibilité » conforme au mode nuit (`refonte.css`). (5) Mon profil : photo de profil et couverture cliquables, petit menu « Changer / Retirer / Annuler », boutons supprimés, pastille 📷 (`mon-profil.js`, `mon-profil.css`).
+- **Vérifié :** `npm test` 257 OK / 0 échec. PostgreSQL local : migrations 001→069 appliquées, insertion d'une réclamation sans annonce OK, rollback 069 refusé s'il y a une telle ligne puis accepté, migration rejouée. Chromium 390 px : formulaire réclamation envoie `{reason, details}` et affiche « Réclamation envoyée » (API simulée) ; onglets admin en ligne ; bandeau/teaser en mode nuit lisibles. SW re-estampillé.
+- **Non vérifié :** rendu sur vrai téléphone ; menu des photos du profil (non rendu faute de données API simulables) ; réclamation sur la vraie base Neon (la migration 069 s'applique au démarrage de Render).
+- **Risques :** la migration 069 doit s'exécuter au déploiement ; si la réclamation échoue encore, vérifier les journaux Render.
+- **Retour arrière :** `git revert -m 1` du commit de fusion (+ script 069 si la colonne doit redevenir obligatoire).
+
+## Correctifs mobile : profil annonceur, Centre de contrôle, menu, fiche annonce, photos (16 novembre 2026)
+
+- **À réaliser :** 5 remarques du propriétaire (captures téléphone).
+- **Réalisé :** (1) profil annonceur : sur ≤800 px le contenu de l'onglet passe avant la colonne « Présentation » (`profil.css`). (2) Centre de contrôle : barre du haut sur une seule ligne, tiroir fermé sans ombre ni zone cliquable (`owner.css`). (3) menu du site : bouton « Se déconnecter » (visible si connecté) (`chrome.js`). (4) fiche annonce : bouton « Voir le profil de l'annonceur » supprimé, la carte Annonceur garde « Voir le profil » (même route ; repli si l'API échoue) (`listing.js`). (5) photos : fichier du stockage accepté même sans type MIME (d'après l'extension), décodage de repli via `<img>`, message si fichier non image (`listing-form.js`, `dom.js`).
+- **Vérifié :** `npm test` 257 OK / 0 échec ; Chromium 390 px : tiroir Owner s'ouvre/se ferme, bouton déconnexion présent dans le menu, en-tête Owner alignée. SW re-estampillé.
+- **Non vérifié :** rendu sur vrai téléphone ; import photo réel depuis le stockage Android (WebView) ; profil annonceur avec données réelles.
+- **Risques :** si l'import de photos échoue encore sur l'appli Android, la cause serait dans l'APK (`MainActivity.kt`, sélecteur déjà présent) : un nouvel APK devra être compilé hors de cet environnement.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
 
 ## Mon profil : doublons d'identité supprimés (16 novembre 2026)
 **À réaliser** : signalement de deux blocs « profil » dans l'interface Mon profil.

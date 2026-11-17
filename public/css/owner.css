@@ -280,3 +280,11 @@ dialog::backdrop{background:rgba(5,30,20,.55)}dialog .pad{padding:20px;display:g
 .avatar{overflow:hidden}
 .avatar img{width:100%;height:100%;object-fit:cover;display:block}
 @media (max-width:640px){.site-back span{display:none}.site-back{width:36px;padding:0;justify-content:center}}
+
+/* Mobile : la barre du haut reste sur une ligne ; le tiroir fermé ne projette pas d'ombre sur l'écran */
+.top .row{flex-wrap:nowrap;min-width:0;flex:1 1 auto}
+@media(max-width:900px){
+  .side{box-shadow:none;visibility:hidden;transition:transform .25s ease,visibility 0s .25s}
+  .side.open{box-shadow:var(--shadow-lg);visibility:visible;transition:transform .25s ease}
+  .scrim:not(.open){display:none}
+}
