@@ -481,3 +481,9 @@ textarea:focus {
 .btn-google:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
 .btn-google.is-off { opacity: .6; }
 .btn-google svg { flex: none; }
+
+/* Connexion : bouton principal pleine largeur, lien « Mot de passe oublié » centré dessous */
+.auth-actions { display: grid; gap: 12px; justify-items: center; margin-top: 4px; }
+.auth-actions .btn { width: 100%; min-height: 50px; justify-content: center; }
+.auth-forgot { font-size: .9rem; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+.auth-forgot:hover { color: var(--ink); }

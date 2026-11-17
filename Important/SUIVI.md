@@ -3,6 +3,16 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Connexion : rangement du bouton et du lien « Mot de passe oublié » ; diagnostic Google dans l'APK (17 novembre 2026)
+
+- **À réaliser :** (1) ranger « Me connecter » et « Mot de passe oublié ? » ; (2) l'APK n'arrive pas à se connecter avec Google (symptôme exact non précisé).
+- **Réalisé :** (1) bouton principal pleine largeur, lien centré dessous (`login.js`, `components.css`). (2) Lecture complète du parcours Google de l'application : interception `MainActivity.kt:114-117` → navigateur du téléphone avec `app=1` → callback serveur (`routes/index.js:136-146`) → `ikaso://login?ticket=…` → `onNewIntent` → `/api/auth/app-handoff`. Le code est cohérent ; migration 068 (tickets) présente.
+- **Constaté sur l'APK fourni (`public/downloads/ika-so.apk`) :** c'est un build **debug** (`1.0.4-debug`, identifiant `com.ikaso.app.debug`, débogable). Il s'installe À CÔTÉ d'une éventuelle version release (autre identifiant), ne la met pas à jour, et le verrouillage par empreinte y est inactif.
+- **Vérifié :** rendu Chromium 390 px clair/sombre ; `npm test` OK ; SW re-estampillé.
+- **Non vérifié / non résolu :** cause de l'échec Google dans l'APK (aucun téléphone ici) ; en attente du symptôme précis (message d'erreur, écran affiché).
+- **Pistes probables :** application Google non publiée (« En production ») ou compte non ajouté comme testeur ; redirect_uri non identique ; migration 068 non appliquée ; navigateur qui bloque la redirection `ikaso://`.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
+
 ## Page de connexion : bouton « Continuer avec Google » (17 novembre 2026)
 
 - **À réaliser :** logo Google et présentation soignée du bloc Google (demande du propriétaire).
