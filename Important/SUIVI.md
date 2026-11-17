@@ -3,6 +3,23 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Confidentialité, cookies et traceurs — lot A (17 novembre 2026)
+**À réaliser** : mission 02. Carte Mapbox seulement après accord « Cartes et services externes » ; brouillon lié au compte ; fiche imprimable sans Mapbox par défaut ; panneau « Gérer mes choix ». Branche `feat/confidentialite-lot-a`, aucune modification de Render ni de la production.
+**Réalisé** :
+- `public/js/core/consent.js` (nouveau) : choix versionné (`ika-so-consent`, version 1, 183 jours), quatre catégories, toutes refusées par défaut. Refus et absence de choix = plan local.
+- `public/js/map/provider.js` : sans accord, aucune requête `/api/config/map` et aucune bibliothèque Mapbox. Les appelants (fiche, localisation, centre, carte d'accueil) sont inchangés.
+- `server/routes/index.js` + `pages/localisation.js` : fiche imprimable avec fond Mapbox seulement si `?fond=mapbox` (ajouté après accord). Plan SVG local dans tous les cas.
+- `public/js/core/draft.js` (nouveau) : brouillon par compte (`ika-so-draft:<id>`). Ancien brouillon sans compte : rangé au compte qui se déconnecte, sinon retiré. Plus aucun brouillon partagé entre comptes.
+- `public/js/components/consent-panel.js` (nouveau) + lien « Gérer mes choix » dans le pied de page (`index.html`, `app.js`). Retrait ou acceptation de « Cartes » : rechargement pour appliquer immédiatement.
+- Feuille « Suivi confidentialité » ajoutée à `Important/IKA_SO_SUIVI_TRANSFORMATION_ET_RECETTE.xlsx` (10 feuilles existantes vérifiées identiques).
+**Vérifié** :
+- `npm test` avec PostgreSQL : 296 réussis, 0 échec (275 existants + 21 nouveaux, `test/confidentialite-lot-a.test.js`).
+- Navigateur (mobile 390 px, serveur local) : première visite sans choix, aucune requête vers Mapbox ni service externe, aucune erreur JavaScript, panneau lisible et sans débordement, acceptation puis retrait enregistrés.
+**En cours** : parcours « acceptation → carte Mapbox » non vérifié en navigateur (pas de jeton local, pas d'annonce géolocalisée en test).
+**À faire** : validation du lot A par le propriétaire sur le site ; puis lot B (Statistiques, suppression de `/api/e` quand la collecte est désactivée), lot C (documentation cookies et prestataires), lot D (preuve serveur, si exigée).
+**Risques** : stockage local du choix = pas une preuve juridique ; politique de confidentialité non validée par un juriste (`LEGAL_VALIDATED=false`) ; `MAPBOX_TOKEN` sur Render non vérifié ; les pages rendues côté serveur (quartiers, guides) n'ont pas encore le lien « Gérer mes choix ».
+**Rollback** : lot non commité. Après commit : `git revert <sha>` (commit simple) ou `git revert -m 1 <sha>` (commit de fusion), puis `npm run -s stamp-sw`.
+
 ## Demande de mise à la une (17 novembre 2026)
 **À réaliser** : remplacer le lien vers Réclamations par une demande gratuite envoyée directement à l'équipe, et une interface « Demande de mise à la une » pour les administrateurs (superadmin inclus). Aucun paiement ni tarif lié.
 **Réalisé** :

@@ -4,6 +4,9 @@ import { app, onSession, refreshSession, refreshUnread } from "/js/core/state.js
 import { currentRoute } from "/js/core/router.js";
 import { renderChrome } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
+import { openConsentPanel } from "/js/components/consent-panel.js";
+
+document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
 
 // Chaque route : fichier de la page, fonction à lancer, et façon de lire l'identifiant dans l'adresse.
 const dec = (m) => decodeURIComponent(m[1]);

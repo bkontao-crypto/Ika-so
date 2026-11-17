@@ -7,6 +7,7 @@ import { listingCard, mapView } from "/js/components/listing-card.js";
 import { go, needLogin } from "/js/core/router.js";
 import { centerOf, fmtHa, fmtM2, fromPolygon, selfIntersects, toPolygon } from "/js/map/geometry.js";
 import { createMap } from "/js/map/provider.js";
+import { hasConsent } from "/js/core/consent.js";
 
 const BAMAKO = { lat: 12.639, lng: -8.002 };
 const CAUTION = "Mesure indicative faite à partir de points placés sur le plan. Ce n'est ni un bornage ni un relevé de géomètre ; elle ne remplace pas le titre foncier.";
@@ -131,7 +132,7 @@ export async function localisationPage(id) {
       official,
       h("p", { class: "small muted" }, "Glissez un point pour le corriger, touchez-le pour le choisir puis « Supprimer le point choisi », glissez le fond pour déplacer le plan. Les points doivent être placés dans l'ordre, en faisant le tour de la parcelle."),
       h("div", { class: "row" }, btn("Enregistrer la localisation", save, "btn-primary"), geo ? btn("Supprimer la localisation", remove, "btn-quiet") : null),
-      geo?.polygon ? h("p", null, h("a", { class: "btn btn-small", href: `/api/me/listings/${encodeURIComponent(id)}/fiche`, target: "_blank", rel: "noopener" }, "Fiche imprimable (PDF)"), h("span", { class: "small muted" }, " Elle reflète la dernière version enregistrée.")) : null));
+      geo?.polygon ? h("p", null, h("a", { class: "btn btn-small", href: `/api/me/listings/${encodeURIComponent(id)}/fiche${hasConsent("cartes") ? "?fond=mapbox" : ""}`, target: "_blank", rel: "noopener" }, "Fiche imprimable (PDF)"), h("span", { class: "small muted" }, " Elle reflète la dernière version enregistrée.")) : null));
 }
 
 export async function cartePage() {

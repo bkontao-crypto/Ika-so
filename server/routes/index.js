@@ -481,7 +481,8 @@ router.get("/listings/:id", async (req, res) => {
     const { geo: shape, listing } = await geo.fiche(requireUser(req), id(req));
     res.status(200).setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    res.end(ficheHtml({ geo: shape, listing, mapboxToken: config.mapbox?.token ?? "" }));
+    // Fond Mapbox (coordonnées envoyées à Mapbox) seulement si le visiteur l'a accepté : ?fond=mapbox. Sinon, plan SVG local.
+    res.end(ficheHtml({ geo: shape, listing, mapboxToken: req.query?.fond === "mapbox" ? config.mapbox?.token ?? "" : "" }));
   });
   router.get("/staff/listings/:id/geo", async (req, res) => res.json(await geo.getForStaff(requireUser(req), id(req))));
 

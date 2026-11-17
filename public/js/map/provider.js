@@ -3,11 +3,18 @@
 //  - « mapbox » : fond de carte rues / satellite. Utilisé seulement si TOUT est réuni : le serveur donne un jeton public
 //    (GET /api/config/map), la bibliothèque hébergée chez nous se charge (public/vendor/mapbox-gl.js + .css) et la carte démarre.
 //    Au moindre échec (pas de jeton, hors connexion, fichier absent, jeton refusé, délai) : repli silencieux sur « local ».
+//  Consentement (lot A) : Mapbox n'est demandé QUE si le visiteur a accepté « Cartes et services externes ».
+//    Sans ce choix : aucune requête vers /api/config/map, aucun chargement de la bibliothèque, plan local.
+import { hasConsent } from "../core/consent.js";
+
 let configPromise = null;
 let libraryPromise = null;
 
-const mapboxToken = () => (configPromise ??= fetch("/api/config/map", { headers: { Accept: "application/json" } })
-  .then((r) => (r.ok ? r.json() : null)).then((c) => c?.mapbox?.token || null).catch(() => null));
+const mapboxToken = () => {
+  if (!hasConsent("cartes")) return Promise.resolve(null);
+  return (configPromise ??= fetch("/api/config/map", { headers: { Accept: "application/json" } })
+    .then((r) => (r.ok ? r.json() : null)).then((c) => c?.mapbox?.token || null).catch(() => null));
+};
 
 function loadLibrary() {
   if (window.mapboxgl) return Promise.resolve(true);

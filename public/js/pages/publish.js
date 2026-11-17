@@ -1,5 +1,6 @@
 import { DOCUMENTS, PHOTO_PRESETS, ROAD_ACCESS, api, h, mount, toast } from "/js/dom.js";
-import { DRAFT_KEY, S, app } from "/js/core/state.js";
+import { S, app } from "/js/core/state.js";
+import { draftKey, moveLegacyDraft } from "/js/core/draft.js";
 import { go, needLogin } from "/js/core/router.js";
 import { emptyForm, formToBody, listingForm } from "/js/components/listing-form.js";
 
@@ -9,8 +10,11 @@ export async function publishPage() {
   let f = emptyForm();
   // Copie locale (instantanée, marche hors connexion) + copie serveur (suit le compte d'un appareil à l'autre).
   // La plus récente gagne ; si la copie locale est plus récente, elle est renvoyée au serveur.
+  // Copie propre à ce compte. L'ancien format (sans compte) est retiré : il ne peut pas être attribué à coup sûr.
+  const KEY = draftKey(S.user.id);
+  moveLegacyDraft(null);
   let local = {};
-  try { local = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "{}") ?? {}; } catch { localStorage.removeItem(DRAFT_KEY); }
+  try { local = JSON.parse(localStorage.getItem(KEY) ?? "{}") ?? {}; } catch { localStorage.removeItem(KEY); }
   const { savedAt: localAt, ...localFields } = local;
   let chosen = localFields;
   let pushLocal = false;
@@ -34,7 +38,7 @@ export async function publishPage() {
     inflight = inflight.then(() => (submitted ? undefined : api("/me/draft", { method: "PUT", body: snapshot(value) }))).catch(() => undefined);
   };
   const saveDraft = (value) => {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...snapshot(value), savedAt: new Date().toISOString() })); } catch { /* stockage plein ou refusé */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...snapshot(value), savedAt: new Date().toISOString() })); } catch { /* stockage plein ou refusé */ }
     clearTimeout(timer);
     timer = setTimeout(() => pushRemote(value), 1500);
   };
@@ -59,7 +63,7 @@ export async function publishPage() {
         throw error;
       }
       submitted = true;
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(KEY);
       toast(r.similarCount ? "Annonce envoyée. Une annonce très proche existe déjà : la modération la comparera." : "Annonce envoyée. Elle attend la modération.");
       go("/mes-annonces");
     },
