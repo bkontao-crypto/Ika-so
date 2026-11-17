@@ -3,6 +3,16 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Connexion Google dans l'application : retour vers l'application (17 novembre 2026)
+
+- **À réaliser :** après Google, l'utilisateur restait dans le navigateur au lieu de revenir dans l'application Android.
+- **Cause probable :** le serveur renvoyait une redirection 302 vers `ikaso://login?ticket=…` ; les navigateurs Android bloquent souvent l'ouverture d'une application par redirection sans geste de la personne. (Cause déduite du symptôme et du code, non reproduite sur téléphone.)
+- **Réalisé :** `/api/auth/google/callback` (cas application) répond maintenant par une page « Connexion réussie » avec un bouton **Ouvrir IKA SÔ** (lien `intent://login?ticket=…#Intent;scheme=ikaso;end`, sans nom de paquet : fonctionne pour la version normale et la version debug), un lien de secours `ikaso://…` et une tentative automatique (meta refresh). Aucun script ni style en ligne (CSP). Fichiers : `server/lib/google-oauth.js` (`appReturnPage`), `server/routes/index.js`, `test/connexion-google.test.js`. Aucun changement dans l'application Android : pas de nouvel APK nécessaire.
+- **Vérifié :** `npm test` 261 OK / 0 échec (test mis à jour : page 200, liens intent/ikaso, pas de script/style en ligne, aucune session dans le navigateur) ; rendu de la page à 390 px dans Chromium.
+- **Non vérifié :** retour réel dans l'application sur téléphone (à tester après déploiement Render).
+- **Risques :** le ticket reste valable 60 s : si la personne tarde à toucher le bouton, elle doit recommencer.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
+
 ## Connexion : rangement du bouton et du lien « Mot de passe oublié » ; diagnostic Google dans l'APK (17 novembre 2026)
 
 - **À réaliser :** (1) ranger « Me connecter » et « Mot de passe oublié ? » ; (2) l'APK n'arrive pas à se connecter avec Google (symptôme exact non précisé).
