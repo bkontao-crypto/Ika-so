@@ -3,6 +3,15 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Téléchargement de l'application Android : nouvel APK en ligne (17 novembre 2026)
+
+- **À réaliser :** mettre le nouvel APK (`Ika_So.apk`, fourni par le propriétaire) à disposition des utilisateurs.
+- **Réalisé :** `public/downloads/ika-so.apk` remplacé par le nouvel APK (SHA-256 `0da6cd2f8db2c9e9a30c66f95479f5cda7e64c00a9b4b053ff6200fe16bc585f`, 13 019 931 octets), servi par le bouton « Télécharger IKA SÔ » de l'accueil (`home-sections.js`, lien `/downloads/ika-so.apk`). Correctif `public/sw.js` : `/downloads/` ne passe plus par le cache du service worker (sinon un visiteur déjà venu recevait l'ancien APK).
+- **Vérifié :** fichier identique à celui fourni (SHA-256) ; `npm test` 261 OK / 0 échec ; SW re-estampillé.
+- **Non vérifié :** téléchargement réel sur le site après déploiement ; installation sur téléphone ; contenu/signature de l'APK (aucun outil d'analyse d'APK ici).
+- **Risques :** `Ika-So.apk` (ancien, majuscules) reste dans le même dossier : deux noms ne différant que par la casse posent problème sur Windows/Mac ; non supprimé sans accord. Le serveur garde le fichier en cache 1 h (`maxAge` de `express.static`) : un téléchargement juste après une mise à jour peut servir l'ancien fichier jusqu'à 1 h. Chaque nouvel APK ajoute ~13 Mo à l'historique Git.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
+
 ## Demande de mise à la une (17 novembre 2026)
 **À réaliser** : remplacer le lien vers Réclamations par une demande gratuite envoyée directement à l'équipe, et une interface « Demande de mise à la une » pour les administrateurs (superadmin inclus). Aucun paiement ni tarif lié.
 **Réalisé** :
