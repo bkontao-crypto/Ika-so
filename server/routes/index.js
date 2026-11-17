@@ -23,7 +23,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { featuredRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -602,6 +602,10 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/me/center/standard", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.standardOverview(requireUser(req))); });
 
   // Demandes pour devenir annonceur
+  router.get("/me/featured-requests", async (req, res) => res.json(await featuredRequests.mine(requireUser(req))));
+  router.post("/me/featured-requests", async (req, res) => res.status(201).json(await featuredRequests.create(requireUser(req), { listingId: clean(req.body?.listingId, 80), message: clean(req.body?.message, 500) })));
+  router.get("/staff/featured-requests", async (req, res) => res.json(await featuredRequests.listForStaff(requireUser(req), { status: req.query?.status === "DONE" ? "DONE" : "PENDING" })));
+  router.post("/staff/featured-requests/:id/decision", async (req, res) => res.json(await featuredRequests.decide(requireUser(req), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 500) })));
   router.get("/me/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listMine(requireUser(req))));
   router.post("/me/advertiser-applications", async (req, res) => res.status(201).json(await advertiserApplications.submit(requireUser(req), req.body ?? {})));
   router.post("/me/advertiser-applications/:id/documents", async (req, res) => {

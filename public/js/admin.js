@@ -7,6 +7,7 @@ startDecorating();
 let trust = { proofs: [], alerts: [], commentReports: [], userReports: [], reviewReports: [] };
 let blacklist = [];
 let offers = [];
+let featured = { pending: [], done: [] };
 let recon = null;
 let sheetView = null; let compareView = null; let compareSel = []; let rankView = null; let statsView = null; let statsDays = 7; let statsError = null;
 
@@ -76,6 +77,8 @@ async function load() {
     blacklist = isAdmin ? await api("/staff/blacklist") : [];
     [offers, recon] = isAdmin ? await Promise.all([api("/staff/offers"), api("/staff/payments/reconcile")]) : [[], null];
     if (isAdmin) { homepageConfig = await api("/homepage-settings"); homepageDraft = { ...homepageConfig }; }
+    // Demandes de mise à la une : une erreur ici ne doit pas bloquer le reste du centre.
+    featured = { pending: await api("/staff/featured-requests").catch(() => []), done: await api("/staff/featured-requests?status=DONE").catch(() => []) };
   } catch (error) {
     return mount(app, h("div", { class: "card pad stack" }, h("h1", { class: "title" }, "Centre de contrôle"), h("p", { class: "notice" }, error.message)));
   }
@@ -96,6 +99,7 @@ function draw() {
   const trend = s.contacts7d - s.contactsPrev7d;
   const stat = (label, value, note) => h("div", { class: "card stat" }, h("span", { class: "small muted" }, label), h("strong", null, String(value)), note ? h("span", { class: "small muted" }, note) : null);
   const tabs = [["pending", `File (${data.pending.length})`], ["apps", "Demandes annonceurs"], ["trust", `Confiance (${trust.proofs.length + trust.alerts.length + trust.commentReports.length + trust.userReports.length + (trust.reviewReports?.length ?? 0)})`], ["reports", `Signalements (${data.reports.length})`], ["online", "En ligne"], ["pay", `Paiements${recon?.toReview.length ? ` (${recon.toReview.length})` : ""}`], ["journal", "Journal"], ["accounts", `Comptes (${accounts.length})`]];
+  tabs.splice(2, 0, ["featured", `Demande de mise à la une (${featured.pending.length})`]);
   if (["ADMIN", "SUPERADMIN"].includes(me.staffRole)) tabs.push(["stats", "Statistiques"]);
   mount(app,
     backStack.length ? h("button", { class: "back-btn back-admin", type: "button", onClick: goBack, "aria-label": "Retour à l'écran précédent" }, h("span", { "aria-hidden": "true" }, "←"), h("span", null, "Retour")) : null,
@@ -127,6 +131,7 @@ function draw() {
 
 function panel() {
   if (tab === "stats") return statsPanel();
+  if (tab === "featured") return featuredPanel();
   if (tab === "homepage") return homepagePanel();
   if (tab === "pending") {
     if (!data.pending.length) return h("p", { class: "card pad muted" }, "Rien en attente.");
@@ -484,6 +489,51 @@ async function loadStats() {
   draw();
 }
 const nf = (n) => Number(n).toLocaleString("fr-FR");
+
+// Demandes de mise à la une envoyées par les annonceurs. Accepter = mise à la une (contenu.gerer) ; refuser = motif obligatoire.
+async function decideFeatured(id, action, note) {
+  try {
+    await post(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { action, note });
+    toast(action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.");
+    await load();
+    tab = "featured";
+    draw();
+  } catch (error) { fail(error); }
+}
+
+function featuredPanel() {
+  const canAccept = ["ADMIN", "SUPERADMIN"].includes(me.staffRole);
+  const card = (r, open) => {
+    const reason = h("textarea", { class: "input", rows: 2, maxlength: 500, placeholder: "Motif du refus (obligatoire)" });
+    const refuse = h("div", { class: "stack", hidden: true }, reason,
+      h("div", { class: "row" },
+        h("button", { class: "btn btn-small", type: "button", onClick: () => decideFeatured(r.id, "REJECT", reason.value.trim()) }, "Confirmer le refus"),
+        h("button", { class: "btn btn-small", type: "button", onClick: () => { refuse.hidden = true; } }, "Annuler")));
+    refuse.hidden = true;
+    return h("article", { class: "card list-item" },
+      r.imageUrl ? h("img", { src: r.imageUrl, alt: "" }) : null,
+      h("div", { class: "grow stack" },
+        h("strong", { style: "display:block" }, r.title || "Annonce"),
+        h("span", { class: "small muted" }, `${r.neighborhood || ""} · demandé par ${r.requesterName} · ${formatDate(r.createdAt)}`),
+        h("p", { class: "small" }, r.message ? `« ${r.message} »` : "Aucun message."),
+        r.status === "PENDING" ? null : h("p", { class: "small" }, `${r.status === "ACCEPTED" ? "Acceptée" : "Refusée"}${r.note ? ` — ${r.note}` : ""}`),
+        open ? h("div", { class: "row" },
+          h("a", { class: "btn btn-small", href: `/#/annonce/${encodeURIComponent(r.listingId)}`, target: "_blank", rel: "noopener" }, "Voir l'annonce"),
+          canAccept ? h("button", { class: "btn btn-small btn-gold", type: "button", onClick: () => decideFeatured(r.id, "ACCEPT", "") }, "Mettre à la une") : h("span", { class: "small muted" }, "Décision réservée aux administrateurs."),
+          h("button", { class: "btn btn-small", type: "button", onClick: () => { refuse.hidden = !refuse.hidden; } }, "Refuser")) : null,
+        open ? refuse : null));
+  };
+  const pending = featured.pending.length
+    ? featured.pending.map((r) => card(r, true))
+    : [h("p", { class: "card pad muted" }, "Aucune demande de mise à la une en attente.")];
+  const done = featured.done.slice(0, 30).map((r) => card(r, false));
+  return h("section", { class: "stack" },
+    h("h2", null, "Demande de mise à la une"),
+    h("p", { class: "small muted" }, "Demandes gratuites envoyées par les annonceurs depuis « Mes annonces ». Aucun paiement n'est lié à cette demande."),
+    ...pending,
+    done.length ? h("h3", null, "Traitées récemment") : null,
+    ...done);
+}
 function statsPanel() {
   if (sheetView) return sheetPanel();
   if (compareView) return comparePanel();
