@@ -3,6 +3,13 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Suppression de l'ancien APK en doublon (17 novembre 2026)
+
+- **À réaliser :** supprimer `public/downloads/Ika-So.apk` (ancien, casse différente), à la demande du propriétaire.
+- **Réalisé :** fichier supprimé ; seul `public/downloads/ika-so.apk` (nouvel APK) reste, c'est celui du bouton de l'accueil. Aucune référence à l'ancien nom dans le code.
+- **Vérifié :** recherche de références à `Ika-So.apk` (aucune) ; `npm test` ci-dessous.
+- **Retour arrière :** `git revert -m 1` du commit de fusion (l'ancien fichier reste dans l'historique).
+
 ## Téléchargement de l'application Android : nouvel APK en ligne (17 novembre 2026)
 
 - **À réaliser :** mettre le nouvel APK (`Ika_So.apk`, fourni par le propriétaire) à disposition des utilisateurs.
