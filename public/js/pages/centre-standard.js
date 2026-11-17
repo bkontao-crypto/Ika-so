@@ -67,7 +67,7 @@ export async function standardCentre(acc) {
     nav("Mes messages", "message", { href: "#/boite?onglet=messages", badge: d.kpis.unread || null }),
     nav("Mes visites", "calendar", { href: "#/boite?onglet=visites", badge: d.kpis.visits || null }),
     nav("Mes favoris", "heart", { href: "#/favoris" }),
-    nav("Mon profil public", "user", { href: "#/mon-profil-public" }),
+    nav("Mon profil", "user", { href: "#/profil" }),
     nav("Mes paiements", "card", { href: "#/paiements" }),
     nav("Paramètres", "settings", { href: "#/profil" }),
     locked("Statistiques"), locked("Carte"), locked("Alertes"), locked("Échéances"),
