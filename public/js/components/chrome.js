@@ -22,7 +22,7 @@ const NAV_MOBILE = [
   { href: "#/annonces", label: "Annonces", icon: "list", match: (p, q) => onListings(p) },
   { href: "#/publier", label: "Publier", icon: "plus", match: (p) => p === "/publier" || p.startsWith("/modifier/"), publish: true },
   { href: "#/carte", label: "Carte", icon: "pin", match: (p) => p === "/carte" || p.startsWith("/localiser") },
-  { href: "#/profil", label: "Compte", icon: "user", match: (p) => ["/profil", "/centre", "/favoris", "/connexion", "/paiements", "/agence", "/mon-profil-public"].includes(p) || p.startsWith("/boite"), loginHref: "#/connexion" },
+  { href: "#/profil", label: "Compte", icon: "user", match: (p) => ["/profil", "/centre", "/favoris", "/connexion", "/paiements", "/agence"].includes(p) || p.startsWith("/boite"), loginHref: "#/connexion" },
 ];
 
 // Icônes absentes de icons.js (thème clair / sombre), dessinées en SVG réel (createElementNS).
@@ -121,8 +121,7 @@ export function renderChrome() {
           h("a", { href: "#/centre" }, "Mon espace"),
           h("a", { href: "#/favoris" }, "Mes favoris"),
           h("a", { href: "#/mes-annonces" }, "Mes annonces"),
-          h("a", { href: "#/boite" }, "Mes conversations"),
-          h("a", { href: "#/mon-profil-public" }, "Profil public")))
+          h("a", { href: "#/boite" }, "Mes conversations")))
     : h("a", { href: "#/connexion", class: "btn btn-small", id: "loginLink" }, "Connexion");
   // Menu complet sur mobile et tablette : toutes les entrées de navigation dans un tiroir latéral.
   const menuBtn = h("button", { class: "icon-btn rx-menu-btn", type: "button", "aria-label": "Ouvrir le menu", "aria-haspopup": "dialog", onClick: (e) => openMenu(e.currentTarget) }, icon("list"));

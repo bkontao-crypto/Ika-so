@@ -59,7 +59,7 @@ export async function centrePage() {
       nav("Carte", "pin", { id: "esp-map" }),
       nav("Échéances", "clock", { id: "esp-ech" }),
       nav("Mes paiements", "card", { href: "#/paiements" }),
-      nav("Mon profil public", "user", { href: "#/mon-profil-public" }),
+      nav("Mon profil", "user", { href: "#/profil" }),
       nav("Paramètres", "settings", { href: "#/profil" }),
       nav("Aide & Support", "info", { id: "esp-aide" }),
       h("div", { class: "esp-prem" }, h("strong", null, "Compte Premium"), h("small", null, `Expire le ${formatDate(d.access.premiumUntil)} (${d.access.daysLeft} j)`), h("a", { class: "btn btn-gold btn-small", href: "#/partenaires" }, "Gérer mon abonnement")));
@@ -70,7 +70,7 @@ export async function centrePage() {
 
     // ----- Bannière + indicateurs -----
     const hero = h("section", { class: "esp-hero", id: "esp-top" }, h("h1", null, first ? `Bonjour ${first}` : "Bonjour"), h("p", null, "Bienvenue dans votre centre de contrôle IKA SO. Gérez vos annonces, suivez vos performances et répondez plus vite."),
-      h("div", { class: "row" }, h("a", { class: "btn btn-gold", href: "#/publier" }, "Publier une annonce"), h("a", { class: "btn esp-ghost", href: "#/mon-profil-public" }, "Mon profil public")));
+      h("div", { class: "row" }, h("a", { class: "btn btn-gold", href: "#/publier" }, "Publier une annonce"), h("a", { class: "btn esp-ghost", href: "#/profil" }, "Mon profil")));
     const kpi = (ic, label, value, link, href) => h("a", { class: "esp-kpi", href }, h("span", { class: "esp-kic" }, icon(ic)), h("small", null, label), h("strong", null, nf(value)), h("em", null, link));
     const kpis = h("div", { class: "esp-kpis" },
       kpi("list", "Mes annonces", d.kpis.listings, "Voir mes annonces →", "#/mes-annonces"), kpi("heart", `Favoris (${days} j)`, d.kpis.favorites, "Voir mes annonces →", "#/mes-annonces"),

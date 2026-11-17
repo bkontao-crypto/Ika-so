@@ -165,7 +165,6 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
   } else if (access?.premium) {
     accessLinks.push(h("a", { class: "btn", href: "#/profil" }, "Compléter la certification"));
   }
-  if (!embedded) accessLinks.push(h("a", { class: "btn", href: "#/mon-profil-public" }, "Mon profil public"));
   if (access?.premium || m.staffRole !== "USER") {
     accessLinks.push(h("a", { class: "btn btn-outline", href: "#/partenaires" }, "Annonces sponsorisées"));
   }

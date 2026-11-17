@@ -257,11 +257,35 @@ export async function profilePage() {
   /* ---------- Équipe : invitations entre comptes ---------- */
   const teamAct = (path, label, ok, cls = "mp-btn-outline") => h("button", { class: `mp-btn ${cls} sm`, type: "button", onClick: () => run(() => api(path, { method: "POST", body: {} }), ok) }, label);
   const teamPerson = (x, ...extra) => person({ ...x, role: x.teamRole || x.role, since: null }, ...extra);
+  // Invitation depuis mon profil : recherche dans l'annuaire des annonceurs, puis invitation (à accepter par l'autre compte).
+  const inviteResults = h("ul", { class: "mp-people", "aria-live": "polite" });
+  const inviteQuery = h("input", { class: "input", type: "search", maxlength: "80", placeholder: "Nom de l'agence ou de l'annonceur", "aria-label": "Rechercher un annonceur à inviter" });
+  const inviteRole = h("input", { class: "input", maxlength: "80", placeholder: "Rôle dans l'équipe (facultatif, ex. : Agent commercial)", "aria-label": "Rôle dans l'équipe" });
+  const searchTeam = async (event) => {
+    event.preventDefault();
+    const q = inviteQuery.value.trim();
+    if (q.length < 2) return mount(inviteResults, h("li", { class: "mp-hint" }, "Tapez au moins deux lettres."));
+    try {
+      const found = await api(`/advertisers?q=${encodeURIComponent(q)}&limit=8`);
+      const taken = new Set([id, ...team.members, ...team.sent, ...team.received].map((x) => (typeof x === "string" ? x : x.id)));
+      const rows = found.items.filter((a) => !taken.has(a.id));
+      mount(inviteResults, ...(rows.length
+        ? rows.map((a) => h("li", { style: { display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+          h("span", null, a.name),
+          h("button", { class: "mp-btn mp-btn-outline sm", type: "button", onClick: () => run(() => api(`/advertisers/${encodeURIComponent(a.id)}/team-request`, { method: "POST", body: { role: inviteRole.value.trim() } }), `Invitation envoyée à ${a.name}.`) }, "Inviter")))
+        : [h("li", { class: "mp-hint" }, "Aucun annonceur trouvé, ou déjà dans votre équipe ou invité.")]));
+    } catch (error) { fail(error); }
+  };
+  const inviteCard = h("div", { class: "mp-card" }, h("h3", null, "Inviter un annonceur"),
+    h("p", { class: "mp-hint" }, "Recherchez une agence ou un annonceur de l'annuaire. L'invitation doit être acceptée par l'autre compte."),
+    h("form", { class: "stack", onSubmit: searchTeam }, inviteQuery, inviteRole, h("button", { class: "mp-btn mp-btn-outline sm", type: "submit" }, "Rechercher")),
+    inviteResults);
+
   const teamTab = h("div", { class: "mp-grid" },
     h("div", { class: "mp-col" },
       h("div", { class: "mp-card" }, h("h3", null, `Membres de mon équipe (${team.members.length})`),
-        h("p", { class: "mp-hint" }, "Une fois l'invitation acceptée, chaque compte apparaît dans l'équipe de l'autre. Pour inviter quelqu'un, ouvrez son profil et utilisez « Inviter dans mon équipe » (onglet Équipe)."),
-        team.members.length ? h("ul", { class: "mp-people" }, team.members.map((x) => teamPerson(x, teamAct(`/me/team-requests/${encodeURIComponent(x.linkId)}/remove`, "Quitter", "Vous ne faites plus partie de cette équipe.")))) : h("p", { class: "mp-hint" }, "Aucun membre pour le moment."))),
+        h("p", { class: "mp-hint" }, "Une fois l'invitation acceptée, chaque compte apparaît dans l'équipe de l'autre. Recherchez un annonceur ci-dessous pour l'inviter."),
+        team.members.length ? h("ul", { class: "mp-people" }, team.members.map((x) => teamPerson(x, teamAct(`/me/team-requests/${encodeURIComponent(x.linkId)}/remove`, "Quitter", "Vous ne faites plus partie de cette équipe.")))) : h("p", { class: "mp-hint" }, "Aucun membre pour le moment.")), inviteCard),
     h("div", { class: "mp-col" },
       h("div", { class: "mp-card" }, h("h3", null, `Invitations reçues (${team.received.length})`),
         team.received.length ? h("ul", { class: "mp-people" }, team.received.map((x) => teamPerson(x,

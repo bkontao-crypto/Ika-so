@@ -205,7 +205,7 @@ export async function advertiserPage(id) {
       } catch (error) { fail(error); }
     }
     const chips = h("div", { class: "pa-row", role: "group", "aria-label": "Filtrer les avis" }, [["recent", "Tous"], ["best", "Positifs (4-5)"], ["worst", "Négatifs (1-2)"]].map(([k, label]) =>
-      h("button", { class: `btn${k === kind ? " primary" : ""}`, type: "button", "aria-pressed": String(k === kind), onClick: (e) => { kind = k; chips.querySelectorAll("button").forEach((b) => { b.classList.remove("primary"); b.setAttribute("aria-pressed", "false"); }); e.currentTarget.classList.add("primary"); e.currentTarget.setAttribute("aria-pressed", "true"); load(true); } }, label)));
+      h("button", { class: `btn${k === kind ? " btn-primary" : ""}`, type: "button", "aria-pressed": String(k === kind), onClick: (e) => { kind = k; chips.querySelectorAll("button").forEach((b) => { b.classList.remove("btn-primary"); b.setAttribute("aria-pressed", "false"); }); e.currentTarget.classList.add("btn-primary"); e.currentTarget.setAttribute("aria-pressed", "true"); load(true); } }, label)));
     load(true);
     return [card(h("div", { class: "pa-sectionhead" }, h("h2", null, "Avis & évaluations"), h("span", { class: "pa-badge" }, `${p.rating.count} avis`)), form),
       card(chips, list, more),

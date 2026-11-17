@@ -1150,3 +1150,14 @@ Les mentions bleu/or sont historiques uniquement.
 
 ## Owner Control Center v2 (08/11/2026)
 Page `/owner`, journal unifié des mouvements, dossiers de traçage, migration 042. Voir `LIVRAISON_OWNER_CENTER_2026-11-08.md` et `CHANGELOG_OWNER_CONTROL.md` (v2.0). Environnement : PostgreSQL 18, Node.js, localhost.
+
+## Mon profil : menu, invitation d'équipe, filtres d'avis (17/11/2026)
+
+Branche : `fix/profil-equipe-avis` (depuis `origin/main` 2cf342b). Non fusionnée dans `main`.
+
+- **À réaliser :** (1) retirer « Profil public » et le remplacer par « Mon profil » ; (2) permettre l'invitation d'équipe depuis son propre profil ; (3) rendre fonctionnels les filtres d'avis Tous / Positifs (4-5) / Négatifs (1-2).
+- **Réalisé :** menu compte et tableau de bord sans « Profil public » ; `#/mon-profil-public` redirige vers `#/profil` ; onglet Équipe de « Mon profil » avec recherche d'annonceurs et bouton « Inviter » (rôle facultatif) ; filtres d'avis : la classe active était `primary` (inexistante), remplacée par `btn-primary`.
+- **Vérifié :** `node --check` sur les 7 modules modifiés ; `npm run -s stamp-sw:check` OK ; `npm test` avec `DATABASE_URL_TEST` : 276/276 réussis ; navigateur local (390 px) : menu sans lien « Profil public », redirection OK, recherche et invitation envoyée visibles dans « Invitations envoyées », pas de débordement horizontal, filtre « Positifs » envoie `kind=best` et reste actif, aucune erreur JavaScript.
+- **En cours :** validation par le propriétaire sur le site réel (aucune fusion dans `main` sans accord écrit).
+- **À faire :** après validation, décider de la fusion dans `main` ; la réponse à l'invitation (accepter / refuser) n'a pas été rejouée de bout en bout côté second compte.
+- **Risques :** les polices `Outfit` et `PlusJakartaSans` référencées par `public/css/refonte.css` sont absentes de `public/fonts/` (404 en local, préexistant, non traité) ; le compte de test « Agence Recette » et son annonce ont été créés uniquement dans la base de test `ika_test`.
