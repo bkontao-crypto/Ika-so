@@ -3,6 +3,14 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Page de connexion : bouton « Continuer avec Google » (17 novembre 2026)
+
+- **À réaliser :** logo Google et présentation soignée du bloc Google (demande du propriétaire).
+- **Réalisé :** logo « G » officiel (SVG fixe, sans ressource externe), séparateur « ou », case des conditions encadrée, bouton pleine largeur avec ombre au survol, atténué tant que les conditions ne sont pas cochées (clic = message d'aide). Fichiers : `public/js/pages/login.js`, `public/css/components.css`. Fonctionnement inchangé (`/api/auth/google?terms=1`).
+- **Vérifié :** Chromium 390 px et 1000 px, thèmes clair et sombre (API simulée) ; le bouton s'active après la case ; `npm test` OK ; SW re-estampillé.
+- **Non vérifié :** rendu sur vrai téléphone ; parcours Google réel jusqu'au retour dans l'application.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
+
 ## Suppression de l'ancien APK en doublon (17 novembre 2026)
 
 - **À réaliser :** supprimer `public/downloads/Ika-So.apk` (ancien, casse différente), à la demande du propriétaire.
