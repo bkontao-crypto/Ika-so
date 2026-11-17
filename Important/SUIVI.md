@@ -24,6 +24,12 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - Navigateur (serveur local, jeton factice, requêtes Mapbox interceptées) : fiche sans accord (0 requête), fiche avec accord (1 requête), retrait (0 requête) ; carte : première visite (0), acceptation (chargement de la bibliothèque), retrait puis navigation (0).
 - Brouillons : deux comptes dans le même navigateur, 12 vérifications conformes.
 - Non réalisé : rendu réel de Mapbox (aucun jeton local, réseau vers Mapbox bloqué), annonces géolocalisées (aucune donnée de test). Le jeton `/api/config/map` reste visible par conception (jeton public) : restriction à restreindre côté compte Mapbox.
+**Mission 04 — validation finale (17 novembre 2026, 3e passage)** :
+- Brouillons : l'ancien brouillon sans compte n'est plus supprimé ni attribué automatiquement. Il est proposé à l'utilisateur connecté : récupération (sans écrasement) ou suppression après confirmation. Tests : 24 nouveaux tests du lot A ; navigateur : deux comptes, visiteur anonyme, récupération et suppression conformes.
+- Non-régression (navigateur, données réelles de la base de test) : publication complète par le formulaire, localisation par contour, fiche imprimable propriétaire, centre, carte avec repère, favoris, mes annonces, connexion et déconnexion, mobile 390 px. Aucune erreur JavaScript.
+- Mapbox réel : non réalisé, aucun jeton de test disponible et api.mapbox.com injoignable. Aucune requête Mapbox avant, pendant ou après consentement dans les parcours simulés.
+- Tests : 299 réussis avec PostgreSQL.
+- Anomalies restantes : fiche d'une annonce à simple point sans plan ni lien d'impression (existant) ; jeton public visible dans /api/config/map (conception, à restreindre côté Mapbox).
 **Rollback** : lot non commité. Après commit : `git revert <sha>` (commit simple) ou `git revert -m 1 <sha>` (commit de fusion), puis `npm run -s stamp-sw`.
 
 ## Demande de mise à la une (17 novembre 2026)

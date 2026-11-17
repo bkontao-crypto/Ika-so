@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { readConsent, hasConsent, saveConsent, CONSENT_KEY, CONSENT_VERSION, CONSENT_CATEGORIES } from "../public/js/core/consent.js";
-import { draftKey, moveLegacyDraft, LEGACY_DRAFT_KEY } from "../public/js/core/draft.js";
+import { draftKey, LEGACY_DRAFT_KEY, legacyDraftInfo, claimLegacyDraft, discardLegacyDraft } from "../public/js/core/draft.js";
 import { createListingsMap, createMap } from "../public/js/map/provider.js";
 import { ficheHtml } from "../server/lib/fiche.js";
 
@@ -81,45 +81,57 @@ test("consentement : stockage bloqué ou plein ne plante pas et ne donne aucun a
   assert.equal(hasConsent("cartes", { storage: blocked, now: NOW }), false);
 });
 
-// ---------- Brouillon par compte ----------
+// ---------- Brouillon par compte et ancien brouillon anonyme ----------
 
-test("brouillon : clé propre à chaque compte", () => {
-  assert.notEqual(draftKey("u1"), draftKey("u2"));
+test("brouillon : clé propre à chaque compte, jamais celle d'un autre", () => {
   assert.equal(draftKey("u1"), "ika-so-draft:u1");
+  assert.notEqual(draftKey("u1"), draftKey("u2"));
   assert.notEqual(draftKey("u1"), LEGACY_DRAFT_KEY);
 });
 
-test("brouillon : un compte ne lit jamais le brouillon d'un autre", () => {
-  const storage = memoryStorage({ [draftKey("alice")]: JSON.stringify({ title: "Villa d'Alice" }) });
-  assert.equal(storage.getItem(draftKey("bob")), null);
+test("ancien brouillon : la simple lecture n'efface ni ne modifie rien", () => {
+  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: "{\"title\":\"Terrain\",\"savedAt\":\"2026-11-01T10:00:00.000Z\"}" });
+  const before = storage.getItem(LEGACY_DRAFT_KEY);
+  assert.deepEqual(legacyDraftInfo(storage), { savedAt: "2026-11-01T10:00:00.000Z" });
+  assert.equal(storage.getItem(LEGACY_DRAFT_KEY), before);
+  assert.equal(storage.has(draftKey("alice")), false);
 });
 
-test("brouillon : à la déconnexion, l'ancien brouillon sans compte est rangé chez le compte qui se déconnecte", () => {
-  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: JSON.stringify({ title: "Terrain" }) });
-  moveLegacyDraft("alice", storage);
-  assert.equal(storage.has(LEGACY_DRAFT_KEY), false);
-  assert.equal(storage.getItem(draftKey("alice")), JSON.stringify({ title: "Terrain" }));
+test("ancien brouillon : aucune suppression ni attribution sans clic (déconnexion, anonyme)", () => {
+  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: "{\"title\":\"ancien\"}" });
+  // Pas d'appel = pas d'effet : il n'existe plus de traitement automatique.
+  assert.equal(storage.getItem(LEGACY_DRAFT_KEY), "{\"title\":\"ancien\"}");
+  assert.equal(storage.has(draftKey("alice")), false);
+  assert.equal(storage.has(draftKey("bob")), false);
 });
 
-test("brouillon : le brouillon déjà présent d'un compte n'est jamais écrasé par l'ancien format", () => {
-  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: "{\"title\":\"ancien\"}", [draftKey("alice")]: "{\"title\":\"récent\"}" });
-  moveLegacyDraft("alice", storage);
-  assert.equal(storage.getItem(draftKey("alice")), "{\"title\":\"récent\"}");
-  assert.equal(storage.has(LEGACY_DRAFT_KEY), false);
-});
-
-test("brouillon : sans compte (ouverture de la publication), l'ancien format est retiré et n'est attribué à personne", () => {
-  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: "{\"title\":\"inconnu\"}" });
-  moveLegacyDraft(null, storage);
+test("ancien brouillon : récupération explicite, copie vérifiée puis retrait de l'ancienne clé", () => {
+  const raw = "{\"title\":\"Terrain\"}";
+  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: raw });
+  assert.equal(claimLegacyDraft("alice", storage), true);
+  assert.equal(storage.getItem(draftKey("alice")), raw);
   assert.equal(storage.has(LEGACY_DRAFT_KEY), false);
   assert.equal(storage.has(draftKey("bob")), false);
 });
 
-test("brouillon : sans ancien format, rien ne change (brouillons légitimes préservés)", () => {
-  const storage = memoryStorage({ [draftKey("alice")]: "{\"title\":\"garde\"}" });
-  moveLegacyDraft("alice", storage);
-  moveLegacyDraft(null, storage);
+test("ancien brouillon : une récupération n'écrase jamais le brouillon déjà présent du compte", () => {
+  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: "{\"title\":\"ancien\"}", [draftKey("alice")]: "{\"title\":\"récent\"}" });
+  assert.equal(claimLegacyDraft("alice", storage), false);
+  assert.equal(storage.getItem(draftKey("alice")), "{\"title\":\"récent\"}");
+  assert.equal(storage.getItem(LEGACY_DRAFT_KEY), "{\"title\":\"ancien\"}");
+});
+
+test("ancien brouillon : suppression explicite uniquement, sans toucher aux brouillons de compte", () => {
+  const storage = memoryStorage({ [LEGACY_DRAFT_KEY]: "{\"title\":\"ancien\"}", [draftKey("alice")]: "{\"title\":\"garde\"}" });
+  discardLegacyDraft(storage);
+  assert.equal(storage.has(LEGACY_DRAFT_KEY), false);
   assert.equal(storage.getItem(draftKey("alice")), "{\"title\":\"garde\"}");
+});
+
+test("brouillon de compte : les brouillons de A et de B restent séparés", () => {
+  const storage = memoryStorage({ [draftKey("alice")]: "{\"title\":\"Villa d'Alice\"}" });
+  assert.equal(storage.getItem(draftKey("bob")), null);
+  assert.equal(storage.getItem(draftKey("alice")), "{\"title\":\"Villa d'Alice\"}");
 });
 
 // ---------- Passerelle Mapbox ----------

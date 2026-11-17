@@ -1,6 +1,5 @@
 import { api, daysLeft, fail, formatPrice, h, mount, readProofFile, toast } from "/js/dom.js";
 import { S, app, clearSession, refreshSession } from "/js/core/state.js";
-import { moveLegacyDraft } from "/js/core/draft.js";
 import { go, needLogin } from "/js/core/router.js";
 import { listingCard } from "/js/components/listing-card.js";
 import { field, passwordField } from "/js/components/ui.js";
@@ -230,6 +229,6 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
       h("a", { class: "btn", href: "#/favoris" }, "Mes favoris"),
       h("a", { class: "btn", href: "#/reclamations" }, "Mes réclamations"),
       h("a", { class: "btn", href: "#/agence" }, "Espace agence"),
-      h("button", { class: "btn", type: "button", onClick: async () => { const leaving = S.user?.id; await api("/auth/logout", { method: "POST", body: {} }); moveLegacyDraft(leaving); clearSession();toast("Déconnecté."); go("/"); } }, "Se déconnecter")));
+      h("button", { class: "btn", type: "button", onClick: async () => { await api("/auth/logout", { method: "POST", body: {} }); clearSession();toast("Déconnecté."); go("/"); } }, "Se déconnecter")));
 }
 
