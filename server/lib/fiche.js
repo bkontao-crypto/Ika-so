@@ -36,6 +36,18 @@ export function planSvg(vertices) {
     + `<text class="plan-txt" x="${W - 56}" y="34">N ↑</text></svg>`;
 }
 
+/** Plan de secours pour une annonce à simple point GPS (aucun contour) : repère centré, sans mesure ni échelle. */
+export function planPointSvg() {
+  const W = 600, H = 300;
+  return `<svg class="plan plan-point" viewBox="0 0 ${W} ${H}" role="img" aria-label="Position indicative de la parcelle, point GPS sans contour">`
+    + `<rect class="plan-bg" x="0" y="0" width="${W}" height="${H}"/>`
+    + `<line class="plan-bar" x1="${W / 2}" y1="40" x2="${W / 2}" y2="${H - 60}" stroke-dasharray="6 8"/>`
+    + `<line class="plan-bar" x1="60" y1="${H / 2 - 30}" x2="${W - 60}" y2="${H / 2 - 30}" stroke-dasharray="6 8"/>`
+    + `<circle class="plan-dot" cx="${W / 2}" cy="${H / 2 - 30}" r="10"/>`
+    + `<text class="plan-txt" x="30" y="${H - 22}">Position indicative : un point GPS, sans contour ni mesure.</text>`
+    + `<text class="plan-txt" x="${W - 56}" y="34">N ↑</text></svg>`;
+}
+
 /** URL de l'image statique Mapbox (satellite + rues) avec le contour et les sommets numérotés. null sans jeton. */
 export function fondCarteUrl({ vertices, point, token }) {
   if (!token) return null;
@@ -78,7 +90,7 @@ ${(() => {
   if (!vertices.length && !geo.point) return "";
   return `<div class="fond-auto" id="fond-auto" hidden data-geo="${esc(JSON.stringify({ vertices, point: geo.point ?? null }))}"></div>`;
 })()}
-${vertices.length >= 3 ? planSvg(vertices) : ""}
+${vertices.length >= 3 ? planSvg(vertices) : geo.point ? planPointSvg() : ""}
 <table class="facts">
 ${row("Type de bien", geo.category)}
 ${geo.areaM2 != null ? row("Superficie mesurée (indicative)", `${nf(2)(geo.areaM2)} m² (${nf(4)(geo.areaM2 / 10_000)} ha)`) : ""}

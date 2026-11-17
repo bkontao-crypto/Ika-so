@@ -61,3 +61,16 @@ export function saveConsent(acceptedIds, { storage = localStore(), now = Date.no
   try { globalThis.dispatchEvent?.(new Event("ika-consent")); } catch { /* ignoré */ }
   return record;
 }
+
+/** Retire les données posées par la bibliothèque Mapbox dans ce navigateur (identifiant « mapbox.eventData », compteurs). À appeler dès que « Cartes » n'est plus accepté. */
+export function clearMapboxStorage(storage = localStore()) {
+  try {
+    if (!storage) return 0;
+    const keys = [];
+    for (let i = 0; i < storage.length; i += 1) { const k = storage.key(i); if (k && k.startsWith("mapbox")) keys.push(k); }
+    keys.forEach((k) => storage.removeItem(k));
+    return keys.length;
+  } catch {
+    return 0;
+  }
+}

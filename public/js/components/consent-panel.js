@@ -1,6 +1,6 @@
 // Panneau « Gérer mes choix » (lot A). Ouvert depuis le pied de page. Aucune catégorie optionnelle n'est acceptée par défaut.
 import { h, toast } from "/js/dom.js";
-import { CONSENT_CATEGORIES, hasConsent, readConsent, saveConsent } from "/js/core/consent.js";
+import { CONSENT_CATEGORIES, clearMapboxStorage, hasConsent, readConsent, saveConsent } from "/js/core/consent.js";
 
 export function openConsentPanel() {
   if (document.getElementById("consent-dialog")) return;
@@ -16,6 +16,7 @@ export function openConsentPanel() {
   const onKey = (event) => { if (event.key === "Escape") close(); };
   const save = (ids) => {
     saveConsent(ids);
+    if (!hasConsent("cartes")) clearMapboxStorage(); // identifiant et télémétrie Mapbox retirés dès le retrait
     close();
     // Le fond de carte est choisi au chargement de la page : on recharge pour appliquer le choix tout de suite (retrait compris).
     if (hasConsent("cartes") !== before) { location.reload(); return; }

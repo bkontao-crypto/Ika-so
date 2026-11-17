@@ -6,6 +6,7 @@ import { readConsent, hasConsent, saveConsent, CONSENT_KEY, CONSENT_VERSION, CON
 import { draftKey, LEGACY_DRAFT_KEY, legacyDraftInfo, claimLegacyDraft, discardLegacyDraft } from "../public/js/core/draft.js";
 import { createListingsMap, createMap } from "../public/js/map/provider.js";
 import { ficheHtml } from "../server/lib/fiche.js";
+import { clearMapboxStorage } from "../public/js/core/consent.js";
 
 /** Faux stockage (même interface que localStorage). */
 function memoryStorage(initial = {}) {
@@ -15,6 +16,8 @@ function memoryStorage(initial = {}) {
     setItem: (k, v) => data.set(k, String(v)),
     removeItem: (k) => data.delete(k),
     has: (k) => data.has(k),
+    get length() { return data.size; },
+    key: (i) => [...data.keys()][i] ?? null,
   };
 }
 
@@ -219,4 +222,41 @@ test("consentement : le panneau et le pied de page exposent « Gérer mes choix 
   assert.match(html, /id="consent-open"[^>]*>Gérer mes choix</);
   const app = readFileSync(new URL("../public/js/app.js", import.meta.url), "utf8");
   assert.match(app, /consent-open.*openConsentPanel/s);
+});
+
+// ---------- Audit (version jointe) : données Mapbox retirées avec le consentement ----------
+
+test("audit : le retrait du consentement efface l'identifiant et la télémétrie posés par Mapbox, sans toucher au reste", () => {
+  const storage = memoryStorage({ "mapbox.eventData:pk.x": "{\"id\":\"abc\"}", "mapbox.eventData": "{}", [draftKey("alice")]: "{\"title\":\"garde\"}", "ika-theme": "dark" });
+  assert.equal(clearMapboxStorage(storage), 2);
+  assert.equal(storage.has("mapbox.eventData:pk.x"), false);
+  assert.equal(storage.has("mapbox.eventData"), false);
+  assert.equal(storage.getItem(draftKey("alice")), "{\"title\":\"garde\"}");
+  assert.equal(storage.getItem("ika-theme"), "dark");
+});
+
+test("audit : stockage absent ou bloqué : rien ne plante", () => {
+  assert.equal(clearMapboxStorage(null), 0);
+  assert.equal(clearMapboxStorage({ get length() { throw new Error("SecurityError"); } }), 0);
+});
+
+// ---------- Audit : plan de secours pour une annonce à simple point ----------
+
+test("fiche : une annonce à simple point GPS reçoit un plan de secours local (sans contour, sans Mapbox)", () => {
+  const pointOnly = { ...GEO, polygon: null, areaM2: null, perimeterM: null };
+  const html = ficheHtml({ geo: pointOnly, listing: LISTING });
+  assert.match(html, /<svg class="plan plan-point"/);
+  assert.equal(html.includes("api.mapbox.com"), false);
+  assert.equal(html.includes("Position indicative"), true);
+});
+
+test("fiche : une annonce avec contour garde son plan métrique", () => {
+  const html = ficheHtml({ geo: GEO, listing: LISTING });
+  assert.equal(html.includes('<svg class="plan" '), true);
+  assert.equal(html.includes("plan-point"), false);
+});
+
+test("localisation : le lien d'impression apparaît aussi pour un simple point", () => {
+  const source = readFileSync(new URL("../public/js/pages/localisation.js", import.meta.url), "utf8");
+  assert.match(source, /\(geo\?\.polygon \|\| geo\?\.point\) \? h\("p", null, h\("a", \{ class: "btn btn-small", href: `\/api\/me\/listings/);
 });

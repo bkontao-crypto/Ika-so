@@ -131,7 +131,7 @@ export async function localisationPage(id) {
       official,
       h("p", { class: "small muted" }, "Glissez un point pour le corriger, touchez-le pour le choisir puis « Supprimer le point choisi », glissez le fond pour déplacer le plan. Les points doivent être placés dans l'ordre, en faisant le tour de la parcelle."),
       h("div", { class: "row" }, btn("Enregistrer la localisation", save, "btn-primary"), geo ? btn("Supprimer la localisation", remove, "btn-quiet") : null),
-      geo?.polygon ? h("p", null, h("a", { class: "btn btn-small", href: `/api/me/listings/${encodeURIComponent(id)}/fiche`, target: "_blank", rel: "noopener" }, "Fiche imprimable (PDF)"), h("span", { class: "small muted" }, " Elle reflète la dernière version enregistrée.")) : null));
+      (geo?.polygon || geo?.point) ? h("p", null, h("a", { class: "btn btn-small", href: `/api/me/listings/${encodeURIComponent(id)}/fiche`, target: "_blank", rel: "noopener" }, "Fiche imprimable (PDF)"), h("span", { class: "small muted" }, " Elle reflète la dernière version enregistrée.")) : null));
 }
 
 export async function cartePage() {
