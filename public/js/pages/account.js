@@ -40,6 +40,32 @@ export async function minePage() {
   }
   const items = await api("/me/listings");
   const proofs = await api("/me/proofs").catch(() => []);
+  const featured = await api("/me/featured-requests").catch(() => []);
+  // Mise à la une sans formule payante : demande gratuite envoyée directement à l'équipe (aucun paiement).
+  function featuredParts(item) {
+    if (item.status !== "PUBLISHED" || offers.length) return [];
+    if (item.featured) return [h("span", { class: "small muted" }, "Cette annonce est déjà à la une.")];
+    if (featured.some((r) => r.listingId === item.id && r.status === "PENDING")) {
+      return [h("span", { class: "small muted" }, "Demande de mise à la une envoyée : en attente de l'équipe.")];
+    }
+    const textarea = h("textarea", { class: "input", rows: 3, maxlength: 500, placeholder: "Ce que vous voulez mettre en avant (facultatif)" });
+    const send = async () => {
+      try {
+        await api("/me/featured-requests", { method: "POST", body: { listingId: item.id, message: textarea.value.trim() } });
+        toast("Demande envoyée à l'équipe IKA SÔ.");
+        minePage();
+      } catch (error) { fail(error); }
+    };
+    const box = h("div", { class: "card pad stack", style: "width:100%" },
+      h("strong", null, "Demander la mise à la une"),
+      h("p", { class: "small muted" }, "Votre demande part directement à l'équipe IKA SÔ, qui vous répondra. Elle est gratuite."),
+      textarea,
+      h("div", { class: "row" },
+        h("button", { class: "btn btn-primary", type: "button", onClick: send }, "Envoyer la demande"),
+        h("button", { class: "btn", type: "button", onClick: () => { box.hidden = true; } }, "Annuler")));
+    box.hidden = true;
+    return [h("button", { class: "btn btn-small btn-gold", type: "button", onClick: () => { box.hidden = !box.hidden; } }, "Demander la mise à la une"), box];
+  }
   const PROOF = { PENDING: "pièce en cours de contrôle", ACCEPTED: "pièce acceptée", REFUSED: "pièce refusée" };
   async function sendProof(kind, listingId, file) {
     if (!file) return;
@@ -88,8 +114,7 @@ export async function minePage() {
           item.status !== "ARCHIVED" ? h("a", { class: "btn btn-small", href: `#/localiser/${encodeURIComponent(item.id)}` }, "Localiser") : null,
           ["PUBLISHED", "REJECTED", "EXPIRED", "PENDING"].includes(item.status) ? h("a", { class: "btn btn-small", href: `#/modifier/${encodeURIComponent(item.id)}` }, "Modifier") : null,
           item.status === "PUBLISHED" && offers.length ? btn("Mettre à la une", () => boost(item.id), "btn-gold") : null,
-          item.status === "PUBLISHED" && !offers.length ? h("span", { class: "small muted" }, "Mise à la une : ") : null,
-          item.status === "PUBLISHED" && !offers.length ? h("a", { class: "btn btn-small btn-gold", href: "#/reclamations" }, "Contactez directement IKA SÔ") : null,
+          ...featuredParts(item),
           item.status === "PUBLISHED" ? btn("Prolonger 45 jours", () => act(item.id, "RENEW")) : null,
           item.status === "PUBLISHED" ? btn(item.transactionType === "Location" ? "Marquer loué" : "Marquer vendu", () => act(item.id, item.transactionType === "Location" ? "RENTED" : "SOLD")) : null,
           item.status === "REJECTED" || item.status === "EXPIRED" ? btn("Renvoyer", () => act(item.id, "RESUBMIT"), "btn-primary") : null,

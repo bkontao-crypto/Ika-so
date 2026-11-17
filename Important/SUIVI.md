@@ -3,6 +3,20 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Demande de mise à la une (17 novembre 2026)
+**À réaliser** : remplacer le lien vers Réclamations par une demande gratuite envoyée directement à l'équipe, et une interface « Demande de mise à la une » pour les administrateurs (superadmin inclus). Aucun paiement ni tarif lié.
+**Réalisé** :
+- Migration `070_demandes_mise_a_la_une.sql` (renumérotée : `069` est déjà prise par les réclamations sur `main`) + rollback `070_..._down.sql`. Table `ika_featured_requests`, une seule demande en attente par annonce.
+- Service `server/services/featured-requests.js` : création (annonce en ligne possédée, sans demande en attente), liste staff (permission `moderation.review`), décision. Acceptation = mise à la une via l'existant (`moderation.setFeatured`, contrôle de permission conservé) ; refus = motif obligatoire ; verrou de statut contre le double clic.
+- Routes `/api/me/featured-requests` (GET, POST) et `/api/staff/featured-requests` (GET, `?status=DONE`), `/api/staff/featured-requests/:id/decision`.
+- Notifications : staff (ADMIN, SUPERADMIN, MODERATOR) à la création ; annonceur à la décision.
+- Côté annonceur (« Mes annonces ») : bouton « Demander la mise à la une » ouvrant un formulaire (message facultatif, 500 caractères) ; « en attente » après envoi ; aucun bouton si l'annonce est déjà à la une. Le bouton de paiement reste masqué sans tarif.
+- Côté admin (`admin.html`, onglet « Demande de mise à la une (n) ») : demandes en attente, « Mettre à la une » (ADMIN et SUPERADMIN), « Refuser » avec motif, traitées récentes.
+**Vérifié** : `npm test` 275 tests, 261 pass, 0 échec (sans PostgreSQL de test), dont 4 tests de validation du service. Test réel sur PostgreSQL 16 locale, serveur lancé : création (201), doublon (409), annonce non possédée (404), staff (200), utilisateur simple (403), refus sans motif (400), refus avec motif (200), acceptation (200, annonce à la une 7 jours via le mécanisme existant), notifications staff et annonceur présentes, aucune erreur serveur. Navigateur : bouton, formulaire et état « en attente » côté annonceur ; onglet et liste côté admin, sans erreur JavaScript ni API.
+**En cours** : aucun.
+**À faire** : contrôle sur le site après déploiement : envoi depuis un téléphone, traitement depuis l'espace admin.
+**Risques** : la migration 069 existe dans deux dépôts (réclamations sur `main`, demandes ici) ; seule la 070 est propre à cette tâche. Une annonce à la une n'est pas bloquée côté service si une demande est acceptée à nouveau : la mise à la une est simplement prolongée, comme aujourd'hui. Le libellé « Demande de mise à la une » est à valider.
+
 ## Mise à la une : message clair quand aucune formule n'est ouverte (16 novembre 2026)
 **À réaliser** : au lieu d'un espace vide, afficher un message clair et un lien de contact direct.
 **Cause** : le bouton « Mettre à la une » de « Mes annonces » n'est affiché que si une formule payante est active et que le fournisseur de paiement est configuré. Aucune formule n'a de prix (décision du propriétaire), donc rien n'apparaissait.
