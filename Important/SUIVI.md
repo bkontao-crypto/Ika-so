@@ -1125,3 +1125,35 @@ Les mentions bleu/or sont historiques uniquement.
 
 ## Owner Control Center v2 (08/11/2026)
 Page `/owner`, journal unifié des mouvements, dossiers de traçage, migration 042. Voir `LIVRAISON_OWNER_CENTER_2026-11-08.md` et `CHANGELOG_OWNER_CONTROL.md` (v2.0). Environnement : PostgreSQL 18, Node.js, localhost.
+
+## Confidentialité lot A — mission 04-bis (17/11/2026)
+
+Branche : `feat/confidentialite-lot-a`. Commits : `6cd43b0` (code, recette Mapbox préparée). Mise à jour du suivi : commit suivant. **Aucune fusion dans `main`, lot B non démarré.**
+
+- **À réaliser :** lever les réserves de la mission 04 : fiche d'une annonce à simple point GPS (plan de secours), PDF réel, retrait du consentement Mapbox, recette Mapbox préparée sans jeton de production, non-régression, mise à jour du classeur.
+- **Réalisé :**
+  - Plan de secours `planPointSvg()` dans `server/lib/fiche.js` pour une annonce à point seul (sans contour ni mesure) ; lien d'impression affiché pour un point seul (`public/js/pages/localisation.js`). Contour non obligatoire pour publier.
+  - `clearMapboxStorage()` (`public/js/core/consent.js`) appelé au retrait de « Cartes » (`public/js/components/consent-panel.js`) : suppression des seules clés `mapbox*`.
+  - `scripts/recette/mapbox-consentement.mjs` (jeton `MAPBOX_TEST_TOKEN` requis, jamais affiché, `access_token` masqué dans le journal) et `Important/PROCEDURE_RECETTE_MAPBOX.md` (statut : préparée, non exécutée).
+  - Tests : `test/confidentialite-lot-a.test.js` étendu (29 tests du lot A).
+  - Classeur : feuille « Suivi confidentialité » complétée par CF-027 à CF-037 ; autres feuilles vérifiées identiques (signature valeur + style).
+- **Vérifié :**
+  - `npm test` avec PostgreSQL de test : 304 réussis, 0 échec.
+  - PDF réels (Playwright `page.pdf`) : fiche à point seul avec et sans consentement, fiche à contour avec et sans consentement (`?fond=mapbox` ignoré) : PDF valide, 1 page, mention présente, 0 requête Mapbox, aucun jeton dans la page.
+  - Modération : annonce en attente 404 au public ; refus sans motif 400 ; validation 200 public ; position GPS publique 200.
+  - Navigateur (390 px) : publication, géolocalisation, fiche, centre, favoris, mes annonces, connexion et déconnexion, brouillons (isolation par compte, récupération et suppression explicites) : aucune erreur JavaScript, aucun débordement, 0 requête Mapbox sans consentement.
+  - Pages publiques : statut 200, 0 requête Mapbox avant consentement.
+  - Exécution à blanc de la recette Mapbox (jeton factice, serveur sans jeton) : 10 réussis, 3 échecs attendus (3a, 3b, 3c).
+- **En cours :** recette Mapbox réelle en attente d'un jeton de test restreint fourni hors chat (ou vérification sur le site par le propriétaire).
+- **À faire :**
+  - Décision propriétaire sur le plan de secours (point seul) et sur la mention obligatoire.
+  - Rebaser `feat/confidentialite-lot-a` sur `main` avant toute fusion : `main` distant est à `2cf342b` (12 commits connexion Google / APK / boutons). Conflits constatés par simulation (`git merge-tree`) sur `Important/SUIVI.md`, `public/css/components.css` et `public/sw.js`. Non résolus.
+  - Restreindre le jeton Mapbox public aux domaines du site (compte Mapbox, propriétaire).
+  - Vérifier la licence de `mapbox-gl` 3.33.0 (R9 de l'audit).
+  - Validation juridique (`LEGAL_VALIDATED` reste à `false`).
+  - Lot C (services tiers) et lot D (preuve serveur) : non démarrés.
+- **Risques :**
+  - Rendu réel Mapbox, télémétrie réelle et image statique réelle non vérifiés (aucun jeton de test, `api.mapbox.com` injoignable depuis l'environnement).
+  - Le jeton Mapbox public reste visible dans `/api/config/map` par conception tant que la restriction par domaine n'est pas faite côté compte.
+  - Le script `regress.js` testait `/fiche` (404) : vérification du bouton d'impression à corriger ; couverte par `ui-recette`.
+  - Le dépôt distant a été déplacé (avertissement du remote lors du push) : à mettre à jour côté configuration Git.
