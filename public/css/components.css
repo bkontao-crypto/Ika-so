@@ -460,3 +460,10 @@ textarea:focus {
   padding: 6px 10px; border-radius: 999px;
 }
 .pw-toggle:hover { background: var(--ika-100); }
+
+/* Centre de contrôle (admin) sur téléphone : onglets en bande défilante dans la page, plus de menu flottant qui masque l'interface */
+@media (max-width:900px){
+  .admin-tabs,.admin-tabs.open{display:flex;flex-direction:row;position:static;max-height:none;padding:0;border-bottom:1px solid var(--line);background:transparent;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+  .admin-tabs button{flex:0 0 auto;white-space:nowrap}
+  #admin-burger{display:none!important}
+}
