@@ -272,3 +272,25 @@ test("application Android : démarrage marqué, retour par ticket sans session d
   assert.equal(bad.location, "/#/connexion?google=ticket-expire");
   assert.equal(bad.headers["set-cookie"], undefined);
 });
+
+test("application Android : un échec Google affiche une page explicative (pas de retour vers le site)", async () => {
+  const conflict = () => { throw Object.assign(new Error("existe"), { status: 409 }); };
+  const { router } = setup({ login: conflict });
+  const start = await router.call("GET", "/auth/google", { query: { terms: "1", app: "1" } });
+  const back = g.readStateCookie([].concat(start.headers["set-cookie"])[0].split(";")[0]);
+  const cookie = `ika_oauth=${g.packState({ s: back.s, n: "/", t: 1, l: 0, a: 1 })}`;
+  await withFakeGoogle(async () => {
+    const out = await router.call("GET", "/auth/google/callback", { query: { code: "C", state: back.s }, headers: { cookie } });
+    assert.equal(out.status, 200);
+    assert.equal(out.location, undefined);
+    assert.match(out.body, /déjà un compte IKA SÔ/);
+    assert.match(out.body, /href="intent:\/\/login#Intent;scheme=ikaso;end"/);
+    assert.ok(!/<script|style=/i.test(out.body));
+  });
+  // Hors application : comportement inchangé (retour au site avec le code d'erreur).
+  const web = `ika_oauth=${g.packState({ s: back.s, n: "/", t: 1, l: 0, a: 0 })}`;
+  await withFakeGoogle(async () => {
+    const out = await router.call("GET", "/auth/google/callback", { query: { code: "C", state: back.s }, headers: { cookie: web } });
+    assert.equal(out.location, "/#/connexion?google=compte-existant");
+  });
+});

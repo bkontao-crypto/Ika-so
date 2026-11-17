@@ -3,6 +3,16 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Connexion Google dans l'application : l'échec est maintenant expliqué (17 novembre 2026)
+
+- **À réaliser :** le propriétaire, après Google (Chrome), restait dans le navigateur, sur le site connecté à un AUTRE compte.
+- **Diagnostic (déduit du code, non reproduit) :** quand l'adresse e-mail du compte Google existe déjà comme compte à mot de passe, `loginWithGoogle` refuse volontairement (409 « compte-existant », protection contre la prise de contrôle d'un compte) ; le callback renvoyait alors vers le site, où Chrome avait déjà une session d'un autre compte. La liaison « Lier Google » ne peut se faire que depuis une session connectée dans le même navigateur (dans l'application, la session est dans la WebView, pas dans Chrome).
+- **Réalisé :** pour une connexion lancée depuis l'application, tout échec affiche une page claire (`appFailPage`) avec un bouton « Retourner dans l'application » au lieu de rouvrir le site. Fichiers : `server/lib/google-oauth.js`, `server/routes/index.js`, `test/connexion-google.test.js`. Règle de sécurité inchangée.
+- **Vérifié :** `npm test` 262 OK / 0 échec (nouveau test : échec en mode application = page 200 sans redirection ; hors application = comportement inchangé).
+- **Non vérifié :** affichage réel sur téléphone après déploiement.
+- **À faire (décision du propriétaire) :** permettre de lier Google depuis l'application (ticket de liaison à usage unique) ; non fait car c'est une évolution de parcours.
+- **Retour arrière :** `git revert -m 1` du commit de fusion.
+
 ## Connexion Google dans l'application : retour vers l'application (17 novembre 2026)
 
 - **À réaliser :** après Google, l'utilisateur restait dans le navigateur au lieu de revenir dans l'application Android.
