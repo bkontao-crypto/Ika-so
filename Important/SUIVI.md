@@ -1150,3 +1150,31 @@ Les mentions bleu/or sont historiques uniquement.
 
 ## Owner Control Center v2 (08/11/2026)
 Page `/owner`, journal unifié des mouvements, dossiers de traçage, migration 042. Voir `LIVRAISON_OWNER_CENTER_2026-11-08.md` et `CHANGELOG_OWNER_CONTROL.md` (v2.0). Environnement : PostgreSQL 18, Node.js, localhost.
+
+## Import en masse Excel (17/11/2026) — branche `feat/import-annonces-masse`
+
+Base : `main` au commit `2cf342b`. Aucune fusion dans `main`. Déploiement : aucun.
+
+- **À réaliser :** ajouter l'import de plusieurs annonces par fichier Excel, avec un bouton « Exporter le modèle Excel » dans « Mon profil > Mes annonces > Importer en masse », réservé aux annonceurs approuvés, à l'équipe et aux numéros vérifiés par SMS.
+- **Réalisé :**
+  - `server/lib/xlsx.js` : écriture d'un classeur `.xlsx` et lecture de la première feuille, sans dépendance externe. Limites : 400 Ko, 4 Mo décompressés, 1000 lignes, 60 colonnes, CRC contrôlé, fichiers chiffrés refusés.
+  - `server/lib/csv.js` : `rowsToListings` (même contrôle que le CSV, numéros de ligne du fichier Excel). `csvToListings` inchangé pour l'appelant.
+  - `server/services/imports.js` : `assertCanImport` (même règle que le CSV : annonceur approuvé ou équipe, numéro vérifié), `importStatus`, `importXlsx`, `modeleXlsx` (feuilles « Annonces » et « Valeurs acceptées »), traitement commun `importParsed`.
+  - Routes : `GET /api/me/import/statut`, `GET /api/me/import/modele.xlsx`, `POST /api/me/import/xlsx` ; `POST /api/me/import` (CSV) inchangée.
+  - Interface : `public/js/components/bulk-import.js` (partagé), intégré dans « Mon profil > Mes annonces » (bloc repliable) et dans l'espace agence (remplace l'ancien bloc CSV, qui reste accessible via le modèle CSV).
+  - Tests : `test/import-xlsx.test.js` (14 tests : aller-retour, modèle, fichier produit par openpyxl, fichiers piégés, droit d'import). Fixture : `test/fixtures/import-openpyxl.xlsx`.
+- **Vérifié :**
+  - `npm test` : 282 réussis, 0 échec (base de test PostgreSQL).
+  - Interopérabilité : fichier produit par notre écriture relu par openpyxl ; fichier produit par openpyxl relu par notre lecture (chaînes partagées, nombres, booléens, accents).
+  - Navigateur, 390 px : statut du droit affiché, modèle téléchargé en `.xlsx`, fichier fautif refusé avec les lignes concernées (rien créé), fichier correct importé en « En attente » (2 annonces), fichier non Excel refusé avec message clair, compte non approuvé : bouton désactivé et raison affichée, pas de débordement horizontal, aucune erreur JavaScript.
+  - Import CSV existant : toujours fonctionnel (contrôle à blanc : 2 annonces, 0 erreur). Visiteur anonyme : 401 sur le modèle et sur le statut.
+- **En cours :** rien.
+- **À faire :**
+  - Décision propriétaire (DEC-007) : exiger aussi la certification d'agence (registre de commerce) pour importer, ou conserver la règle actuelle (annonceur approuvé + numéro vérifié). Le texte demandé mentionne « agences certifiées » ; la règle existante ne l'exige pas.
+  - Après un import réussi, la page se recharge et le bloc se referme (BUG-014, mineur).
+  - Vérification sur un vrai téléphone Android et dans Excel (non fait : environnement sans Excel).
+  - Recette sur le site de production après fusion, sur autorisation écrite.
+- **Risques :**
+  - Lecteur `.xlsx` maison : surface d'attaque plus large qu'une bibliothèque éprouvée ; limites strictes et tests de fichiers piégés, mais une revue de sécurité est recommandée avant fusion.
+  - Limite de 10 imports par heure et par compte (partagée avec le CSV) : les contrôles à blanc comptent aussi.
+  - Branche créée depuis `main` (2cf342b) : elle ne contient pas les commits de confidentialité lot A (`feat/confidentialite-lot-a`). Les fichiers communs à traiter au rebase : `Important/SUIVI.md`, `public/sw.js`.
