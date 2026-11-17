@@ -5,7 +5,7 @@ import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
-import { appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie } from "../lib/google-oauth.js";
+import { appFailPage, appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie } from "../lib/google-oauth.js";
 
 const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
@@ -122,7 +122,16 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     res.setHeader("Cache-Control", "no-store");
     const saved = readStateCookie(req.headers.cookie);
     const linking = saved?.l === 1;
-    const fail = (code) => { res.setHeader("Set-Cookie", clearedStateCookie()); return res.redirect(302, googleBack(`${linking ? "/profil" : "/connexion"}?google=${code}`)); };
+    const fail = (code) => {
+      res.setHeader("Set-Cookie", clearedStateCookie());
+      if (saved?.a === 1 && !linking) { // connexion lancée depuis l'application : on explique l'échec ici, sans ouvrir le site (peut-être connecté à un autre compte)
+        res.status(200);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        return res.send(appFailPage(code));
+      }
+      return res.redirect(302, googleBack(`${linking ? "/profil" : "/connexion"}?google=${code}`));
+    };
     if (!config.google?.enabled) return fail("indisponible");
     if (req.query.error) return fail("refus");
     if (!saved || !sameState(req.query.state, saved.s)) return fail("etat");

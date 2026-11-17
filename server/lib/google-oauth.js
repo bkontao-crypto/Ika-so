@@ -98,3 +98,27 @@ export function appReturnPage(ticket) {
 <p class="small muted"><a href="${escAttr(scheme)}">Le bouton ne fonctionne pas ? Essayer ce lien</a></p>
 </main></body></html>`;
 }
+
+const APP_FAIL = {
+  "compte-existant": "Cette adresse e-mail a déjà un compte IKA SÔ protégé par un mot de passe. Pour votre sécurité, Google ne s'y connecte pas tout seul : ouvrez le site dans Chrome, connectez-vous avec votre mot de passe, puis liez Google depuis « Mon profil ».",
+  conditions: "Les conditions d'utilisation n'ont pas été acceptées. Revenez dans l'application, cochez la case des conditions, puis recommencez.",
+  bloque: "Ce compte est bloqué.",
+  refus: "Connexion Google annulée.",
+  etat: "La connexion Google a expiré. Revenez dans l'application et recommencez.",
+  indisponible: "La connexion avec Google n'est pas disponible pour le moment.",
+  echec: "La connexion Google a échoué. Revenez dans l'application et réessayez, ou utilisez votre mot de passe.",
+};
+
+/** Page affichée dans le navigateur quand la connexion Google lancée depuis l'application échoue : dit pourquoi et ramène à l'application (au lieu d'ouvrir le site, éventuellement connecté à un autre compte). */
+export function appFailPage(code) {
+  const msg = APP_FAIL[code] ?? APP_FAIL.echec;
+  return `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>Connexion Google impossible | IKA SÔ</title><link rel="stylesheet" href="/css/ika.css"></head>
+<body><main class="container stack">
+<h1>Connexion Google impossible</h1>
+<p role="alert">${escAttr(msg)}</p>
+<p><a class="btn btn-primary btn-block" href="intent://login#Intent;scheme=ikaso;end">Retourner dans l'application</a></p>
+</main></body></html>`;
+}
