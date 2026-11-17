@@ -179,9 +179,27 @@ test("fiche : avec fond Mapbox demandé, l'image Mapbox est incluse", () => {
   assert.equal(html.includes("api.mapbox.com"), true);
 });
 
-test("fiche : la route n'envoie le jeton Mapbox qu'avec ?fond=mapbox", () => {
+test("fiche : la route ne lit jamais le paramètre fond et n'envoie aucun jeton (ni avec ?fond=mapbox)", () => {
   const source = readFileSync(new URL("../server/routes/index.js", import.meta.url), "utf8");
-  assert.match(source, /req\.query\?\.fond === "mapbox" \? config\.mapbox\?\.token/);
+  const start = source.indexOf('router.get("/me/listings/:id/fiche"');
+  const block = source.slice(start, source.indexOf("});", start) + 3);
+  const code = block.split("\n").filter((line) => !line.trim().startsWith("//")).join("\n");
+  assert.ok(start > 0);
+  assert.equal(/fond|mapbox/i.test(code), false, code);
+});
+
+test("fiche : sans consentement côté serveur, la page contient un emplacement vide, sans URL ni jeton Mapbox", () => {
+  const html = ficheHtml({ geo: GEO, listing: LISTING });
+  assert.equal(html.includes("api.mapbox.com"), false);
+  assert.equal(html.includes("access_token"), false);
+  assert.match(html, /<div class="fond-auto" id="fond-auto" hidden data-geo="/);
+  assert.match(html, /<script type="module" src="\/js\/fiche\.js">/);
+});
+
+test("fiche : le chargement du fond côté page est conditionné au consentement enregistré dans le navigateur", () => {
+  const js = readFileSync(new URL("../public/js/fiche.js", import.meta.url), "utf8");
+  assert.match(js, /if \(slot && hasConsent\("cartes"\)\) loadFond\(slot\);/);
+  assert.equal(js.indexOf('fetch("/api/config/map"') > js.indexOf("hasConsent"), true);
 });
 
 test("consentement : le panneau et le pied de page exposent « Gérer mes choix »", () => {

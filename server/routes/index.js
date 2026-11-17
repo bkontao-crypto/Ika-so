@@ -481,8 +481,9 @@ router.get("/listings/:id", async (req, res) => {
     const { geo: shape, listing } = await geo.fiche(requireUser(req), id(req));
     res.status(200).setHeader("Content-Type", "text/html; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
-    // Fond Mapbox (coordonnées envoyées à Mapbox) seulement si le visiteur l'a accepté : ?fond=mapbox. Sinon, plan SVG local.
-    res.end(ficheHtml({ geo: shape, listing, mapboxToken: req.query?.fond === "mapbox" ? config.mapbox?.token ?? "" : "" }));
+    // Jamais de fond Mapbox côté serveur : le paramètre d'URL n'est pas une preuve de consentement.
+    // La page charge le fond elle-même, seulement si le consentement « Cartes » est enregistré dans ce navigateur (public/js/fiche.js).
+    res.end(ficheHtml({ geo: shape, listing }));
   });
   router.get("/staff/listings/:id/geo", async (req, res) => res.json(await geo.getForStaff(requireUser(req), id(req))));
 

@@ -18,6 +18,12 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 **En cours** : parcours « acceptation → carte Mapbox » non vérifié en navigateur (pas de jeton local, pas d'annonce géolocalisée en test).
 **À faire** : validation du lot A par le propriétaire sur le site ; puis lot B (Statistiques, suppression de `/api/e` quand la collecte est désactivée), lot C (documentation cookies et prestataires), lot D (preuve serveur, si exigée).
 **Risques** : stockage local du choix = pas une preuve juridique ; politique de confidentialité non validée par un juriste (`LEGAL_VALIDATED=false`) ; `MAPBOX_TOKEN` sur Render non vérifié ; les pages rendues côté serveur (quartiers, guides) n'ont pas encore le lien « Gérer mes choix ».
+**Correctifs de la vérification finale (17 novembre 2026, 2e passage)** :
+- Contournement corrigé : `?fond=mapbox` n'a plus aucun effet côté serveur (la route ne lit plus le paramètre et n'envoie plus de jeton). La fiche charge le fond seulement si le consentement est enregistré dans le navigateur (`public/js/fiche.js`, emplacement `#fond-auto`).
+- Tests : 298 réussis avec PostgreSQL (275 existants + 23 nouveaux).
+- Navigateur (serveur local, jeton factice, requêtes Mapbox interceptées) : fiche sans accord (0 requête), fiche avec accord (1 requête), retrait (0 requête) ; carte : première visite (0), acceptation (chargement de la bibliothèque), retrait puis navigation (0).
+- Brouillons : deux comptes dans le même navigateur, 12 vérifications conformes.
+- Non réalisé : rendu réel de Mapbox (aucun jeton local, réseau vers Mapbox bloqué), annonces géolocalisées (aucune donnée de test). Le jeton `/api/config/map` reste visible par conception (jeton public) : restriction à restreindre côté compte Mapbox.
 **Rollback** : lot non commité. Après commit : `git revert <sha>` (commit simple) ou `git revert -m 1 <sha>` (commit de fusion), puis `npm run -s stamp-sw`.
 
 ## Demande de mise à la une (17 novembre 2026)

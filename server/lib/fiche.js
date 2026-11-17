@@ -71,7 +71,13 @@ export function ficheHtml({ geo, listing, generatedAt = new Date(), mapboxToken 
 <main class="sheet">
 <header><p class="brand">IKA SO</p><h1>Fiche de localisation</h1><p class="sub">${esc(listing.title)} · ${esc(listing.neighborhood)}, ${esc(listing.city)}</p></header>
 <p class="mention" role="note"><strong>Important.</strong> ${esc(MENTION_OBLIGATOIRE)}</p>
-${(() => { const u = fondCarteUrl({ vertices, point: geo.point, token: mapboxToken }); return u ? `<figure class="fond"><img class="fond-carte" src="${esc(u)}" width="700" height="460" alt="Fond de carte : emplacement de la parcelle"><figcaption>Fond de carte © Mapbox © OpenStreetMap. Position indicative.</figcaption></figure>` : ""; })()}
+${(() => {
+  const u = fondCarteUrl({ vertices, point: geo.point, token: mapboxToken });
+  if (u) return `<figure class="fond"><img class="fond-carte" src="${esc(u)}" width="700" height="460" alt="Fond de carte : emplacement de la parcelle"><figcaption>Fond de carte © Mapbox © OpenStreetMap. Position indicative.</figcaption></figure>`;
+  // Emplacement vide : public/js/fiche.js y charge le fond Mapbox seulement si le consentement est enregistré dans ce navigateur.
+  if (!vertices.length && !geo.point) return "";
+  return `<div class="fond-auto" id="fond-auto" hidden data-geo="${esc(JSON.stringify({ vertices, point: geo.point ?? null }))}"></div>`;
+})()}
 ${vertices.length >= 3 ? planSvg(vertices) : ""}
 <table class="facts">
 ${row("Type de bien", geo.category)}
@@ -86,7 +92,7 @@ ${vertices.length ? `<h2>Sommets (latitude, longitude)</h2><ol class="vertices">
 <footer><p>Document généré le ${esc(when(generatedAt.toISOString()))} depuis le compte de l'annonceur. Calcul : projection équivalente sur l'ellipsoïde WGS84, effectué par le serveur à l'enregistrement.</p>
 <p class="no-print"><button id="print" type="button">Imprimer ou enregistrer en PDF</button></p></footer>
 </main>
-<script src="/js/fiche.js"></script>
+<script type="module" src="/js/fiche.js"></script>
 </body>
 </html>`;
 }
