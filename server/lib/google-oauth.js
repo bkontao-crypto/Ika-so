@@ -73,3 +73,28 @@ export function readStateCookie(cookieHeader) {
   } catch { return null; }
 }
 export const packState = (obj) => encodeURIComponent(JSON.stringify(obj));
+
+const escAttr = (v) => String(v).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+/**
+ * Page de retour vers l'application Android. Une simple redirection 302 vers ikaso:// est souvent bloquée par le navigateur
+ * (aucun geste de la personne) : on affiche donc un bouton « Ouvrir IKA SÔ » (le toucher autorise l'ouverture de l'application),
+ * en tentant aussi l'ouverture automatique. Le lien « intent: » n'impose pas de nom de paquet (version normale ou debug).
+ * Aucun script ni style en ligne (la politique de sécurité du site les interdit) : la mise en forme vient de /css/ika.css.
+ */
+export function appReturnPage(ticket) {
+  const t = encodeURIComponent(ticket);
+  const scheme = `ikaso://login?ticket=${t}`;
+  const intent = `intent://login?ticket=${t}#Intent;scheme=ikaso;end`;
+  return `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<meta http-equiv="refresh" content="0;url=${escAttr(scheme)}">
+<title>Connexion réussie | IKA SÔ</title><link rel="stylesheet" href="/css/ika.css"></head>
+<body><main class="container stack">
+<h1>Connexion réussie</h1>
+<p>Appuyez sur le bouton pour revenir dans l'application IKA SÔ. Le lien expire dans une minute.</p>
+<p><a class="btn btn-primary btn-block" href="${escAttr(intent)}">Ouvrir IKA SÔ</a></p>
+<p class="small muted"><a href="${escAttr(scheme)}">Le bouton ne fonctionne pas ? Essayer ce lien</a></p>
+</main></body></html>`;
+}

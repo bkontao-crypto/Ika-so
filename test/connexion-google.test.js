@@ -254,7 +254,12 @@ test("application Android : démarrage marqué, retour par ticket sans session d
   const cookie = `ika_oauth=${g.packState({ s: back.s, n: "/", t: 1, l: 0, a: 1 })}`;
   await withFakeGoogle(async () => {
     const out = await router.call("GET", "/auth/google/callback", { query: { code: "C", state: back.s }, headers: { cookie } });
-    assert.match(out.location, /^ikaso:\/\/login\?ticket=TKT-u1$/);
+    assert.equal(out.status, 200);
+    assert.equal(out.location, undefined, "plus de redirection 302 : le navigateur la bloquait");
+    assert.match(out.body, /href="intent:\/\/login\?ticket=TKT-u1#Intent;scheme=ikaso;end"/);
+    assert.match(out.body, /href="ikaso:\/\/login\?ticket=TKT-u1"/);
+    assert.match(out.body, /Ouvrir IKA SÔ/);
+    assert.ok(!/<script|style=/i.test(out.body), "aucun script ni style en ligne (CSP)");
     const set = [].concat(out.headers["set-cookie"] ?? []);
     assert.ok(!set.some((c) => c.startsWith("ika_session=")), "aucune session dans le navigateur");
   });

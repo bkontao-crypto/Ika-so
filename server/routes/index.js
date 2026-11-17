@@ -5,7 +5,7 @@ import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
-import { authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie } from "../lib/google-oauth.js";
+import { appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie } from "../lib/google-oauth.js";
 
 const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
@@ -143,7 +143,10 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
         ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
         const ticket = await accounts.issueLoginTicket(user.id);
         res.setHeader("Set-Cookie", clearedStateCookie());
-        return res.redirect(302, `ikaso://login?ticket=${encodeURIComponent(ticket)}`);
+        res.status(200);
+        res.setHeader("Content-Type", "text/html; charset=utf-8");
+        res.setHeader("Cache-Control", "no-store");
+        return res.send(appReturnPage(ticket));
       }
       const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1 });
       track(req, "user_login", { userId: user.id });
