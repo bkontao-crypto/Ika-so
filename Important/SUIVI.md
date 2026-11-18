@@ -3,6 +3,15 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Mon profil : saisie des « Services proposés » par le propriétaire du compte (18 novembre 2026)
+
+- **À réaliser :** permettre au propriétaire du compte d'ajouter lui-même les services affichés dans l'onglet « Services » de son profil public (aujourd'hui « Aucun service listé » sans moyen de les saisir).
+- **Réalisé :** carte « Services proposés » dans « Mon profil » (onglet Publications, sous « À propos ») : liste des services, formulaire d'ajout (titre 2–120 caractères, description facultative 500 max) et bouton « Retirer » avec confirmation (`mon-profil.js`). Réutilise les routes existantes `POST /me/services` et `POST /me/services/:id/delete` (limitées au compte connecté, 20 ajouts/heure) ; aucune migration, aucune donnée modifiée. Version du service worker re-estampillée.
+- **Vérifié :** syntaxe JS OK ; `npm test` : 304 réussis, 0 échec, 14 ignorés ; `stamp-sw` appliqué.
+- **Non vérifié :** rendu et ajout/suppression réels sur le site (pas d'API ni de base dans mon environnement) ; à contrôler après déploiement.
+- **À faire :** aucun développement restant pour cette demande.
+- **Risques :** faibles (UI seule, routes déjà en production) ; retour arrière : `git revert -m 1 <commit de fusion>`.
+
 ## Mon profil : appel « Passez Premium » sur tous les onglets (18 novembre 2026)
 
 - **À réaliser :** garder l'appel « Passez Premium » en haut de tous les onglets de « Mon profil », pour tous les comptes sauf ceux déjà Premium.
