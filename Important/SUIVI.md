@@ -1371,3 +1371,9 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **En cours :** test navigateur de l'onglet « Apparence & modules » et de l'application réelle des couleurs (non fait).
 - **À faire :** validation propriétaire ; branchement réel de la carte et de WhatsApp si voulu ; décider si les textes d'accueil restent stockés (aucun effet actuellement).
 - **Risques :** la couleur saisie remplace le thème en mode sombre (variables inline `--leaf`/`--gold`). Le masquage du module Premium ne masque que les liens, pas la route `#/premium`.
+
+## Fusion dans main (2026-11-18)
+- **Réalisé :** `feat/devenir-premium` fusionné dans `main` (commit `1357423`, sur `origin/main` `82214dc` qui contenait la nouvelle Boîte et l'appel Passez Premium). Sw re-estampillé.
+- **Vérifié :** `npm test` 315/315 sur l'état fusionné (exit 0) ; push `main` sans force.
+- **Retour arrière :** `backup/main-avant-fusion-2026-11-18` pointe sur `82214dc` (état de `main` avant fusion). Tag non poussé (refusé par le dépôt).
+- **À faire :** vérification réelle sur le site par le propriétaire ; mise à jour du tableau Excel (lignes ajoutées uniquement).
