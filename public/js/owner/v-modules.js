@@ -540,7 +540,7 @@ const HOME_FIELDS = [
   ["trustLine2", "Ligne 2 du macaron", "Sérénité"],
   ["overlayColor", "Couleur de l’overlay (hex)", "#091f19"],
   ["overlayOpacity", "Opacité de l’overlay (0 à 1)", "0.75"],
-  ["accentColor", "Couleur d’accent (titre, badge)", "#C9EF75"],
+  ["accentColor", "Couleur du titre et du badge (accueil seulement)", "#C9EF75"],
   ["textColor", "Couleur du texte principal", "#ffffff"],
 ];
 export function homepageSection(s, reload) {
@@ -595,6 +595,31 @@ export function seoSection({ seo, logo, legal }, reload) {
   return [panel("Référencement", null, h("div", { class: "form" }, fld(S, "title", "Titre (120 max)", false, 120), fld(S, "description", "Description (300 max)", true, 300), fld(S, "keywords", "Mots-clés", false, 200), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/seo", { method: "PUT", body: S }), "SEO enregistré.", reload) }, "Enregistrer")))),
     panel("Logo", "Chemin du site (/media/…) ou adresse https", h("div", { class: "form" }, fld(G, "logoUrl", "Adresse du logo", false, 500), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/logo", { method: "PUT", body: G }), "Logo enregistré.", reload) }, "Enregistrer")))),
     panel("Pages légales", "CGU, confidentialité, mentions légales", h("div", { class: "form" }, fld(L, "cgu", "Conditions générales", true, 10000), fld(L, "privacy", "Politique de confidentialité", true, 10000), fld(L, "mentions", "Mentions légales", true, 5000), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/legal", { method: "PUT", body: L }), "Pages légales publiées.", reload) }, "Enregistrer et publier"))))];
+}
+
+// Apparence & modules : réglage superadmin « main » (lu par bootstrap-settings.js sur le site public).
+// Enregistrement complet de l'objet « main » pour ne pas écraser les autres clés stockées.
+export function appearanceSection({ main }, reload) {
+  const base = main && typeof main === "object" ? main : {};
+  const C = { ...(base.colors || {}) };
+  const M = { crm: true, premium: true, ...(base.modules || {}) };
+  const color = (k, l) => {
+    const i = h("input", { type: "color", value: C[k] || (k === "primary" ? "#12734b" : "#e8b23a") });
+    i.addEventListener("input", () => { C[k] = i.value; });
+    return h("label", { class: "field" }, l, i);
+  };
+  const check = (k, l) => {
+    const i = h("input", { type: "checkbox" }); i.checked = M[k] !== false;
+    i.addEventListener("change", () => { M[k] = i.checked; });
+    return h("label", { class: "field" }, i, " ", l);
+  };
+  const save = () => act(() => api("/staff/superadmin-settings/main", { method: "PUT", body: { value: { ...base, colors: { ...C }, modules: { ...M } } } }), "Apparence enregistrée.", reload);
+  return [panel("Apparence & modules", "Couleurs appliquées au site public (uniquement si vous les modifiez). Les modules masquent les liens correspondants.",
+    h("div", { class: "stack" },
+      h("div", { class: "form two" }, color("primary", "Couleur principale"), color("accent", "Couleur d’accent")),
+      h("div", { class: "stack" }, check("crm", "Module CRM (espace agence)"), check("premium", "Module Premium")),
+      h("p", { class: "note" }, "Carte et WhatsApp Business ne sont pas encore reliés au site : ils n’ont pas d’effet pour l’instant. Les textes d’accueil se règlent dans « Page d’accueil »."),
+      h("div", null, h("button", { class: "btn primary", type: "button", onClick: save }, "Enregistrer"))))];
 }
 
 export const i18nView = (ctx) => page(ctx, {
@@ -680,19 +705,21 @@ function countryFormFields(c = null, editing = false) {
 }
 
 // ---------- Personnalisation du site : une seule interface (identité, accueil, référencement, logo, pages légales, sécurité) ----------
-const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["homepage", "Page d’accueil"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
+const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
 export const customizeView = (ctx, initial = "identity") => page(ctx, {
   eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
   load: async () => {
-    const [settings, sec, home, seo, logo, legal] = await Promise.all([
+    const [settings, sec, home, seo, logo, legal, main] = await Promise.all([
       api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
-      api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal")]);
-    return { settings, sec, home, seo, logo, legal };
+      api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal"),
+      api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null)]);
+    return { settings, sec, home, seo, logo, legal, main };
   },
   actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
-  build({ settings, sec, home, seo, logo, legal }, reload) {
+  build({ settings, sec, home, seo, logo, legal, main }, reload) {
     const parts = {
       identity: settingsSection({ s: settings, sec }, reload)[0],
+      appearance: appearanceSection({ main }, reload),
       security: settingsSection({ s: settings, sec }, reload)[1],
       homepage: homepageSection(home, reload),
       seo: seoSection({ seo, logo, legal }, reload).slice(0, 1),

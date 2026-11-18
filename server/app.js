@@ -82,6 +82,7 @@ export function createApp({ services, config, logger = createLogger({ level: "er
   app.use("/api", (req, res) => res.status(404).json({ error: "Introuvable." }));
   if (services.seo) app.use(buildSeoRoutes({ seo: services.seo, config }));
   app.get(["/admin", "/admin.html"], (req, res) => res.redirect(301, "/owner"));
+  app.get(["/admin-settings", "/admin-settings.html"], (req, res) => res.redirect(301, "/owner#/customize"));
   app.use(express.static(PUBLIC_DIR, { extensions: ["html"], maxAge: config.production ? "1h" : 0 }));
 
   // eslint-disable-next-line no-unused-vars

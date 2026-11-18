@@ -1340,3 +1340,18 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **Réalisé :** les trois écrans « Paramètres plateforme », « Page d’accueil » et « SEO, logo & pages légales » sont remplacés par un seul écran « Personnalisation du site » (onglets : Identité & contact, Page d’accueil, Référencement, Logo, Pages légales, Sécurité). Les anciennes adresses (#/settings, #/homepage, #/seo) ouvrent l’onglet correspondant. Les formulaires et leurs enregistrements sont inchangés (mêmes routes).
 - **Vérifié :** tests 315/315 ; navigateur (superadmin) : les six onglets s’affichent, une seule section visible à la fois, anciennes adresses OK, aucune erreur console.
 - **Non vérifié :** enregistrement effectif de chaque section depuis l’écran (routes inchangées, non rejouées une à une) ; production.
+
+## Personnalisation du site : audit des réglages (session du 2026-11-18)
+- **À réaliser :** vérifier que chaque réglage de « Personnalisation du site » est relié à l'API, supprimer les doublons.
+- **Constat :** l'ancienne page `/admin-settings.html` (non liée) n'était chargée par aucune page : couleurs et modules du superadmin n'avaient aucun effet ; les textes d'accueil (`welcome_title/subtitle`) n'avaient aucune cible dans le site (doublon de la page d'accueil).
+- **Réalisé :**
+  - Onglet « Apparence & modules » ajouté à la personnalisation (couleurs principale/accent, modules CRM et Premium) ; enregistrement via `PUT /staff/superadmin-settings/main` en conservant les autres clés.
+  - Carte et WhatsApp affichés comme « non reliés » (pas de bouton fictif).
+  - Libellé de la couleur d'accent de l'accueil précisé (accueil seulement).
+  - `public/js/app.js` charge `bootstrap-settings.js` : couleurs et masquage des liens `data-module` appliqués au site public, réappliqués au rendu des pages.
+  - Suppression de `public/admin-settings.html` et `public/js/pages/admin-settings.js` (orphelins) ; `/admin-settings(.html)` redirige en 301 vers `/owner#/customize`.
+  - Service worker re-estampillé (`ika-so-43c6e19c37`).
+- **Vérifié :** `npm test` 315/315 (exit 0) ; `node --check` OK ; redirections 301 ; `bootstrap-settings.js` servi 200 ; `/api/superadmin-settings/public` 200.
+- **En cours :** test navigateur de l'onglet « Apparence & modules » et de l'application réelle des couleurs (non fait).
+- **À faire :** validation propriétaire ; branchement réel de la carte et de WhatsApp si voulu ; décider si les textes d'accueil restent stockés (aucun effet actuellement).
+- **Risques :** la couleur saisie remplace le thème en mode sombre (variables inline `--leaf`/`--gold`). Le masquage du module Premium ne masque que les liens, pas la route `#/premium`.
