@@ -85,7 +85,7 @@ export async function compteUnifiePage() {
       h("p", { class: "muted" }, m.fullName || S.user.name),
       pills.length ? h("div", { class: "row wrap gap-sm my-12" }, ...pills) : null,
       h("div", { class: "row wrap gap-sm" },
-        flags.isStaff ? h("a", { class: "btn btn-primary", href: "/admin" }, "Console") : null,
+        flags.isStaff ? h("a", { class: "btn btn-primary", href: "/owner" }, "Console") : null,
         flags.isAdmin ? h("a", { class: "btn", href: "/owner" }, "Owner Center") : null,
         flags.isAdvertiser ? h("a", { class: "btn btn-outline", href: "#/profil?tab=annonces" }, "Mes annonces") : null,
         h("a", { class: "btn btn-outline", href: "#/favoris" }, "Favoris"),

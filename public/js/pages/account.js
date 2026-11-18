@@ -158,7 +158,7 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
     accessLinks.push(h("a", { class: "btn btn-gold", href: "/owner" }, "Owner Control Center"));
   }
   if (m.staffRole && m.staffRole !== "USER") {
-    accessLinks.push(h("a", { class: "btn btn-dark", href: "/admin.html" }, `Centre de contrôle staff${m.pendingCount ? ` (${m.pendingCount})` : ""}`));
+    accessLinks.push(h("a", { class: "btn btn-dark", href: "/owner" }, `Centre de contrôle staff${m.pendingCount ? ` (${m.pendingCount})` : ""}`));
   }
   if (access?.eligible) {
     accessLinks.push(h("a", { class: "btn btn-primary", href: "#/centre" }, "Centre Premium"));

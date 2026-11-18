@@ -93,7 +93,6 @@ function shell() {
     h("div", { class: "row" }, h("button", { class: "iconbtn menu-btn", type: "button", "aria-label": "Menu", onClick: () => { side.classList.add("open"); scrim.classList.add("open"); } }, ico("menu")), h("div", { class: "crumb" }, "Administration /", crumb)),
     h("div", { class: "topright" }, h("button", { class: "search", type: "button", onClick: openPalette }, ico("search"), h("span", null, "Rechercher un module, un compte…"), h("kbd", null, "Ctrl K")),
       h("a", { class: "site-back", href: "/", title: "Retour au site IKA SÔ" }, ico("home"), h("span", null, "Retour au site")),
-      h("a", { class: "iconbtn", href: "/admin", title: "Centre de contrôle classique", "aria-label": "Centre de contrôle classique" }, ico("external")),
       h("button", { class: "iconbtn", type: "button", title: "Thème clair / sombre", "aria-label": "Changer de thème", onClick: toggleTheme }, ico("sun")), bell, avatarNode()));
   content = h("div", { class: "content", id: "content", tabindex: "-1" });
   root.className = ""; root.replaceChildren(h("div", { class: "shell" }, side, h("main", null, top, content)), scrim);
@@ -159,7 +158,7 @@ async function start() {
     if (!session.user) return gate("Connexion requise", "Ouvrez une session SUPERADMIN pour accéder au centre de commandement.", h("a", { class: "btn primary", href: "/#/connexion?next=%2Fprofil" }, "Connexion"));
     me = session.meta; ctx.userId = session.user.id;
     access = await api("/staff/owner/access");
-    if (!access.all && !access.modules.length) return gate("Accès réservé", "Le Owner Control Center est réservé au propriétaire et aux administrateurs à qui il a attribué des modules.", h("a", { class: "btn", href: "/admin" }, "Centre de contrôle de mon rôle"));
+    if (!access.all && !access.modules.length) return gate("Accès réservé", "Le Owner Control Center est réservé au propriétaire et aux administrateurs à qui il a attribué des modules.");
     // Photo du compte : celle du profil public (même source que « Mon profil »). Absente = initiales.
     const pub = await api("/me/public-profile").catch(() => null);
     me.avatarUrl = pub?.profile?.avatarUrl || null;

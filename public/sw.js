@@ -2,7 +2,7 @@
 //  - fichiers du site : servis depuis la mémoire de l'appareil, remis à jour en arrière-plan ;
 //  - annonces publiques (lecture) : réseau d'abord, dernière version connue si la connexion tombe ;
 //  - tout le reste de /api (compte, messages, contact, administration) : jamais gardé, jamais servi hors ligne.
-const VERSION = "ika-so-069aeb94b2";
+const VERSION = "ika-so-646ad8c514";
 const SHELL = [
   "/", "/css/ika.css", "/css/modern.css", "/css/refonte.css", "/css/components.css", "/css/mon-profil.css", "/css/publier.css", "/js/pages/mon-profil.js", "/media/logo-ika-so.webp", "/js/pages/partners.js", "/js/pages/annonceurs.js", "/js/pages/centre.js", "/js/pages/centre-standard.js", "/js/pages/premium.js", "/js/components/espace.js", "/css/espace.css", "/css/profil.css", "/favicon.svg", "/icon-192.png", "/manifest.webmanifest",
   "/js/app.js", "/js/dom.js", "/js/icons.js", "/js/icon-rules.js", "/js/decorate.js", "/js/core/state.js", "/js/core/router.js",
@@ -32,7 +32,6 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(networkFirst(request));
     return;
   }
-  if (url.pathname === "/admin.html" || url.pathname === "/js/admin.js") return; // centre de contrôle : toujours en ligne
   if (url.pathname.startsWith("/downloads/")) return; // APK : jamais gardé en mémoire (13 Mo, et il doit toujours être la dernière version)
   // Pages (accueil, quartiers, agences, guides, annonces…) et feuille de style des pages serveur : réseau d'abord,
   // jamais l'ancienne version tant que la connexion fonctionne (une page ancienne avec une feuille neuve — ou l'inverse — devenait illisible).

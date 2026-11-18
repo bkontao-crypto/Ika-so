@@ -15,7 +15,6 @@ function page(ctx, { eyebrow, title, desc, load, build, actions }) {
 const mini = (l, v, sub) => h("div", { class: "card mini" }, h("small", null, l), h("strong", null, v), sub ? h("small", null, sub) : null);
 const minis = (...m) => h("div", { class: "mini-stats" }, m);
 const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/${type}/${encodeURIComponent(id)}`) }, ico("route"), label);
-const adminLink = (label = "Ouvrir dans le centre de contrôle classique") => h("a", { class: "btn", href: "/admin" }, ico("external"), label);
 
 // Demandes gratuites de mise à la une (repris de l'ancien centre) : mettre à la une ou refuser avec motif.
 const featuredRequestsPanel = (reload) => {
@@ -44,7 +43,6 @@ const featuredRequestsPanel = (reload) => {
 export const listingsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Annonces & modération", desc: "File de modération, signalements et annonces en ligne.",
   load: () => api("/staff/queue"),
-  actions: () => adminLink(),
   build(d, reload) {
     const s = d.stats;
     const pending = d.pending.length ? d.pending.map((it) => h("article", { class: "card panel row" },
@@ -66,7 +64,7 @@ export const usersView = (ctx) => {
   let q = "";
   return page(ctx, {
     eyebrow: "PILOTAGE", title: "Utilisateurs & comptes", desc: "100 derniers comptes. Les numéros sont masqués ; le dossier de traçage donne tout l'historique d'un compte.",
-    load: () => api("/staff/accounts"), actions: () => adminLink(),
+    load: () => api("/staff/accounts"),
     build(rows, reload) {
       const box = h("div");
       const draw = () => {

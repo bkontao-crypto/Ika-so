@@ -32,7 +32,7 @@ export function createFeaturedRequests({ db, accounts, moderation, notify }) {
             kind: "FEATURED_REQUEST",
             title: `Demande de mise à la une : ${rows[0].title}`,
             body: text || "Sans message.",
-            link: "/admin.html",
+            link: "/owner",
           })));
         } catch { /* la demande reste enregistrée même si la notification échoue */ }
       }
