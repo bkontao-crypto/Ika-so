@@ -349,6 +349,93 @@ export const aiView = (ctx) => page(ctx, {
 });
 
 // ---------- Système ----------
+// Statistiques (repris de l'ancien centre) : agrégats quotidiens, classements, fiche annonceur, comparaison, pondérations.
+// Jamais de calcul en direct : les chiffres viennent des agrégats. Chaque fiche consultée est journalisée côté serveur.
+export const statsView = (ctx) => {
+  let days = 7;
+  const compareSel = [];
+  const pct = (cur, prev) => (!prev ? "" : ` (${cur - prev >= 0 ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)} % sur la période précédente)`);
+  const perf = (p) => [`Indice ${nf(p.current.score)}${pct(p.current.score, p.previous.score)}`, `${nf(p.current.views)} vues · ${nf(p.current.favorites)} favoris · ${nf(p.current.contactClicks)} clics de contact`];
+  const openSheetFor = async (id) => {
+    try { const v = await api(`/staff/stats/advertisers/${encodeURIComponent(id)}?days=${days}`); const a = v.advertiser;
+      openDrawer(a.name, h("p", { class: "muted small" }, `${a.role}${a.agencyVerified ? " · agence vérifiée" : ""} · compte ${a.accountStatus}${a.statusReason ? ` (${a.statusReason})` : ""}`),
+        h("p", { class: "small" }, `Inscrit le ${a.memberSince ? dateOnly(a.memberSince) : "—"} · dernière session : ${v.lastSessionAt ? dateTime(v.lastSessionAt) : "aucune"}`),
+        h("p", { class: "small" }, `Annonces : ${v.listingsTotal} (${Object.entries(v.listingsByStatus).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(" · ") || "aucune"})`),
+        h("h3", null, `Performance du ${v.period.from} au ${v.period.to}`), ...perf(v.performance).map((t) => h("p", { class: "small" }, t)),
+        h("p", { class: "muted small" }, `Pondérations : vue ${v.weights.view}, favori ${v.weights.favorite}, contact ${v.weights.contactClick}.`),
+        h("h3", null, "Meilleures annonces"), ...(v.bestListings.length ? v.bestListings.map((l) => h("p", { class: "small" }, `${l.title} (${l.status.toLowerCase()}) — indice ${nf(l.score)}`)) : [h("p", { class: "muted small" }, "Aucune annonce.")]),
+        h("p", { class: "muted small" }, `Avis : ${v.reviews.count ? `${v.reviews.count} avis, moyenne ${String(v.reviews.average).replace(".", ",")} / 5` : "aucun avis"} · signalements : ${v.reports.listingOpen} d'annonce, ${v.reports.userOpen} de compte (ouverts)`),
+        h("p", { class: "muted small" }, v.notice));
+    } catch (error) { fail(error); }
+  };
+  const compare = async (reload) => {
+    if (compareSel.length !== 2) return;
+    try { const v = await api(`/staff/stats/compare?a=${encodeURIComponent(compareSel[0].id)}&b=${encodeURIComponent(compareSel[1].id)}&days=${days}`);
+      const col = (x) => h("section", { class: "card panel stack" }, h("h3", null, x.name), h("p", { class: "muted small" }, `${x.role}${x.agencyVerified ? " · agence vérifiée" : ""} · ${x.listingsTotal} annonce(s)`), ...perf({ current: x.current, previous: x.previous }).map((t) => h("p", { class: "small" }, t)), ...x.bestListings.map((l) => h("p", { class: "muted small" }, `${l.title} — indice ${nf(l.score)}`)));
+      compareSel.length = 0; reload?.();
+      openDrawer(`Comparaison du ${v.period.from} au ${v.period.to}`, h("div", { class: "stack" }, col(v.a), col(v.b)), h("p", { class: "muted small" }, `Pondérations : vue ${v.weights.view}, favori ${v.weights.favorite}, contact ${v.weights.contactClick}. ${v.notice}`));
+    } catch (error) { fail(error); }
+  };
+  const rankRows = (r, reload) => {
+    const rate = (x) => (x.interactionRate == null ? `taux non affiché (moins de ${r.minViewsForRate} vues)` : `taux d'interaction ${String(x.interactionRate).replace(".", ",")} %`);
+    const line = (x, label) => {
+      const selected = x.ownerId && compareSel.some((c) => c.id === x.ownerId);
+      return h("article", { class: "card panel row" }, h("div", { class: "grow" }, h("b", null, label), h("p", { class: "muted small" }, `indice ${nf(x.score)} · ${nf(x.views)} vues · ${nf(x.favorites)} favoris · ${nf(x.contactClicks)} clics de contact · ${rate(x)}`)),
+        x.ownerId ? h("div", { class: "row" },
+          h("button", { class: "btn sm", type: "button", onClick: () => openSheetFor(x.ownerId) }, "Fiche"),
+          h("button", { class: `btn sm${selected ? " primary" : ""}`, type: "button", "aria-pressed": String(!!selected), onClick: () => {
+            const i = compareSel.findIndex((c) => c.id === x.ownerId);
+            if (i >= 0) compareSel.splice(i, 1); else compareSel.push({ id: x.ownerId, name: x.name ?? x.title }); compareSel.splice(0, compareSel.length - 2);
+            reload?.(); if (compareSel.length === 2) compare(reload);
+          } }, selected ? "Retirer de la comparaison" : "Comparer")) : null);
+    };
+    const block = (title, rows, render, emptyText) => panel(title, null, rows.length ? h("div", { class: "stack" }, rows.map(render)) : empty(emptyText, "search"));
+    return [
+      compareSel.length === 1 ? h("p", { class: "notice" }, `Comparaison : ${compareSel[0].name} sélectionné. Choisissez un deuxième annonceur.`) : null,
+      block("Classement des annonces", r.listings, (x, i) => line(x, `${i + 1}. ${x.title} (${x.ownerName})`), "Aucune activité comptée sur la période."),
+      block("Classement des agences", r.agencies, (x, i) => line(x, `${i + 1}. ${x.name}${x.agencyVerified ? " · vérifiée" : " · en cours de vérification"} · ${x.listingsCounted} annonce(s)`), "Aucune agence avec activité comptée."),
+      block("Classement des autres annonceurs (particuliers, démarcheurs)", r.others, (x, i) => line(x, `${i + 1}. ${x.name} · ${x.role} · ${x.listingsCounted} annonce(s)`), "Aucun annonceur avec activité comptée."),
+    ];
+  };
+  return page(ctx, {
+    eyebrow: "RAPPORTS", title: "Statistiques", desc: "Agrégats quotidiens uniquement. Chaque consultation de fiche annonceur est journalisée.",
+    load: async () => { const [o, r] = await Promise.all([api(`/staff/stats/overview?days=${days}`), api(`/staff/stats/rankings?days=${days}`)]); return { o, r }; },
+    build({ o, r }, reload) {
+      const c = o.collection;
+      const notes = [];
+      if (!c.environmentOn || !c.settingOn) notes.push("Collecte des visites non démarrée : seuls les chiffres d'historique (inscriptions, annonces publiées) sont disponibles.");
+      else if (!c.lastAggregatedDay) notes.push("Aucune agrégation n'a encore été faite : lancez « node scripts/aggregate.mjs --apply » sur le serveur.");
+      if (c.lastAggregatedDay && c.lastAggregatedDay < o.period.to) notes.push(`Chiffres arrêtés au ${c.lastAggregatedDay} : les jours suivants n'ont pas été agrégés.`);
+      if (c.checksFailed7d > 0) notes.push(`${c.checksFailed7d} contrôle(s) de cohérence en écart ces 7 derniers jours : recalculer les jours concernés.`);
+      const delta = (key) => { const now = o.totals[key]; const before = o.previousTotals[key]; if (!before) return now ? "pas de période précédente comparable" : ""; const d = now - before; return `${d >= 0 ? "+" : ""}${nf(d)} (${d >= 0 ? "+" : ""}${Math.round((d / before) * 100)} %) par rapport à la période précédente`; };
+      const shown = o.daily.slice(-31); const max = Math.max(1, ...shown.map((d) => d.views));
+      const setDays = (n) => { days = n; reload(); };
+      const w = r.weights;
+      const weightsForm = async () => {
+        const v = await formDialog("Pondérations de l'indice", [
+          { name: "view", label: `Poids d'une vue (0 à ${r.weightMax})`, type: "number", required: true, value: w.view },
+          { name: "favorite", label: "Poids d'un favori ajouté", type: "number", required: true, value: w.favorite },
+          { name: "contactClick", label: "Poids d'un clic de contact (supérieur à celui d'une vue)", type: "number", required: true, value: w.contactClick },
+          { name: "reason", label: "Motif du changement (obligatoire)", type: "textarea", required: true, max: 300 }], { submit: "Enregistrer" });
+        if (v) act(() => api("/staff/stats/weights", { method: "POST", body: { view: Number(v.view), favorite: Number(v.favorite), contactClick: Number(v.contactClick), reason: v.reason } }), "Pondérations enregistrées.", reload);
+      };
+      return [
+        h("div", { class: "row", role: "group", "aria-label": "Période" }, [7, 30, 90].map((n) => h("button", { class: `btn sm${days === n ? " primary" : ""}`, type: "button", "aria-pressed": String(days === n), onClick: () => setDays(n) }, `${n} jours`)),
+          h("span", { class: "muted small" }, `Du ${o.period.from} au ${o.period.to} (jours complets, fuseau UTC = Mali)`)),
+        ...notes.map((n) => h("p", { class: "notice" }, n)),
+        minis(...o.definitions.map((d) => h("div", { class: "card mini" }, h("small", null, d.label), h("strong", null, nf(o.totals[d.key])), h("small", null, delta(d.key))))),
+        panel("Jour par jour", o.daily.length > shown.length ? `Les ${shown.length} derniers jours sur ${o.daily.length}.` : null,
+          h("div", { class: "stack" }, shown.map((d) => h("div", { class: "row" }, h("small", null, d.day.slice(5)), h("progress", { max: String(max), value: String(d.views), "aria-label": `${d.day} : ${d.views} vues` }), h("small", null, nf(d.views)))))),
+        panel("Annonces les plus vues", null, o.topListings.length ? h("div", { class: "stack" }, o.topListings.map((t) => h("p", { class: "small" }, `${t.title ?? t.listingId} — ${nf(t.views)} vues, ${nf(t.contactClicks)} clics de contact`))) : empty("Aucune annonce vue sur la période.", "search")),
+        panel("Indice de confiance des classements", `Pondérations : vue ${w.view}, favori ${w.favorite}, clic de contact ${w.contactClick} (${r.weightsCustomised ? "réglées par le propriétaire" : "valeurs par défaut"}).`,
+          h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onClick: weightsForm }, "Modifier les pondérations"))),
+        ...rankRows(r, reload),
+        h("details", { class: "panel" }, h("summary", null, "Définitions des indicateurs"), h("ul", { class: "stack" }, o.definitions.map((d) => h("li", null, h("b", null, d.label), ` : ${d.note}`)))),
+      ];
+    },
+  });
+};
+
 export const reportsView = (ctx) => page(ctx, {
   eyebrow: "SYSTÈME", title: "Rapports & exports", desc: "Chaque export du journal des mouvements est inscrit au journal d'audit.", load: async () => api("/staff/owner/report"),
   build(r) {
