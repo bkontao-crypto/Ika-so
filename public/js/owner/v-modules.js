@@ -101,9 +101,39 @@ export const permissionsView = (ctx) => page(ctx, {
   },
 });
 
+// Demandes annonceurs (repris de l'ancien centre) : approuver, demander des informations, refuser ; pièces consultables.
+const APP_DOC = (l) => (l === "PIECE_IDENTITE" ? "pièce d'identité" : l === "RCCM" ? "RCCM" : "justificatif");
+async function openAppDoc(appId, doc) {
+  try {
+    const { fileData } = await api(`/staff/advertiser-applications/${encodeURIComponent(appId)}/documents/${encodeURIComponent(doc.id)}`);
+    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
+    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+  } catch (error) { fail(error); }
+}
+const applicationsPanel = (reload) => {
+  const box = h("div", { class: "stack" });
+  const decide = (a, body, ok) => act(() => api(`/staff/advertiser-applications/${encodeURIComponent(a.id)}/decide`, { method: "POST", body }), ok, reload);
+  async function fill() {
+    try {
+      const apps = await api("/staff/advertiser-applications?status=PENDING");
+      box.replaceChildren(...(apps.length ? apps.map((a) => h("article", { class: "card panel stack" },
+        h("div", { class: "row" }, h("b", null, a.full_name || a.user_name || a.user_id), pill("neutral", a.type)),
+        h("p", { class: "muted small" }, a.data?.description || "Aucune description."),
+        h("p", { class: "muted small" }, `Demandé : ${a.display_role_requested || "—"} · ${dateOnly(a.created_at)}`),
+        (a.documents || []).length ? h("div", { class: "row" }, a.documents.map((d) => h("button", { class: "btn sm", type: "button", onClick: () => openAppDoc(a.id, d) }, ico("external"), `Voir : ${APP_DOC(d.label)}`))) : h("p", { class: "muted small" }, "Aucune pièce jointe (facultatif)."),
+        h("div", { class: "row" },
+          h("button", { class: "btn primary sm", type: "button", onClick: () => decide(a, { action: "APPROVE" }, "Demande approuvée.") }, ico("check"), "Approuver"),
+          h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Demander des informations", [{ name: "note", label: "Informations à demander au candidat", type: "textarea", required: true, max: 500 }], { submit: "Envoyer" }); if (v) decide(a, { action: "NEED_INFO", note: v.note }, "Informations demandées."); } }, "Demander des infos"),
+          h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif du refus", type: "textarea", required: true, max: 500 }], { submit: "Refuser" }); if (v) decide(a, { action: "REJECT", note: v.note }, "Demande refusée."); } }, "Refuser")))) : [empty("Aucune demande annonceur en attente.", "check")]));
+    } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
+  }
+  fill();
+  return panel("Demandes annonceurs en attente", "Approuver, demander des informations ou refuser. Les pièces se consultent sans être téléchargées.", box);
+};
+
 export const agenciesView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Agences & annonceurs", desc: "Profils d'agence et annonceurs vérifiés.", load: () => api("/staff/owner/agencies"),
-  build: (rows) => [minis(mini("Agences / annonceurs", nf(rows.length)), mini("Vérifiés", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
+  build: (rows, reload) => [applicationsPanel(reload), minis(mini("Agences / annonceurs", nf(rows.length)), mini("Vérifiés", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
     panel("Agences", null, table([{ label: "Agence", render: (r) => h("div", { class: "item" }, h("b", null, r.agency ?? r.name), h("small", null, r.name)) }, { label: "Vérifiée", render: (r) => (r.verifiedAt ? pill("ok", dateOnly(r.verifiedAt)) : pill("neutral", "Non")) }, { label: "Statut", render: (r) => statusPill(r.status) },
       { label: "Publiées", key: "published", num: true }, { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId), h("a", { class: "btn sm", href: `/#/annonceur/${encodeURIComponent(r.userId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Profil")) }], rows))],
 });
