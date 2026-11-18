@@ -543,72 +543,59 @@ const HOME_FIELDS = [
   ["accentColor", "Couleur d’accent (titre, badge)", "#C9EF75"],
   ["textColor", "Couleur du texte principal", "#ffffff"],
 ];
-export const homepageView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "Page d’accueil", desc: "Textes, couleurs, avantages et photo d’arrière-plan du site public.",
-  load: async () => api("/homepage-settings"),
-  actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
-  build(s, reload) {
-    const original = { ...s };
-    const draft = { ...s };
-    const inputs = {};
-    const imageInput = h("input", { class: "input", maxlength: "1200", placeholder: "/media/ma-photo.jpg", value: draft.image ?? "" });
-    inputs.image = imageInput;
-    imageInput.addEventListener("input", () => { draft.image = imageInput.value; });
-    const uploadStatus = h("span", { class: "small muted", role: "status" }, "JPEG, PNG ou WebP · 2 Mo maximum.");
-    const fileInput = h("input", { class: "input", type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Choisir une photo depuis le téléphone" });
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files?.[0]; if (!file) return;
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) { uploadStatus.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; fileInput.value = ""; return; }
-      try {
-        uploadStatus.textContent = "Envoi de la photo…";
-        const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Lecture de la photo impossible.")); reader.readAsDataURL(file); });
-        const result = await api("/staff/homepage-image", { method: "POST", body: { dataUrl } });
-        draft.image = result.image; imageInput.value = result.image; uploadStatus.textContent = "Photo importée. Pensez à enregistrer.";
-      } catch (error) { uploadStatus.textContent = error.message || "Envoi impossible."; }
-      fileInput.value = "";
-    });
-    const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
-      const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
-      inputs[key] = i;
-      i.addEventListener("input", () => { draft[key] = i.value; });
-      return h("label", { class: "field" }, h("span", null, label), i);
-    });
-    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
-    const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
-    return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
-        h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
-        h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
-      panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
-      h("div", { class: "row" }, save, reset)];
-  },
-});
+export function homepageSection(s, reload) {
+  const original = { ...s };
+  const draft = { ...s };
+  const inputs = {};
+  const imageInput = h("input", { class: "input", maxlength: "1200", placeholder: "/media/ma-photo.jpg", value: draft.image ?? "" });
+  inputs.image = imageInput;
+  imageInput.addEventListener("input", () => { draft.image = imageInput.value; });
+  const uploadStatus = h("span", { class: "small muted", role: "status" }, "JPEG, PNG ou WebP · 2 Mo maximum.");
+  const fileInput = h("input", { class: "input", type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Choisir une photo depuis le téléphone" });
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files?.[0]; if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) { uploadStatus.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; fileInput.value = ""; return; }
+    try {
+      uploadStatus.textContent = "Envoi de la photo…";
+      const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Lecture de la photo impossible.")); reader.readAsDataURL(file); });
+      const result = await api("/staff/homepage-image", { method: "POST", body: { dataUrl } });
+      draft.image = result.image; imageInput.value = result.image; uploadStatus.textContent = "Photo importée. Pensez à enregistrer.";
+    } catch (error) { uploadStatus.textContent = error.message || "Envoi impossible."; }
+    fileInput.value = "";
+  });
+  const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
+    const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
+    inputs[key] = i;
+    i.addEventListener("input", () => { draft[key] = i.value; });
+    return h("label", { class: "field" }, h("span", null, label), i);
+  });
+  const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
+  const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
+  return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
+      h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
+      h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
+    panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
+    h("div", { class: "row" }, save, reset)];
+}
 
-export const settingsView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "Paramètres plateforme", desc: "Identité, contact, devise et journal de connexions.",
-  load: async () => { const [s, sec] = await Promise.all([api("/staff/owner/settings"), api("/staff/owner/security-log")]); return { s, sec }; },
-  build({ s, sec }, reload) {
-    const f = { platformName: s.platformName, contactEmail: s.contactEmail, contactPhone: s.contactPhone, currency: s.currency };
-    const inp = (k, l) => { const i = h("input", { class: "input", value: f[k] ?? "" }); i.addEventListener("input", () => { f[k] = i.value; }); return h("label", { class: "field" }, l, i); };
-    return [panel("Identité & contact", null, h("div", { class: "form two" }, inp("platformName", "Nom de la plateforme"), inp("contactEmail", "E-mail de contact"), inp("contactPhone", "Téléphone de contact"), inp("currency", "Devise"),
-      h("div", { class: "wide" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/settings", { method: "PUT", body: f }), "Paramètres enregistrés.", reload) }, "Enregistrer")))),
-      panel("Journal de connexions", "Connexions, déconnexions, inscriptions et échecs de connexion : sans adresse IP, sans e-mail saisi, sans agent utilisateur brut (famille d'appareil seulement).",
-        h("div", { class: "stack" }, h("div", { class: "row" }, sec.enabled ? pill("ok", "Activé") : pill("neutral", "Désactivé"), sec.available ? h("span", { class: "muted small" }, `${nf(sec.total)} ligne(s) · ${nf(sec.last24h)} sur 24 h${sec.since ? ` · depuis ${dateOnly(sec.since)}` : ""}`) : pill("gold", "Migration 042 à appliquer")),
-          h("p", { class: "note warn" }, "À faire valider avec le juriste / l'APDP avant mise en production, comme la collecte analytique. Conservation proposée : 12 mois (purge à brancher)."),
-          h("div", null, h("button", { class: "btn", type: "button", onClick: () => act(() => api("/staff/owner/security-log", { method: "PUT", body: { enabled: !sec.enabled } }), sec.enabled ? "Journal désactivé." : "Journal activé.", reload) }, sec.enabled ? "Désactiver" : "Activer"))))];
-  },
-});
+export function settingsSection({ s, sec }, reload) {
+  const f = { platformName: s.platformName, contactEmail: s.contactEmail, contactPhone: s.contactPhone, currency: s.currency };
+  const inp = (k, l) => { const i = h("input", { class: "input", value: f[k] ?? "" }); i.addEventListener("input", () => { f[k] = i.value; }); return h("label", { class: "field" }, l, i); };
+  return [panel("Identité & contact", null, h("div", { class: "form two" }, inp("platformName", "Nom de la plateforme"), inp("contactEmail", "E-mail de contact"), inp("contactPhone", "Téléphone de contact"), inp("currency", "Devise"),
+    h("div", { class: "wide" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/settings", { method: "PUT", body: f }), "Paramètres enregistrés.", reload) }, "Enregistrer")))),
+    panel("Journal de connexions", "Connexions, déconnexions, inscriptions et échecs de connexion : sans adresse IP, sans e-mail saisi, sans agent utilisateur brut (famille d'appareil seulement).",
+      h("div", { class: "stack" }, h("div", { class: "row" }, sec.enabled ? pill("ok", "Activé") : pill("neutral", "Désactivé"), sec.available ? h("span", { class: "muted small" }, `${nf(sec.total)} ligne(s) · ${nf(sec.last24h)} sur 24 h${sec.since ? ` · depuis ${dateOnly(sec.since)}` : ""}`) : pill("gold", "Migration 042 à appliquer")),
+        h("p", { class: "note warn" }, "À faire valider avec le juriste / l'APDP avant mise en production, comme la collecte analytique. Conservation proposée : 12 mois (purge à brancher)."),
+        h("div", null, h("button", { class: "btn", type: "button", onClick: () => act(() => api("/staff/owner/security-log", { method: "PUT", body: { enabled: !sec.enabled } }), sec.enabled ? "Journal désactivé." : "Journal activé.", reload) }, sec.enabled ? "Désactiver" : "Activer"))))];
+}
 
-export const seoView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "SEO, logo & pages légales", desc: "Appliqués au site public (cache 30 s). Les pages légales doivent être validées par un juriste.",
-  load: async () => { const [seo, logo, legal] = await Promise.all([api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal")]); return { seo, logo, legal }; },
-  build({ seo, logo, legal }, reload) {
-    const S = { ...seo }; const L = { ...legal }; const G = { logoUrl: logo.logoUrl };
-    const fld = (o, k, l, area, max) => { const i = h(area ? "textarea" : "input", { class: "input", maxlength: max ?? 300 }); i.value = o[k] ?? ""; i.addEventListener("input", () => { o[k] = i.value; }); return h("label", { class: "field wide" }, l, i); };
-    return [panel("Référencement", null, h("div", { class: "form" }, fld(S, "title", "Titre (120 max)", false, 120), fld(S, "description", "Description (300 max)", true, 300), fld(S, "keywords", "Mots-clés", false, 200), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/seo", { method: "PUT", body: S }), "SEO enregistré.", reload) }, "Enregistrer")))),
-      panel("Logo", "Chemin du site (/media/…) ou adresse https", h("div", { class: "form" }, fld(G, "logoUrl", "Adresse du logo", false, 500), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/logo", { method: "PUT", body: G }), "Logo enregistré.", reload) }, "Enregistrer")))),
-      panel("Pages légales", "CGU, confidentialité, mentions légales", h("div", { class: "form" }, fld(L, "cgu", "Conditions générales", true, 10000), fld(L, "privacy", "Politique de confidentialité", true, 10000), fld(L, "mentions", "Mentions légales", true, 5000), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/legal", { method: "PUT", body: L }), "Pages légales publiées.", reload) }, "Enregistrer et publier"))))];
-  },
-});
+export function seoSection({ seo, logo, legal }, reload) {
+  const S = { ...seo }; const L = { ...legal }; const G = { logoUrl: logo.logoUrl };
+  const fld = (o, k, l, area, max) => { const i = h(area ? "textarea" : "input", { class: "input", maxlength: max ?? 300 }); i.value = o[k] ?? ""; i.addEventListener("input", () => { o[k] = i.value; }); return h("label", { class: "field wide" }, l, i); };
+  return [panel("Référencement", null, h("div", { class: "form" }, fld(S, "title", "Titre (120 max)", false, 120), fld(S, "description", "Description (300 max)", true, 300), fld(S, "keywords", "Mots-clés", false, 200), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/seo", { method: "PUT", body: S }), "SEO enregistré.", reload) }, "Enregistrer")))),
+    panel("Logo", "Chemin du site (/media/…) ou adresse https", h("div", { class: "form" }, fld(G, "logoUrl", "Adresse du logo", false, 500), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/logo", { method: "PUT", body: G }), "Logo enregistré.", reload) }, "Enregistrer")))),
+    panel("Pages légales", "CGU, confidentialité, mentions légales", h("div", { class: "form" }, fld(L, "cgu", "Conditions générales", true, 10000), fld(L, "privacy", "Politique de confidentialité", true, 10000), fld(L, "mentions", "Mentions légales", true, 5000), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/legal", { method: "PUT", body: L }), "Pages légales publiées.", reload) }, "Enregistrer et publier"))))];
+}
 
 export const i18nView = (ctx) => page(ctx, {
   eyebrow: "SYSTÈME", title: "Langues, catégories & redirections", desc: "Les langues et catégories ne sont pas encore lues par le site public ; les redirections (internes) sont appliquées en 301.",
@@ -691,3 +678,36 @@ function countryFormFields(c = null, editing = false) {
     { name: "timezone", label: "Fuseau horaire (ex. Africa/Dakar)", required: true, value: c?.timezone, max: 40 },
   ];
 }
+
+// ---------- Personnalisation du site : une seule interface (identité, accueil, référencement, logo, pages légales, sécurité) ----------
+const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["homepage", "Page d’accueil"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
+export const customizeView = (ctx, initial = "identity") => page(ctx, {
+  eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
+  load: async () => {
+    const [settings, sec, home, seo, logo, legal] = await Promise.all([
+      api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
+      api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal")]);
+    return { settings, sec, home, seo, logo, legal };
+  },
+  actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
+  build({ settings, sec, home, seo, logo, legal }, reload) {
+    const parts = {
+      identity: settingsSection({ s: settings, sec }, reload)[0],
+      security: settingsSection({ s: settings, sec }, reload)[1],
+      homepage: homepageSection(home, reload),
+      seo: seoSection({ seo, logo, legal }, reload).slice(0, 1),
+      logo: seoSection({ seo, logo, legal }, reload).slice(1, 2),
+      legal: seoSection({ seo, logo, legal }, reload).slice(2),
+    };
+    const panes = CUSTOMIZE_TABS.map(([id]) => h("section", { class: "ps-pane", "data-pane": id, role: "tabpanel" }, ...[].concat(parts[id])));
+    const select = (id, btn) => {
+      panes.forEach((pane) => { pane.hidden = pane.dataset.pane !== id; });
+      btns.forEach((b) => { const on = b === btn; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    };
+    const btns = CUSTOMIZE_TABS.map(([id, label]) => h("button", { class: "ps-tab", type: "button", role: "tab", "aria-selected": "false", onClick: (e) => select(id, e.currentTarget) }, label));
+    const start = CUSTOMIZE_TABS.some(([id]) => id === initial) ? initial : "identity";
+    panes.forEach((pane) => { pane.hidden = pane.dataset.pane !== start; });
+    btns.forEach((b, i) => { const on = CUSTOMIZE_TABS[i][0] === start; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    return [h("nav", { class: "ps-tabs", role: "tablist", "aria-label": "Sections de personnalisation" }, ...btns), ...panes];
+  },
+});

@@ -1335,3 +1335,8 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **Vérifié :** tests 315/315 (dont bornes du réglage) ; API : acceptation hors limite refusée (400) ; `make_interval` contrôlé en base.
 - **Non vérifié :** acceptation d'une demande réelle de bout en bout (aucune demande de test créée), affichage navigateur de la liste avec la durée.
 - **À faire :** décider si les formules payantes de mise à la une doivent aussi proposer 30, 60 ou 90 jours (actuellement 7 et 30 jours, à créer dans « Abonnements & formules »).
+
+### Personnalisation du site regroupée (18/11/2026, demande du propriétaire)
+- **Réalisé :** les trois écrans « Paramètres plateforme », « Page d’accueil » et « SEO, logo & pages légales » sont remplacés par un seul écran « Personnalisation du site » (onglets : Identité & contact, Page d’accueil, Référencement, Logo, Pages légales, Sécurité). Les anciennes adresses (#/settings, #/homepage, #/seo) ouvrent l’onglet correspondant. Les formulaires et leurs enregistrements sont inchangés (mêmes routes).
+- **Vérifié :** tests 315/315 ; navigateur (superadmin) : les six onglets s’affichent, une seule section visible à la fois, anciennes adresses OK, aucune erreur console.
+- **Non vérifié :** enregistrement effectif de chaque section depuis l’écran (routes inchangées, non rejouées une à une) ; production.
