@@ -250,17 +250,47 @@ async function openComplaint(ctx, id, reload) {
   } catch (e) { fail(e); }
 }
 
-export const paymentsView = (ctx) => page(ctx, {
-  eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements et paiements récents. Rapprochement et remboursements : centre de contrôle classique (onglet Paiements).",
-  load: async () => { const [o, s] = await Promise.all([api("/staff/owner/overview"), api("/staff/owner/subscriptions")]); return { o, s }; }, actions: () => adminLink("Rapprochement & remboursements"),
-  build({ o, s }) {
+// Paiements (repris de l'ancien centre) : tarifs des offres, rapprochement, remboursements notés.
+const offersPanel = (offers, reload) => panel("Offres (tarifs)", "Une offre inactive ou à prix 0 n'est jamais proposée au public. Les prix relèvent de la permission « offres.tarifs » (Superadmin par défaut).",
+  offers?.length ? h("div", { class: "stack" }, offers.map((o) => h("article", { class: "card panel row" },
+    h("div", { class: "grow" }, h("b", null, o.label), h("p", { class: "muted small" }, `${fcfa(o.priceXof)} · ${o.active ? "active" : "inactive"}`)),
+    h("div", { class: "row" },
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Fixer le prix", [{ name: "price", label: "Prix en FCFA (nombre entier)", type: "number", required: true, max: 12 }], { submit: "Enregistrer" }); if (v) act(() => api(`/staff/offers/${encodeURIComponent(o.code)}`, { method: "POST", body: { priceXof: Number(v.price), active: o.active } }), "Prix enregistré.", reload); } }, "Fixer le prix"),
+      h("button", { class: "btn primary sm", type: "button", onClick: () => act(() => api(`/staff/offers/${encodeURIComponent(o.code)}`, { method: "POST", body: { priceXof: o.priceXof, active: !o.active } }), o.active ? "Offre désactivée." : "Offre activée.", reload) }, o.active ? "Désactiver" : "Activer"))))) : empty("Aucune offre.", "wallet"));
+const reconcilePanels = (rec, reload) => {
+  if (!rec) return [panel("Rapprochement", null, empty("Rapprochement indisponible pour votre rôle.", "wallet"))];
+  const money = (x) => fcfa(x);
+  const refundForm = async (p) => {
+    const v = await formDialog("Noter un remboursement", [
+      { name: "reason", label: "Motif du remboursement (obligatoire)", type: "textarea", required: true, max: 300 },
+      { name: "refundRef", label: "Référence fournisseur (facultatif)", max: 120 }], { submit: "Confirmer le remboursement", intro: "Confirmez que l'argent a bien été rendu chez le fournisseur. Les jours donnés par ce paiement seront retirés de l'annonce." });
+    if (v) act(() => api(`/staff/payments/${encodeURIComponent(p.id)}/refund`, { method: "POST", body: { reason: v.reason, refundRef: v.refundRef ?? "" } }), "Remboursement noté.", reload);
+  };
+  return [
+    panel("À vérifier", `Payé au total : ${money(rec.paid.totalXof)} en ${rec.paid.count} paiement(s).${rec.repaired ? ` ${rec.repaired} paiement(s) réparé(s) à l'ouverture.` : ""}${rec.expired ? ` ${rec.expired} paiement(s) en attente depuis plus de 24 h marqué(s) expiré(s).` : ""}`,
+      table([{ label: "Statut", key: "status" }, { label: "Montant", render: (p) => money(p.amountXof), num: true }, { label: "Annonce", render: (p) => tracer(ctx0, "listing", p.listingId, "Retracer") }, { label: "Date", render: (p) => dateTime(p.createdAt) }, { label: "Référence", render: (p) => h("small", null, p.id) }], rec.toReview, { emptyText: "Rien à vérifier." })),
+    panel(`Remboursements à confirmer chez le fournisseur (${rec.refundsToConfirm.length})`, `Déjà remboursé : ${money(rec.refunded.totalXof)} en ${rec.refunded.count} paiement(s). Un remboursement n'est « confirmé » que lorsque le fournisseur le signale.`,
+      table([{ label: "Montant", render: (p) => money(p.amountXof), num: true }, { label: "Motif", render: (p) => h("small", null, p.refundReason ?? "—") }, { label: "Noté le", render: (p) => dateTime(p.refundedAt) }, { label: "Référence", render: (p) => h("small", null, p.id) }], rec.refundsToConfirm, { emptyText: "Rien à rapprocher." })),
+    panel("Noter un remboursement", "À faire une fois l'argent rendu chez le fournisseur.",
+      rec.refundable.length ? h("div", { class: "stack" }, rec.refundable.map((p) => h("article", { class: "card panel row" },
+        h("div", { class: "grow" }, h("b", null, `${money(p.amountXof)} · ${p.days} jours`), h("p", { class: "muted small" }, `annonce ${p.listingId} · ${dateTime(p.paidAt ?? p.createdAt)}`)),
+        h("button", { class: "btn sm", type: "button", onClick: () => refundForm(p) }, "Noter un remboursement")))) : empty("Aucun paiement confirmé à rembourser.", "wallet")),
+  ];
+};
+let ctx0 = null;
+export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
+  eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements, tarifs des offres, rapprochement et remboursements.",
+  load: async () => { const [o, s, rec, offers] = await Promise.all([api("/staff/owner/overview"), api("/staff/owner/subscriptions"), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => [])]); return { o, s, rec, offers }; },
+  build({ o, s, rec, offers }, reload) {
     const f = o.finance;
     return [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length))),
+      offersPanel(offers, reload),
       h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
         panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus)))),
+      ...reconcilePanels(rec, reload),
       panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))];
   },
-});
+}); };
 
 export const subscriptionsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Abonnements & formules", desc: "Formules de mise à la une : prix et activation. Aucun tarif n'est imposé.", load: () => api("/staff/owner/offers"),
