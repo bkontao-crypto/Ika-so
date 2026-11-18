@@ -1377,3 +1377,11 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **Vérifié :** `npm test` 315/315 sur l'état fusionné (exit 0) ; push `main` sans force.
 - **Retour arrière :** `backup/main-avant-fusion-2026-11-18` pointe sur `82214dc` (état de `main` avant fusion). Tag non poussé (refusé par le dépôt).
 - **À faire :** vérification réelle sur le site par le propriétaire ; mise à jour du tableau Excel (lignes ajoutées uniquement).
+
+## Android : connexion Google native (branche feat/android-google-natif, 2026-11-18)
+- **À réaliser :** connexion Google dans l'application sans ouvrir le navigateur.
+- **Réalisé :** route serveur `POST /api/auth/google/native` (vérifie l'ID token via tokeninfo, audience = GOOGLE_CLIENT_ID, pose la session) ; app Android 1.0.5 (versionCode 6) : sélecteur de compte Credential Manager, `NativeGoogleSignIn.kt`, bouton Google sans navigateur.
+- **Vérifié :** `npm test` 318/318 (exit 0) dont tests des revendications ID token ; compilation Android NON vérifiée (pas de SDK Android dans l'environnement).
+- **En cours :** APK à construire dans Android Studio par le propriétaire (GOOGLE_WEB_CLIENT_ID à fournir ; client Android OAuth avec le SHA-1 de la clé).
+- **À faire :** « Lier Google » depuis le profil passe encore par le navigateur (non traité).
+- **Risques :** Google refuse les WebViews : toute connexion hors sélecteur natif reste bloquée.

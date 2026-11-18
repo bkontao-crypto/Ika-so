@@ -122,3 +122,26 @@ export function appFailPage(code) {
 <p><a class="btn btn-primary btn-block" href="intent://login#Intent;scheme=ikaso;end">Retourner dans l'application</a></p>
 </main></body></html>`;
 }
+
+// Connexion native (application Android) : l'identifiant Google (ID token) est vérifié côté serveur.
+export const GOOGLE_ISSUERS = ["accounts.google.com", "https://accounts.google.com"];
+export const TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
+
+/** Revendications d'un ID token Google : destinataire, émetteur, échéance, e-mail confirmé. Sinon erreur. */
+export function profileFromIdTokenClaims(claims, clientId, nowS = Math.floor(Date.now() / 1000)) {
+  if (!claims || typeof claims !== "object") throw new Error("Jeton Google illisible.");
+  if (!clientId || claims.aud !== clientId) throw new Error("Jeton Google destiné à une autre application.");
+  if (!GOOGLE_ISSUERS.includes(claims.iss)) throw new Error("Émetteur Google inconnu.");
+  if (!(Number(claims.exp) > nowS)) throw new Error("Jeton Google expiré.");
+  if (!claims.sub) throw new Error("Profil Google illisible.");
+  if (String(claims.email_verified) !== "true" || !claims.email) throw new Error("E-mail Google non confirmé.");
+  return { sub: String(claims.sub), email: String(claims.email).trim().toLowerCase(), name: String(claims.name ?? "").trim() };
+}
+
+/** Vérifie un ID token auprès de Google (tokeninfo), puis ses revendications. */
+export async function verifyIdToken(idToken, clientId, fetchImpl = fetch) {
+  const res = await fetchImpl(`${TOKENINFO_URL}?id_token=${encodeURIComponent(idToken)}`, { signal: AbortSignal.timeout(8000) });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error("Jeton Google refusé.");
+  return profileFromIdTokenClaims(data, clientId);
+}

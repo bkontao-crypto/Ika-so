@@ -32,6 +32,8 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.snackbar.Snackbar
@@ -111,9 +113,18 @@ class MainActivity : AppCompatActivity() {
             }
             override fun shouldOverrideUrlLoading(v: WebView, req: WebResourceRequest): Boolean {
                 val u = req.url
-                // Connexion Google : Google refuse les WebViews. Elle se fait dans le navigateur du téléphone, puis revient ici par ticket.
+                // Connexion Google dans l'application (sélecteur de compte natif, sans navigateur).
+                // terms=1 : le site a déjà fait accepter les conditions ; sinon c'est lui qui les affiche.
                 if (u.scheme == "https" && u.host == host && u.path == "/api/auth/google") {
-                    openInBrowser(u.buildUpon().appendQueryParameter("app", "1").build()); return true
+                    if (u.getQueryParameter("terms") != "1") return false
+                    this@MainActivity.lifecycleScope.launch {
+                        val error = NativeGoogleSignIn.signIn(this@MainActivity, terms = true)
+                        when {
+                            error == null -> ui.web.loadUrl(BuildConfig.BASE_URL)
+                            error != NativeGoogleSignIn.CANCELLED -> toast(error)
+                        }
+                    }
+                    return true
                 }
                 if (u.scheme == "https" && u.host == host) return false
                 openExternal(u); return true          // WhatsApp, appel, e-mail, page de paiement, autres sites

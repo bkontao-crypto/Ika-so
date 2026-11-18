@@ -6,7 +6,7 @@ import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
-import { appFailPage, appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie } from "../lib/google-oauth.js";
+import { appFailPage, appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie, verifyIdToken } from "../lib/google-oauth.js";
 
 const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
@@ -172,6 +172,33 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
         ? (error?.status === 409 ? "deja-lie" : error?.status === 400 ? "email-different" : "echec")
         : (error?.status === 409 ? "compte-existant" : error?.status === 400 ? "conditions" : error?.status === 403 ? "bloque" : "echec");
       fail(code);
+    }
+  });
+
+  // Application Android (connexion native) : le jeton Google obtenu par le sélecteur de compte est vérifié ici,
+  // puis la session est posée dans la WebView par le cookie de la réponse. Pas de navigateur.
+  router.post("/auth/google/native", async (req, res) => {
+    limiter.hit(`oauth:${req.ip}`, 20, 10 * 60_000);
+    res.setHeader("Cache-Control", "no-store");
+    if (!config.google?.enabled) return res.status(503).json({ error: "La connexion avec Google n'est pas disponible pour le moment.", code: "indisponible" });
+    const idToken = String(req.body?.idToken ?? "").slice(0, 4096);
+    if (!idToken) return res.status(400).json({ error: "La connexion Google a échoué. Réessayez.", code: "echec" });
+    if (req.body?.terms !== true) return res.status(400).json({ error: "Acceptez les conditions pour continuer.", code: "conditions" });
+    try {
+      const profile = await verifyIdToken(idToken, config.google.clientId);
+      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: true });
+      track(req, "user_login", { userId: user.id });
+      ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
+      setSession(res, token);
+      res.json({ ok: true });
+    } catch (error) {
+      logger.warn("connexion_google_native_echec", { status: error?.status ?? 0 });
+      const code = error?.status === 409 ? "compte-existant" : error?.status === 400 ? "conditions" : error?.status === 403 ? "bloque" : "echec";
+      const known = Number(error?.status) >= 400 && Number(error?.status) < 500;
+      res.status(known ? error.status : 401).json({
+        error: known ? error.message : "La connexion Google a échoué. Réessayez, ou utilisez votre mot de passe.",
+        code,
+      });
     }
   });
 
