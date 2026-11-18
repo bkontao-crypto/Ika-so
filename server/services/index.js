@@ -20,6 +20,8 @@ import { createCrm } from "./crm.js";
 import { createWhatsApp } from "./whatsapp.js";
 import { createSuperadminSettings } from "./superadmin-settings.js";
 import { createPayments } from "./payments.js";
+import { createPremiumRequests } from "./premium-requests.js";
+import { POLICY_KEY } from "../lib/payment-policy.js";
 import { createNotifier } from "../lib/notifier.js";
 import { createReviews } from "./reviews.js";
 import { createRights } from "./rights.js";
@@ -54,7 +56,8 @@ const superadminSettings = createSuperadminSettings(ctx);
   const reviews = createReviews(ctx, accounts, advertiserProfiles, (userId, note) => engagement.notify(userId, note));
   const geo = createGeo(ctx, accounts);
   const analytics = createAnalytics({ db, config, logger });
-  const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields));
+  const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY));
+  const premiumRequests = createPremiumRequests({ db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments });
   // Sauvegarde réelle (pg_dump) : injectable dans les tests ; absente sans DATABASE_URL (le journal indique alors « non configurée »).
   const backup = givenBackup !== undefined ? givenBackup : (config?.databaseUrl ? createBackupRunner({ databaseUrl: config.databaseUrl, dir: config.backup?.dir, keep: config.backup?.keep }) : null);
   const stats = createStats({ db, accounts, analytics, backup, sendEmail, onSettingsChanged: () => seo.invalidateSite() });
@@ -66,8 +69,8 @@ const superadminSettings = createSuperadminSettings(ctx);
   const permissionGrants = createPermissionGrants({ db, accounts });
   const advertiserCenter = createAdvertiserCenter({ db, accounts });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
-  const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note) });
-  return { featuredRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
+  return { featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

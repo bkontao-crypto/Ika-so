@@ -9,18 +9,18 @@ const NAV = [
   ["Pilotage de la plateforme", [
     ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["listings", "list", "Annonces & modération", { count: "pendingListings" }],
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }],
-    ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"]]],
+    ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["payment-settings", "gear", "Réglages paiement"], ["subscriptions", "clock", "Abonnements & formules"]]],
   ["Croissance & relation client", [
     ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"], ["regions", "pin", "Régions & tendances"]]],
   ["Système & configuration", [
     ["ai", "sparkles", "Assistance IA"], ["reports", "file", "Rapports & exports"], ["monitoring", "flag", "Surveillance & incidents", { count: "openIncidents" }], ["backups", "database", "Sauvegardes & restaurations"],
-    ["settings", "gear", "Paramètres plateforme"], ["places", "pin", "Quartiers & pays"], ["homepage", "home", "Page d’accueil"], ["seo", "globe", "SEO, logo & pages légales"], ["i18n", "swap", "Langues, catégories & redirections"], ["audit", "scroll", "Journal d'audit"], ["permissions", "shield", "Permissions du personnel"]]],
+    ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["audit", "scroll", "Journal d'audit"], ["permissions", "shield", "Permissions du personnel"]]],
 ];
 const FLAT = NAV.flatMap(([, items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { overview: overviewView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), listings: M.listingsView, users: M.usersView, permissions: M.permissionsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { overview: overviewView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, listings: M.listingsView, users: M.usersView, permissions: M.permissionsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
-  backups: M.backupsView, settings: M.settingsView, homepage: M.homepageView, seo: M.seoView, i18n: M.i18nView, places: M.placesView };
+  backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView };
 
 const root = document.getElementById("root");
 const leaveHooks = [];

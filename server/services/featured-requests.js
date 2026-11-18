@@ -2,10 +2,11 @@
 // Le staff habilité (modérateurs : lecture ; administrateurs et superadmin : décision) est prévenu.
 import { randomUUID } from "node:crypto";
 import { badRequest, conflict, notFound } from "../lib/errors.js";
+import { DEFAULT_POLICY, normalizePolicy } from "../lib/payment-policy.js";
 
 const STAFF_ROLES = "('MODERATOR', 'ADMIN', 'SUPERADMIN')";
 
-export function createFeaturedRequests({ db, accounts, moderation, notify }) {
+export function createFeaturedRequests({ db, accounts, moderation, notify, getPolicy = null }) {
   async function staffToNotify(exceptUserId) {
     return db.query(`select user_id from ika_profiles where staff_role in ${STAFF_ROLES} and account_status <> 'BANNED' and user_id <> $1`, [exceptUserId ?? ""]);
   }
@@ -67,11 +68,15 @@ export function createFeaturedRequests({ db, accounts, moderation, notify }) {
     },
 
     /** Décision du staff. ACCEPT met l'annonce à la une (contrôle de permission dans moderation.setFeatured). */
-    async decide(staffId, id, { action, note } = {}) {
+    async decide(staffId, id, { action, note, months: monthsInput } = {}) {
       await accounts.requirePermission(staffId, "moderation.review");
       if (!["ACCEPT", "REJECT"].includes(action)) throw badRequest("Action inconnue.");
       const text = String(note ?? "").trim().slice(0, 500);
       if (action === "REJECT" && text.length < 3) throw badRequest("Indiquez le motif du refus.");
+      // Mise à la une accordée à la main : 1 à N mois, N fixé par le superadmin (défaut : 1 mois).
+      const policy = normalizePolicy((getPolicy && (await getPolicy())) ?? DEFAULT_POLICY);
+      const months = Math.floor(Number(monthsInput));
+      if (action === "ACCEPT" && (!Number.isFinite(months) || months < 1 || months > policy.manualFeaturedMaxMonths)) throw badRequest(`Durée de mise à la une : 1 à ${policy.manualFeaturedMaxMonths} mois.`);
       const rows = await db.query("select * from ika_featured_requests where id = $1", [String(id)]);
       if (!rows[0]) throw notFound("Demande introuvable.");
       const req = rows[0];
@@ -85,7 +90,7 @@ export function createFeaturedRequests({ db, accounts, moderation, notify }) {
       if (!claimed[0]) throw conflict("Cette demande est déjà traitée.");
       if (action === "ACCEPT") {
         try {
-          await moderation.setFeatured(staffId, req.listing_id, true);
+          await moderation.setFeatured(staffId, req.listing_id, true, { days: months * 30 });
         } catch (error) {
           // Échec de la mise à la une : la demande redevient en attente.
           await db.query("update ika_featured_requests set status = 'PENDING', handled_by = null, handled_at = null, handled_note = '' where id = $1", [req.id]);

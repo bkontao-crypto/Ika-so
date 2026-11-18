@@ -1,40 +1,52 @@
-// Bootstrap des réglages Superadmin (E09)
-// À importer dans le point d'entrée principal (app.js ou index.html).
+// Applique au site public les réglages Superadmin « main » : couleurs et modules.
+// Réglés dans Owner Center > Personnalisation du site (onglet « Apparence & modules »).
+// Chargé par public/js/app.js.
 
 import { api } from "/js/dom.js";
-import { applySettings } from "/js/pages/admin-settings.js";
+
+export function applySettings(s) {
+  if (!s) return;
+  const root = document.documentElement;
+  if (s.colors?.primary) root.style.setProperty("--leaf", s.colors.primary);
+  if (s.colors?.accent) root.style.setProperty("--gold", s.colors.accent);
+}
+
+// Masque les éléments portant data-module="crm|map|premium|whatsapp" désactivés.
+export function applyModuleFlags(modules) {
+  document.querySelectorAll("[data-module]").forEach((el) => {
+    const hidden = modules[el.getAttribute("data-module")] === false;
+    el.hidden = hidden;
+    el.style.display = hidden ? "none" : "";
+  });
+}
+
+let currentModules = null;
 
 export async function bootstrapSettings() {
   try {
     const settings = await api("/superadmin-settings/public");
-    if (settings) {
-      applySettings(settings);
-      applyModuleFlags(settings.modules || {});
+    applySettings(settings);
+    if (settings?.modules) {
+      currentModules = settings.modules;
+      applyModuleFlags(currentModules);
     }
   } catch {
     // silencieux : les réglages sont optionnels
   }
 }
 
-export function applyModuleFlags(modules) {
-  // Masque les éléments portant data-module="crm|map|premium|whatsapp"
-  document.querySelectorAll("[data-module]").forEach(el => {
-    const mod = el.getAttribute("data-module");
-    if (modules[mod] === false) {
-      el.hidden = true;
-      el.style.display = "none";
-    } else {
-      el.hidden = false;
-      el.style.display = "";
-    }
-  });
+// Le routeur rend les pages à la demande : réappliquer les modules à chaque ajout d'éléments.
+function watchModules() {
+  if (typeof MutationObserver === "undefined") return;
+  new MutationObserver(() => { if (currentModules) applyModuleFlags(currentModules); })
+    .observe(document.body, { childList: true, subtree: true });
 }
 
-// Auto-exécution si chargé en module classique
 if (typeof window !== "undefined") {
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", bootstrapSettings);
+    document.addEventListener("DOMContentLoaded", () => { bootstrapSettings(); watchModules(); });
   } else {
     bootstrapSettings();
+    watchModules();
   }
 }

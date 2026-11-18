@@ -151,7 +151,8 @@ export function createModeration(ctx, accounts, engagement) {
       return { ok: true, listingId: rows[0].listing_id };
     },
 
-    async setFeatured(userId, id, on) {
+    async setFeatured(userId, id, on, { days = 7 } = {}) {
+      const featuredDays = Math.max(1, Math.min(365, Math.floor(Number(days)) || 7));
       await accounts.requirePermission(userId, "contenu.gerer");
       const rows = await db.query("select status, visibility from ika_listings where id = $1", [id]);
       if (!rows[0]) throw notFound("Annonce introuvable.");
@@ -174,7 +175,7 @@ export function createModeration(ctx, accounts, engagement) {
             [id],
           );
           asBadRequest(() => assertFeaturedCap(Number(others[0]?.n ?? 0), max));
-          await tx.query("update ika_listings set featured_until = now() + interval '7 days', updated_at = now() where id = $1", [id]);
+          await tx.query("update ika_listings set featured_until = now() + make_interval(days => $2::int), updated_at = now() where id = $1", [id, featuredDays]);
           await accounts.audit(userId, "FEATURE", id, "", tx);
         });
       } else {

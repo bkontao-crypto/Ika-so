@@ -1,4 +1,5 @@
 import { premiumOrigin } from "../lib/analytics-events.js";
+import { normalizePolicy } from "../lib/payment-policy.js";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { assertFeaturedCap } from "../lib/rules.js";
@@ -10,9 +11,12 @@ const MAX_PRICE_XOF = 5_000_000;
  * Règle d'or : une annonce n'est mise à la une (et le Premium n'est activé) que lorsque le fournisseur confirme le paiement
  * (webhook signé) avec le bon montant. Jamais sur la simple parole du navigateur.
  */
-export function createPayments(ctx, accounts, provider, onPaid = null) {
+export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy = null) {
   const { db } = ctx;
   const enabled = () => Boolean(provider);
+  // Réglage superadmin : paiement en ligne ouvert ou non (sans lecteur, comportement d'origine : ouvert si fournisseur configuré).
+  const readPolicy = async () => normalizePolicy(getPolicy ? await getPolicy() : { onlineEnabled: true });
+  const onlineOpen = async () => enabled() && (await readPolicy()).onlineEnabled;
 
   async function featuredCap() {
     const rows = await db.query("select value from ika_settings where key = 'featured_max'");
@@ -146,12 +150,14 @@ export function createPayments(ctx, accounts, provider, onPaid = null) {
 
   return {
     enabled,
+    onlineOpen,
 
     /** Offres que le public peut acheter : actives et avec un vrai prix. */
     async offers() {
-      if (!enabled()) return { enabled: false, offers: [] };
+      const p = await readPolicy();
+      if (!(enabled() && p.onlineEnabled)) return { enabled: false, offers: [], manualMaxMonths: p.manualPremiumMaxMonths, manualFeaturedMaxMonths: p.manualFeaturedMaxMonths };
       const rows = await db.query("select code, label, days, price_xof, kind from ika_offers where active and price_xof > 0 order by kind, days");
-      return { enabled: true, offers: rows.map((r) => ({ code: r.code, label: r.label, days: r.days, priceXof: r.price_xof, kind: r.kind })) };
+      return { enabled: true, offers: rows.map((r) => ({ code: r.code, label: r.label, days: r.days, priceXof: r.price_xof, kind: r.kind })), manualMaxMonths: p.manualPremiumMaxMonths, manualFeaturedMaxMonths: p.manualFeaturedMaxMonths };
     },
 
     async adminOffers(userId) {
@@ -178,7 +184,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null) {
 
     /** Démarre un paiement. Une demande identique encore en attente est reprise, pas dupliquée. */
     async checkout(userId, { offerCode, listingId, from }) {
-      if (!enabled()) throw forbidden("Les paiements ne sont pas encore ouverts.");
+      if (!(await onlineOpen())) throw forbidden("Les paiements en ligne ne sont pas encore ouverts.");
       await accounts.requireActive(userId);
       const offer = (await db.query("select * from ika_offers where code = $1 and active and price_xof > 0", [String(offerCode ?? "").slice(0, 40)]))[0];
       if (!offer) throw notFound("Offre indisponible.");

@@ -28,7 +28,7 @@ const ROWS = [
 const FAQ = [
   ["Le Premium me place-t-il en tête de l'annuaire des annonceurs ?", "Non. En tête de l'annuaire, on trouve les annonceurs dont une annonce est « mise à la une ». C'est une option payante distincte, qui s'ajoute au Premium ou s'utilise seule."],
   ["Pourquoi faut-il être certifié ?", "Le centre de contrôle est réservé aux annonceurs dont l'identité professionnelle a été contrôlée : agence vérifiée (registre de commerce) ou annonce avec titre foncier contrôlé par l'équipe."],
-  ["Combien coûte le Premium et comment le payer ?", "Les formules et leurs prix s'affichent sur cette page. Le paiement se fait par mobile money sur la page sécurisée du fournisseur ; le Premium s'active automatiquement dès que le paiement est confirmé, et une facture est émise. Si les paiements ne sont pas encore ouverts, contactez un conseiller."],
+  ["Combien coûte le Premium et comment le payer ?", "Les formules et leurs prix s'affichent sur cette page. Le paiement se fait par mobile money sur la page sécurisée du fournisseur ; le Premium s'active automatiquement dès que le paiement est confirmé, et une facture est émise. Si le paiement en ligne n'est pas encore ouvert, vous pouvez demander le Premium à la main sur la page « Devenir Premium » : l'équipe l'approuve pour une durée de 1 à 3 mois."],
 ];
 const mark = (ok, label) => h("span", { class: `pm-mark ${ok ? "yes" : "no"}`, role: "img", "aria-label": `${label} : ${ok ? "inclus" : "non inclus"}` }, ok ? icon("check") : "—");
 
@@ -53,11 +53,9 @@ export async function premiumPage() {
       location.hash = "#/paiements";
     } catch (error) { fail(error); } finally { paying = false; btn.disabled = false; }
   }
-  const goBuy = (e) => { e.preventDefault(); document.getElementById("pm-buy")?.scrollIntoView({ behavior: "smooth" }); };
-  // Bouton principal : paiement en ligne si une formule est ouverte, sinon demande à un conseiller (comme avant).
-  const ctaHref = S.user ? (offers.length ? "#pm-buy" : "#/reclamations") : "#/connexion?next=%2Fpremium";
-  const ctaLabel = !S.user ? "Me connecter pour demander" : premium ? "Renouveler le Premium" : "Demander le Premium";
-  const ctaClick = S.user && offers.length ? goBuy : undefined;
+  // Tous les boutons « Devenir Premium » mènent à la page dédiée (conditions, formules, paiement).
+  const ctaHref = S.user ? "#/devenir-premium" : "#/connexion?next=%2Fdevenir-premium";
+  const ctaLabel = !S.user ? "Me connecter pour devenir Premium" : premium ? "Renouveler le Premium" : "Devenir Premium";
   const step = (n, ok, title, text, cta) => h("li", { class: `pm-step${ok ? " done" : ""}` }, h("span", { class: "pm-num" }, ok ? icon("check") : String(n)), h("div", null, h("strong", null, title), h("p", { class: "small muted" }, text), cta));
 
   mount(app,
@@ -67,7 +65,7 @@ export async function premiumPage() {
       h("p", { class: "pm-lead" }, "Un centre de contrôle complet réservé aux annonceurs certifiés : statistiques, carte, alertes, messages et échéances au même endroit."),
       h("div", { class: "row" },
         access?.eligible ? h("a", { class: "pc-btn", href: "#/centre" }, "Ouvrir mon centre de contrôle", h("span", { "aria-hidden": "true" }, "→"))
-          : h("a", { class: "pc-btn", href: ctaHref, onClick: ctaClick }, ctaLabel, h("span", { "aria-hidden": "true" }, "→")),
+          : h("a", { class: "pc-btn", href: ctaHref }, ctaLabel, h("span", { "aria-hidden": "true" }, "→")),
         h("a", { class: "pm-ghost", href: "#pm-compare", onClick: (e) => { e.preventDefault(); document.getElementById("pm-compare")?.scrollIntoView({ behavior: "smooth" }); } }, "Comparer les comptes")),
       access ? h("p", { class: "pm-status" }, premium ? `Premium actif${access.premiumUntil ? ` jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}` : ""}` : "Premium : non activé", " · ", certified ? "Profil certifié" : "Profil non certifié") : null),
 
@@ -92,7 +90,7 @@ export async function premiumPage() {
     h("section", { class: "card pad stack" }, h("h2", null, "Comment l'obtenir"),
       h("ol", { class: "pm-steps" },
         step(1, certified, "Faire certifier votre profil", "Agence : envoyez votre registre de commerce. Particulier : joignez le titre foncier d'une annonce.", certified ? null : h("a", { class: "btn btn-small", href: "#/profil" }, "Envoyer mes justificatifs")),
-        step(2, premium, "Demander le Premium", offers.length ? "Choisissez une formule et payez par mobile money : l'abonnement s'active dès que le paiement est confirmé." : "L'équipe vous communique le tarif et active l'abonnement sur votre compte.", premium ? null : h("a", { class: "btn btn-small btn-gold", href: ctaHref, onClick: ctaClick }, offers.length ? "Choisir une formule" : "Contacter un conseiller")),
+        step(2, premium, "Devenir Premium", "Vérifiez vos conditions sur la page dédiée ; le paiement en ligne s'ouvre dès que les formules sont activées.", premium ? null : h("a", { class: "btn btn-small btn-gold", href: ctaHref }, "Devenir Premium")),
         step(3, access?.eligible, "Ouvrir votre centre de contrôle", "Il apparaît dans votre profil dès que les deux conditions sont réunies.", access?.eligible ? h("a", { class: "btn btn-small btn-primary", href: "#/centre" }, "Ouvrir") : null))),
 
     h("section", { class: "stack" }, h("h2", null, "Questions fréquentes"), FAQ.map(([q, a]) => h("details", { class: "card pad pm-faq" }, h("summary", null, q), h("p", { class: "small" }, a)))),

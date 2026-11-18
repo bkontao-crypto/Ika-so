@@ -19,19 +19,21 @@ const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn 
 // Demandes gratuites de mise à la une (repris de l'ancien centre) : mettre à la une ou refuser avec motif.
 const featuredRequestsPanel = (reload) => {
   const box = h("div", { class: "stack" });
-  const decideFR = (id, action, note) => act(() => api(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: { action, note } }), action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.", reload);
-  const row = (r, open) => h("article", { class: "card panel row" },
+  const decideFR = (id, action, note, months) => act(() => api(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: { action, note, months } }), action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.", reload);
+  const row = (r, open, max = 1) => h("article", { class: "card panel row" },
     h("div", { class: "grow stack" }, h("b", null, r.title || "Annonce"), h("p", { class: "muted small" }, `${r.neighborhood || ""} · demandé par ${r.requesterName} · ${dateTime(r.createdAt)}`),
       h("p", { class: "small" }, r.message ? `« ${r.message} »` : "Aucun message."),
       r.status === "PENDING" ? null : h("p", { class: "small muted" }, `${r.status === "ACCEPTED" ? "Acceptée" : "Refusée"}${r.note ? ` — ${r.note}` : ""}`)),
     open ? h("div", { class: "row" },
       h("a", { class: "btn sm", href: `/#/annonce/${encodeURIComponent(r.listingId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Voir l'annonce"),
-      h("button", { class: "btn primary sm", type: "button", onClick: () => decideFR(r.id, "ACCEPT", "") }, ico("check"), "Mettre à la une"),
+      h("select", { "aria-label": "Durée de mise à la une" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`))),
+      h("button", { class: "btn primary sm", type: "button", onClick: (e) => decideFR(r.id, "ACCEPT", "", Number(e.currentTarget.parentElement.querySelector("select").value)) }, ico("check"), "Mettre à la une"),
       h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif du refus (obligatoire)", type: "textarea", required: true, max: 500 }], { submit: "Refuser" }); if (v) decideFR(r.id, "REJECT", v.note); } }, "Refuser")) : null);
   async function fill() {
     try {
-      const [pending, done] = await Promise.all([api("/staff/featured-requests"), api("/staff/featured-requests?status=DONE")]);
-      box.replaceChildren(...(pending.length ? pending.map((r) => row(r, true)) : [empty("Aucune demande de mise à la une en attente.", "check")]),
+      const [pending, done, offers] = await Promise.all([api("/staff/featured-requests"), api("/staff/featured-requests?status=DONE"), api("/offers").catch(() => ({}))]);
+      const max = offers?.manualFeaturedMaxMonths ?? 1;
+      box.replaceChildren(...(pending.length ? pending.map((r) => row(r, true, max)) : [empty("Aucune demande de mise à la une en attente.", "check")]),
         done.length ? h("h3", { class: "tiny muted" }, "Traitées récemment") : null, ...done.slice(0, 30).map((r) => row(r, false)));
     } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
   }
@@ -278,17 +280,74 @@ const reconcilePanels = (rec, reload) => {
 let ctx0 = null;
 export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
   eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements, tarifs des offres, rapprochement et remboursements.",
-  load: async () => { const [o, s, rec, offers] = await Promise.all([api("/staff/owner/overview").catch(() => null), api("/staff/owner/subscriptions").catch(() => null), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => [])]); return { o, s, rec, offers }; },
-  build({ o, s, rec, offers }, reload) {
+  load: async () => { const [o, s, rec, offers, pr] = await Promise.all([api("/staff/owner/overview").catch(() => null), api("/staff/owner/subscriptions").catch(() => null), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => []), api("/staff/premium-requests").catch(() => null)]); return { o, s, rec, offers, pr }; },
+  build({ o, s, rec, offers, pr }, reload) {
     // Les chiffres d'encaissement dépendent des modules « Vue générale » et « Abonnements » ; sans eux, seules les sections « Paiements » s'affichent.
     const f = o?.finance;
     const head = f && s ? [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length)))] : [];
     const stats = f && s ? [h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
         panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus))))] : [];
     const recent = s ? [panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))] : [];
-    return [...head, offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
+    return [...head, ...(pr ? [premiumRequestsPanel(pr, reload)] : []), offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
   },
 }); };
+
+// ---------- Demandes Premium à la main (paiement en ligne fermé) ----------
+const PREMIUM_STATUS = { PENDING: "En attente", APPROVED: "Approuvée", REJECTED: "Refusée" };
+function premiumDecisionControls(r, max, reload) {
+  const sel = h("select", { "aria-label": "Durée accordée" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`)));
+  sel.value = String(Math.min(r.months, max));
+  return h("div", { class: "row" }, sel,
+    h("button", { class: "btn sm primary", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "APPROVE", months: Number(sel.value) } }), "Premium approuvé.", reload) }, "Approuver"),
+    h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT" } }), "Demande refusée.", reload) }, "Refuser"));
+}
+export function premiumRequestsPanel(data, reload) {
+  const max = data.policy?.manualPremiumMaxMonths ?? 3;
+  return panel("Demandes Premium", `Paiement en ligne fermé : approbation à la main, 1 à ${max} mois`, table([
+    { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || "")) },
+    { label: "Demandé", render: (r) => `${r.months} mois`, num: true },
+    { label: "Statut", render: (r) => pill(r.status === "APPROVED" ? "ok" : "neutral", PREMIUM_STATUS[r.status] ?? r.status) },
+    { label: "", render: (r) => (r.status === "PENDING" ? premiumDecisionControls(r, max, reload) : h("small", { class: "muted" }, r.decidedAt ? dateTime(r.decidedAt) : "")) },
+  ], data.requests ?? [], { emptyText: "Aucune demande Premium." }));
+}
+
+// ---------- Réglages paiement (superadmin) ----------
+export const paymentSettingsView = (ctx) => page(ctx, {
+  eyebrow: "PILOTAGE", title: "Réglages paiement",
+  desc: "Décidez si les annonceurs peuvent payer en ligne, et jusqu'à quelle durée l'équipe peut accorder le Premium à la main.",
+  load: () => api("/staff/superadmin-settings/payments_policy").then((r) => r.value ?? null).catch(() => null),
+  build(saved, reload) {
+    const online = saved?.onlineEnabled === true;
+    const max = [1, 2, 3].includes(saved?.manualPremiumMaxMonths) ? saved.manualPremiumMaxMonths : 3;
+    const box = h("input", { type: "checkbox", id: "pp-online" });
+    box.checked = online;
+    const sel = h("select", { id: "pp-months" }, ...[1, 2, 3].map((m) => h("option", { value: String(m) }, `${m} mois`)));
+    sel.value = String(max);
+    const maxFeatured = [1, 2, 3].includes(saved?.manualFeaturedMaxMonths) ? saved.manualFeaturedMaxMonths : 1;
+    const selFeatured = h("select", { id: "pp-featured" }, ...[1, 2, 3].map((m) => h("option", { value: String(m) }, `${m} mois`)));
+    selFeatured.value = String(maxFeatured);
+    const hint = h("p", { class: "small muted" }, online
+      ? "Ouvert : les annonceurs payent par mobile money, pour les formules actives uniquement."
+      : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe.");
+    box.addEventListener("change", () => { hint.textContent = box.checked
+      ? "Ouvert : les annonceurs payent par mobile money, pour les formules actives uniquement."
+      : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe."; });
+    return [
+      panel("Paiement en ligne", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "pp-online" }, box, h("strong", null, "Paiement en ligne ouvert aux annonceurs")),
+        hint)),
+      panel("Approbation manuelle", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "pp-months" }, h("span", null, "Durée maximale accordée par l'équipe")), sel,
+        h("p", { class: "small muted" }, "Pendant cette durée, l'annonceur bénéficie de tous les avantages Premium (aucun paiement demandé)."),
+        )),
+      panel("Mise à la une à la main", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "pp-featured" }, h("span", null, "Durée maximale de mise à la une accordée par l'équipe")), selFeatured,
+        h("p", { class: "small muted" }, "L'équipe choisit la durée à l'acceptation d'une demande de mise à la une (1 à cette limite). Les formules payantes gardent leur durée propre."))),
+      h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/superadmin-settings/payments_policy", { method: "PUT", body: { value: { onlineEnabled: box.checked, manualPremiumMaxMonths: Number(sel.value), manualFeaturedMaxMonths: Number(selFeatured.value) } } }), "Réglages enregistrés.", reload) }, "Enregistrer")),
+      h("p", { class: "small muted" }, "Les formules se gèrent dans « Abonnements & formules ». Elles ne s'affichent au public que si le paiement en ligne est ouvert."),
+    ];
+  },
+});
 
 export const subscriptionsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Abonnements & formules", desc: "Formules de mise à la une : prix et activation. Aucun tarif n'est imposé.", load: () => api("/staff/owner/offers"),
@@ -481,75 +540,87 @@ const HOME_FIELDS = [
   ["trustLine2", "Ligne 2 du macaron", "Sérénité"],
   ["overlayColor", "Couleur de l’overlay (hex)", "#091f19"],
   ["overlayOpacity", "Opacité de l’overlay (0 à 1)", "0.75"],
-  ["accentColor", "Couleur d’accent (titre, badge)", "#C9EF75"],
+  ["accentColor", "Couleur du titre et du badge (accueil seulement)", "#C9EF75"],
   ["textColor", "Couleur du texte principal", "#ffffff"],
 ];
-export const homepageView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "Page d’accueil", desc: "Textes, couleurs, avantages et photo d’arrière-plan du site public.",
-  load: async () => api("/homepage-settings"),
-  actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
-  build(s, reload) {
-    const original = { ...s };
-    const draft = { ...s };
-    const inputs = {};
-    const imageInput = h("input", { class: "input", maxlength: "1200", placeholder: "/media/ma-photo.jpg", value: draft.image ?? "" });
-    inputs.image = imageInput;
-    imageInput.addEventListener("input", () => { draft.image = imageInput.value; });
-    const uploadStatus = h("span", { class: "small muted", role: "status" }, "JPEG, PNG ou WebP · 2 Mo maximum.");
-    const fileInput = h("input", { class: "input", type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Choisir une photo depuis le téléphone" });
-    fileInput.addEventListener("change", async () => {
-      const file = fileInput.files?.[0]; if (!file) return;
-      if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) { uploadStatus.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; fileInput.value = ""; return; }
-      try {
-        uploadStatus.textContent = "Envoi de la photo…";
-        const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Lecture de la photo impossible.")); reader.readAsDataURL(file); });
-        const result = await api("/staff/homepage-image", { method: "POST", body: { dataUrl } });
-        draft.image = result.image; imageInput.value = result.image; uploadStatus.textContent = "Photo importée. Pensez à enregistrer.";
-      } catch (error) { uploadStatus.textContent = error.message || "Envoi impossible."; }
-      fileInput.value = "";
-    });
-    const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
-      const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
-      inputs[key] = i;
-      i.addEventListener("input", () => { draft[key] = i.value; });
-      return h("label", { class: "field" }, h("span", null, label), i);
-    });
-    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
-    const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
-    return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
-        h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
-        h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
-      panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
-      h("div", { class: "row" }, save, reset)];
-  },
-});
+export function homepageSection(s, reload) {
+  const original = { ...s };
+  const draft = { ...s };
+  const inputs = {};
+  const imageInput = h("input", { class: "input", maxlength: "1200", placeholder: "/media/ma-photo.jpg", value: draft.image ?? "" });
+  inputs.image = imageInput;
+  imageInput.addEventListener("input", () => { draft.image = imageInput.value; });
+  const uploadStatus = h("span", { class: "small muted", role: "status" }, "JPEG, PNG ou WebP · 2 Mo maximum.");
+  const fileInput = h("input", { class: "input", type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Choisir une photo depuis le téléphone" });
+  fileInput.addEventListener("change", async () => {
+    const file = fileInput.files?.[0]; if (!file) return;
+    if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) { uploadStatus.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; fileInput.value = ""; return; }
+    try {
+      uploadStatus.textContent = "Envoi de la photo…";
+      const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Lecture de la photo impossible.")); reader.readAsDataURL(file); });
+      const result = await api("/staff/homepage-image", { method: "POST", body: { dataUrl } });
+      draft.image = result.image; imageInput.value = result.image; uploadStatus.textContent = "Photo importée. Pensez à enregistrer.";
+    } catch (error) { uploadStatus.textContent = error.message || "Envoi impossible."; }
+    fileInput.value = "";
+  });
+  const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
+    const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
+    inputs[key] = i;
+    i.addEventListener("input", () => { draft[key] = i.value; });
+    return h("label", { class: "field" }, h("span", null, label), i);
+  });
+  const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
+  const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
+  return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
+      h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
+      h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
+    panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
+    h("div", { class: "row" }, save, reset)];
+}
 
-export const settingsView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "Paramètres plateforme", desc: "Identité, contact, devise et journal de connexions.",
-  load: async () => { const [s, sec] = await Promise.all([api("/staff/owner/settings"), api("/staff/owner/security-log")]); return { s, sec }; },
-  build({ s, sec }, reload) {
-    const f = { platformName: s.platformName, contactEmail: s.contactEmail, contactPhone: s.contactPhone, currency: s.currency };
-    const inp = (k, l) => { const i = h("input", { class: "input", value: f[k] ?? "" }); i.addEventListener("input", () => { f[k] = i.value; }); return h("label", { class: "field" }, l, i); };
-    return [panel("Identité & contact", null, h("div", { class: "form two" }, inp("platformName", "Nom de la plateforme"), inp("contactEmail", "E-mail de contact"), inp("contactPhone", "Téléphone de contact"), inp("currency", "Devise"),
-      h("div", { class: "wide" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/settings", { method: "PUT", body: f }), "Paramètres enregistrés.", reload) }, "Enregistrer")))),
-      panel("Journal de connexions", "Connexions, déconnexions, inscriptions et échecs de connexion : sans adresse IP, sans e-mail saisi, sans agent utilisateur brut (famille d'appareil seulement).",
-        h("div", { class: "stack" }, h("div", { class: "row" }, sec.enabled ? pill("ok", "Activé") : pill("neutral", "Désactivé"), sec.available ? h("span", { class: "muted small" }, `${nf(sec.total)} ligne(s) · ${nf(sec.last24h)} sur 24 h${sec.since ? ` · depuis ${dateOnly(sec.since)}` : ""}`) : pill("gold", "Migration 042 à appliquer")),
-          h("p", { class: "note warn" }, "À faire valider avec le juriste / l'APDP avant mise en production, comme la collecte analytique. Conservation proposée : 12 mois (purge à brancher)."),
-          h("div", null, h("button", { class: "btn", type: "button", onClick: () => act(() => api("/staff/owner/security-log", { method: "PUT", body: { enabled: !sec.enabled } }), sec.enabled ? "Journal désactivé." : "Journal activé.", reload) }, sec.enabled ? "Désactiver" : "Activer"))))];
-  },
-});
+export function settingsSection({ s, sec }, reload) {
+  const f = { platformName: s.platformName, contactEmail: s.contactEmail, contactPhone: s.contactPhone, currency: s.currency };
+  const inp = (k, l) => { const i = h("input", { class: "input", value: f[k] ?? "" }); i.addEventListener("input", () => { f[k] = i.value; }); return h("label", { class: "field" }, l, i); };
+  return [panel("Identité & contact", null, h("div", { class: "form two" }, inp("platformName", "Nom de la plateforme"), inp("contactEmail", "E-mail de contact"), inp("contactPhone", "Téléphone de contact"), inp("currency", "Devise"),
+    h("div", { class: "wide" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/settings", { method: "PUT", body: f }), "Paramètres enregistrés.", reload) }, "Enregistrer")))),
+    panel("Journal de connexions", "Connexions, déconnexions, inscriptions et échecs de connexion : sans adresse IP, sans e-mail saisi, sans agent utilisateur brut (famille d'appareil seulement).",
+      h("div", { class: "stack" }, h("div", { class: "row" }, sec.enabled ? pill("ok", "Activé") : pill("neutral", "Désactivé"), sec.available ? h("span", { class: "muted small" }, `${nf(sec.total)} ligne(s) · ${nf(sec.last24h)} sur 24 h${sec.since ? ` · depuis ${dateOnly(sec.since)}` : ""}`) : pill("gold", "Migration 042 à appliquer")),
+        h("p", { class: "note warn" }, "À faire valider avec le juriste / l'APDP avant mise en production, comme la collecte analytique. Conservation proposée : 12 mois (purge à brancher)."),
+        h("div", null, h("button", { class: "btn", type: "button", onClick: () => act(() => api("/staff/owner/security-log", { method: "PUT", body: { enabled: !sec.enabled } }), sec.enabled ? "Journal désactivé." : "Journal activé.", reload) }, sec.enabled ? "Désactiver" : "Activer"))))];
+}
 
-export const seoView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "SEO, logo & pages légales", desc: "Appliqués au site public (cache 30 s). Les pages légales doivent être validées par un juriste.",
-  load: async () => { const [seo, logo, legal] = await Promise.all([api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal")]); return { seo, logo, legal }; },
-  build({ seo, logo, legal }, reload) {
-    const S = { ...seo }; const L = { ...legal }; const G = { logoUrl: logo.logoUrl };
-    const fld = (o, k, l, area, max) => { const i = h(area ? "textarea" : "input", { class: "input", maxlength: max ?? 300 }); i.value = o[k] ?? ""; i.addEventListener("input", () => { o[k] = i.value; }); return h("label", { class: "field wide" }, l, i); };
-    return [panel("Référencement", null, h("div", { class: "form" }, fld(S, "title", "Titre (120 max)", false, 120), fld(S, "description", "Description (300 max)", true, 300), fld(S, "keywords", "Mots-clés", false, 200), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/seo", { method: "PUT", body: S }), "SEO enregistré.", reload) }, "Enregistrer")))),
-      panel("Logo", "Chemin du site (/media/…) ou adresse https", h("div", { class: "form" }, fld(G, "logoUrl", "Adresse du logo", false, 500), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/logo", { method: "PUT", body: G }), "Logo enregistré.", reload) }, "Enregistrer")))),
-      panel("Pages légales", "CGU, confidentialité, mentions légales", h("div", { class: "form" }, fld(L, "cgu", "Conditions générales", true, 10000), fld(L, "privacy", "Politique de confidentialité", true, 10000), fld(L, "mentions", "Mentions légales", true, 5000), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/legal", { method: "PUT", body: L }), "Pages légales publiées.", reload) }, "Enregistrer et publier"))))];
-  },
-});
+export function seoSection({ seo, logo, legal }, reload) {
+  const S = { ...seo }; const L = { ...legal }; const G = { logoUrl: logo.logoUrl };
+  const fld = (o, k, l, area, max) => { const i = h(area ? "textarea" : "input", { class: "input", maxlength: max ?? 300 }); i.value = o[k] ?? ""; i.addEventListener("input", () => { o[k] = i.value; }); return h("label", { class: "field wide" }, l, i); };
+  return [panel("Référencement", null, h("div", { class: "form" }, fld(S, "title", "Titre (120 max)", false, 120), fld(S, "description", "Description (300 max)", true, 300), fld(S, "keywords", "Mots-clés", false, 200), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/seo", { method: "PUT", body: S }), "SEO enregistré.", reload) }, "Enregistrer")))),
+    panel("Logo", "Chemin du site (/media/…) ou adresse https", h("div", { class: "form" }, fld(G, "logoUrl", "Adresse du logo", false, 500), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/logo", { method: "PUT", body: G }), "Logo enregistré.", reload) }, "Enregistrer")))),
+    panel("Pages légales", "CGU, confidentialité, mentions légales", h("div", { class: "form" }, fld(L, "cgu", "Conditions générales", true, 10000), fld(L, "privacy", "Politique de confidentialité", true, 10000), fld(L, "mentions", "Mentions légales", true, 5000), h("div", null, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/owner/legal", { method: "PUT", body: L }), "Pages légales publiées.", reload) }, "Enregistrer et publier"))))];
+}
+
+// Apparence & modules : réglage superadmin « main » (lu par bootstrap-settings.js sur le site public).
+// Enregistrement complet de l'objet « main » pour ne pas écraser les autres clés stockées.
+export function appearanceSection({ main }, reload) {
+  const base = main && typeof main === "object" ? main : {};
+  const C = { ...(base.colors || {}) };
+  const M = { crm: true, premium: true, ...(base.modules || {}) };
+  const color = (k, l) => {
+    const i = h("input", { type: "color", value: C[k] || (k === "primary" ? "#12734b" : "#e8b23a") });
+    i.addEventListener("input", () => { C[k] = i.value; });
+    return h("label", { class: "field" }, l, i);
+  };
+  const check = (k, l) => {
+    const i = h("input", { type: "checkbox" }); i.checked = M[k] !== false;
+    i.addEventListener("change", () => { M[k] = i.checked; });
+    return h("label", { class: "field" }, i, " ", l);
+  };
+  const save = () => act(() => api("/staff/superadmin-settings/main", { method: "PUT", body: { value: { ...base, colors: { ...C }, modules: { ...M } } } }), "Apparence enregistrée.", reload);
+  return [panel("Apparence & modules", "Couleurs appliquées au site public (uniquement si vous les modifiez). Les modules masquent les liens correspondants.",
+    h("div", { class: "stack" },
+      h("div", { class: "form two" }, color("primary", "Couleur principale"), color("accent", "Couleur d’accent")),
+      h("div", { class: "stack" }, check("crm", "Module CRM (espace agence)"), check("premium", "Module Premium")),
+      h("p", { class: "note" }, "Carte et WhatsApp Business ne sont pas encore reliés au site : ils n’ont pas d’effet pour l’instant. Les textes d’accueil se règlent dans « Page d’accueil »."),
+      h("div", null, h("button", { class: "btn primary", type: "button", onClick: save }, "Enregistrer"))))];
+}
 
 export const i18nView = (ctx) => page(ctx, {
   eyebrow: "SYSTÈME", title: "Langues, catégories & redirections", desc: "Les langues et catégories ne sont pas encore lues par le site public ; les redirections (internes) sont appliquées en 301.",
@@ -632,3 +703,38 @@ function countryFormFields(c = null, editing = false) {
     { name: "timezone", label: "Fuseau horaire (ex. Africa/Dakar)", required: true, value: c?.timezone, max: 40 },
   ];
 }
+
+// ---------- Personnalisation du site : une seule interface (identité, accueil, référencement, logo, pages légales, sécurité) ----------
+const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
+export const customizeView = (ctx, initial = "identity") => page(ctx, {
+  eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
+  load: async () => {
+    const [settings, sec, home, seo, logo, legal, main] = await Promise.all([
+      api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
+      api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal"),
+      api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null)]);
+    return { settings, sec, home, seo, logo, legal, main };
+  },
+  actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
+  build({ settings, sec, home, seo, logo, legal, main }, reload) {
+    const parts = {
+      identity: settingsSection({ s: settings, sec }, reload)[0],
+      appearance: appearanceSection({ main }, reload),
+      security: settingsSection({ s: settings, sec }, reload)[1],
+      homepage: homepageSection(home, reload),
+      seo: seoSection({ seo, logo, legal }, reload).slice(0, 1),
+      logo: seoSection({ seo, logo, legal }, reload).slice(1, 2),
+      legal: seoSection({ seo, logo, legal }, reload).slice(2),
+    };
+    const panes = CUSTOMIZE_TABS.map(([id]) => h("section", { class: "ps-pane", "data-pane": id, role: "tabpanel" }, ...[].concat(parts[id])));
+    const select = (id, btn) => {
+      panes.forEach((pane) => { pane.hidden = pane.dataset.pane !== id; });
+      btns.forEach((b) => { const on = b === btn; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    };
+    const btns = CUSTOMIZE_TABS.map(([id, label]) => h("button", { class: "ps-tab", type: "button", role: "tab", "aria-selected": "false", onClick: (e) => select(id, e.currentTarget) }, label));
+    const start = CUSTOMIZE_TABS.some(([id]) => id === initial) ? initial : "identity";
+    panes.forEach((pane) => { pane.hidden = pane.dataset.pane !== start; });
+    btns.forEach((b, i) => { const on = CUSTOMIZE_TABS[i][0] === start; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+    return [h("nav", { class: "ps-tabs", role: "tablist", "aria-label": "Sections de personnalisation" }, ...btns), ...panes];
+  },
+});

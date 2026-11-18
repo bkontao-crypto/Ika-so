@@ -1332,3 +1332,42 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **Non vérifié :** parcours complet dans le navigateur sur le centre ; production (inaccessible depuis l'agent).
 - **Incident de la fusion :** une première fusion dans `main` a été poussée (5eca9ed) pendant que la base de test était arrêtée (14 échecs, sans lien avec le code) ; relance une fois la base remise en route : 311/311.
 - **Environnement de test :** la base `ika_test` a été recréée vide sur le cluster redémarré (les données de test antérieures ne sont plus là) ; aucune donnée de production touchée.
+
+### Paiement en ligne activable + demandes Premium à la main (18/11/2026, demande du propriétaire)
+- **À réaliser :** réglage superadmin « paiement en ligne ouvert ou fermé » ; approbation manuelle du Premium pour 1 à 3 mois maximum (durée choisie par l'équipe), avec tous les avantages pendant ce temps ; écran de réglage dédié.
+- **Réalisé :**
+  - Réglage `payments_policy` (superadmin) : `onlineEnabled` (défaut : fermé) et `manualPremiumMaxMonths` (1 à 3, défaut 3). Écran « Réglages paiement » dans le Owner Center (superadmin seul).
+  - Paiement en ligne : les formules ne sont proposées et le paiement n'est accepté que si le fournisseur est configuré ET le réglage ouvert.
+  - Demandes Premium (table `ika_premium_requests`, migration 071 + script de retour arrière) : l'annonceur demande 1 à N mois ; l'équipe (superadmin, ou administrateur délégué « Paiements ») approuve pour 1 à N mois ou refuse avec motif. L'approbation ajoute les jours au Premium, trace dans `ika_premium_grants` et le journal, et prévient l'annonceur.
+  - Owner Center « Paiements & finances » : panneau « Demandes Premium » (approuver / refuser).
+  - Page « Devenir Premium » : demande à la main quand le paiement en ligne est fermé ; statut de la demande affiché.
+  - Test unitaire des bornes de la politique ; service worker re-stampé.
+- **Vérifié (base de test, API) :** réglage enregistré ; `/offers` → fermé, durée max renvoyée ; demande 3 mois refusée (400) quand max = 2 ; demande en double refusée (409) ; approbation 1 mois → Premium actif, jours ajoutés, grant tracé ; approbation hors limite refusée (400) ; refus avec motif OK ; ADMIN sans délégation « Paiements » : 403 ; avec délégation : 200 ; réglage réservé au superadmin : 403 pour l'administrateur. Navigateur : écran de réglage et panneau des demandes rendus sans erreur ; page Devenir Premium affichée sans erreur (mobile).
+- **Non vérifié :** paiement en ligne réel (aucun fournisseur de paiement configuré en test) ; enregistrement du réglage par le bouton de l'écran (testé via l'API seulement) ; production.
+- **Risques :** tant que le fournisseur de paiement n'est pas configuré, « paiement en ligne ouvert » n'a aucun effet réel (les demandes restent manuelles). Vérifier la configuration du fournisseur avant d'ouvrir le paiement.
+
+### Mise à la une à la main : durée de 1 à 3 mois (18/11/2026, demande du propriétaire)
+- **Réalisé :** réglage `manualFeaturedMaxMonths` (1 à 3, défaut 1) dans « Réglages paiement » ; à l'acceptation d'une demande de mise à la une, l'équipe choisit 1 à N mois (1 mois = 30 jours) ; la durée est enregistrée sur l'annonce (`featured_until`) ; les formules payantes gardent leur durée propre.
+- **Vérifié :** tests 315/315 (dont bornes du réglage) ; API : acceptation hors limite refusée (400) ; `make_interval` contrôlé en base.
+- **Non vérifié :** acceptation d'une demande réelle de bout en bout (aucune demande de test créée), affichage navigateur de la liste avec la durée.
+- **À faire :** décider si les formules payantes de mise à la une doivent aussi proposer 30, 60 ou 90 jours (actuellement 7 et 30 jours, à créer dans « Abonnements & formules »).
+
+### Personnalisation du site regroupée (18/11/2026, demande du propriétaire)
+- **Réalisé :** les trois écrans « Paramètres plateforme », « Page d’accueil » et « SEO, logo & pages légales » sont remplacés par un seul écran « Personnalisation du site » (onglets : Identité & contact, Page d’accueil, Référencement, Logo, Pages légales, Sécurité). Les anciennes adresses (#/settings, #/homepage, #/seo) ouvrent l’onglet correspondant. Les formulaires et leurs enregistrements sont inchangés (mêmes routes).
+- **Vérifié :** tests 315/315 ; navigateur (superadmin) : les six onglets s’affichent, une seule section visible à la fois, anciennes adresses OK, aucune erreur console.
+- **Non vérifié :** enregistrement effectif de chaque section depuis l’écran (routes inchangées, non rejouées une à une) ; production.
+
+## Personnalisation du site : audit des réglages (session du 2026-11-18)
+- **À réaliser :** vérifier que chaque réglage de « Personnalisation du site » est relié à l'API, supprimer les doublons.
+- **Constat :** l'ancienne page `/admin-settings.html` (non liée) n'était chargée par aucune page : couleurs et modules du superadmin n'avaient aucun effet ; les textes d'accueil (`welcome_title/subtitle`) n'avaient aucune cible dans le site (doublon de la page d'accueil).
+- **Réalisé :**
+  - Onglet « Apparence & modules » ajouté à la personnalisation (couleurs principale/accent, modules CRM et Premium) ; enregistrement via `PUT /staff/superadmin-settings/main` en conservant les autres clés.
+  - Carte et WhatsApp affichés comme « non reliés » (pas de bouton fictif).
+  - Libellé de la couleur d'accent de l'accueil précisé (accueil seulement).
+  - `public/js/app.js` charge `bootstrap-settings.js` : couleurs et masquage des liens `data-module` appliqués au site public, réappliqués au rendu des pages.
+  - Suppression de `public/admin-settings.html` et `public/js/pages/admin-settings.js` (orphelins) ; `/admin-settings(.html)` redirige en 301 vers `/owner#/customize`.
+  - Service worker re-estampillé (`ika-so-43c6e19c37`).
+- **Vérifié :** `npm test` 315/315 (exit 0) ; `node --check` OK ; redirections 301 ; `bootstrap-settings.js` servi 200 ; `/api/superadmin-settings/public` 200.
+- **En cours :** test navigateur de l'onglet « Apparence & modules » et de l'application réelle des couleurs (non fait).
+- **À faire :** validation propriétaire ; branchement réel de la carte et de WhatsApp si voulu ; décider si les textes d'accueil restent stockés (aucun effet actuellement).
+- **Risques :** la couleur saisie remplace le thème en mode sombre (variables inline `--leaf`/`--gold`). Le masquage du module Premium ne masque que les liens, pas la route `#/premium`.

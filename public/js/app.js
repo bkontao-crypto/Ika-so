@@ -5,6 +5,7 @@ import { currentRoute } from "/js/core/router.js";
 import { renderChrome } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
 import { openConsentPanel } from "/js/components/consent-panel.js";
+import "/js/bootstrap-settings.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
 
@@ -19,6 +20,7 @@ const routes = [
   [/^\/centre$/, "centre", "centrePage"],
   [/^\/devenir-annonceur$/, "advertiser-apply", "advertiserApplyPage"],
   [/^\/premium$/, "premium", "premiumPage"],
+  [/^\/devenir-premium$/, "devenir-premium", "devenirPremiumPage"],
   [/^\/annonce\/([^/]+)$/, "listing", "listingPage", dec],
   [/^\/publier$/, "publish", "publishPage"],
   [/^\/modifier\/([^/]+)$/, "publish", "editPage", dec],

@@ -2,9 +2,9 @@
 //  - fichiers du site : servis depuis la mémoire de l'appareil, remis à jour en arrière-plan ;
 //  - annonces publiques (lecture) : réseau d'abord, dernière version connue si la connexion tombe ;
 //  - tout le reste de /api (compte, messages, contact, administration) : jamais gardé, jamais servi hors ligne.
-const VERSION = "ika-so-72531f7b8e";
+const VERSION = "ika-so-c98a59683f";
 const SHELL = [
-  "/", "/css/ika.css", "/css/modern.css", "/css/refonte.css", "/css/components.css", "/css/mon-profil.css", "/css/publier.css", "/js/pages/mon-profil.js", "/media/logo-ika-so.webp", "/js/pages/partners.js", "/js/pages/annonceurs.js", "/js/pages/centre.js", "/js/pages/centre-standard.js", "/js/pages/premium.js", "/js/components/espace.js", "/css/espace.css", "/css/boite.css", "/css/profil.css", "/favicon.svg", "/icon-192.png", "/manifest.webmanifest",
+  "/", "/css/ika.css", "/css/modern.css", "/css/refonte.css", "/css/components.css", "/css/mon-profil.css", "/css/publier.css", "/js/pages/mon-profil.js", "/media/logo-ika-so.webp", "/js/pages/partners.js", "/js/pages/annonceurs.js", "/js/pages/centre.js", "/js/pages/centre-standard.js", "/js/pages/premium.js", "/js/components/espace.js", "/css/espace.css", "/css/profil.css", "/favicon.svg", "/icon-192.png", "/manifest.webmanifest",
   "/js/app.js", "/js/dom.js", "/js/icons.js", "/js/icon-rules.js", "/js/decorate.js", "/js/core/state.js", "/js/core/router.js",
   "/js/components/chrome.js", "/js/components/ui.js", "/js/components/listing-card.js", "/js/components/listing-form.js",
   "/js/pages/home.js", "/js/pages/listing.js", "/js/pages/login.js", "/js/pages/publish.js", "/js/pages/account.js", "/js/pages/trust.js", "/js/pages/advertiser.js", "/js/pages/profile-edit.js", "/js/components/stars.js", "/js/components/chat.js", "/js/pages/inbox.js", "/js/pages/agency.js", "/js/pages/payments.js", "/js/pages/localisation.js", "/js/pages/complaints.js", "/js/pages/advertiser-apply.js", "/js/map/provider.js", "/js/map/local.js", "/js/map/mapbox.js", "/js/map/geometry.js", "/js/fiche.js", "/css/fiche.css",
