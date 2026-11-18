@@ -382,17 +382,60 @@ export const backupsView = (ctx) => page(ctx, {
     panel("Journal des restaurations", null, table([{ label: "Note", key: "note" }, { label: "Date", render: (x) => dateTime(x.created_at) }], r, { emptyText: "Aucune restauration notée." }))],
 });
 
+// Page d'accueil (repris de l'ancien centre) : tous les textes, couleurs, avantages et photo d'arrière-plan (import ou URL).
+const HOME_FIELDS = [
+  ["badge", "Petit bandeau supérieur", "L’immobilier au Mali, en toute confiance"],
+  ["titleLine1", "Titre – première ligne", "Trouvez votre"],
+  ["titleLine2", "Titre – deuxième ligne", "bien immobilier idéal"],
+  ["subtitle", "Texte descriptif", "Maisons, appartements…"],
+  ["assurance1", "Avantage 1", "Annonces modérées"],
+  ["assurance2", "Avantage 2", "Téléphones vérifiés"],
+  ["assurance3", "Avantage 3", "Contact direct"],
+  ["trustTitle", "Titre du macaron confiance", "Confiance"],
+  ["trustLine1", "Ligne 1 du macaron", "Sécurité"],
+  ["trustLine2", "Ligne 2 du macaron", "Sérénité"],
+  ["overlayColor", "Couleur de l’overlay (hex)", "#091f19"],
+  ["overlayOpacity", "Opacité de l’overlay (0 à 1)", "0.75"],
+  ["accentColor", "Couleur d’accent (titre, badge)", "#C9EF75"],
+  ["textColor", "Couleur du texte principal", "#ffffff"],
+];
 export const homepageView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "Page d’accueil", desc: "Image de fond, couleur et opacité de l’overlay. Appliqué au site public.",
+  eyebrow: "SYSTÈME", title: "Page d’accueil", desc: "Textes, couleurs, avantages et photo d’arrière-plan du site public.",
   load: async () => api("/homepage-settings"),
+  actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
   build(s, reload) {
-    const f = { ...s };
-    const inp = (k, l, type = "text") => { const i = h("input", { class: "input", type, value: f[k] ?? "" }); i.addEventListener("input", () => { f[k] = i.value; }); return h("label", { class: "field" }, l, i); };
-    return [panel("Apparence de l’accueil", null, h("div", { class: "form two" },
-      inp("image", "URL de l’image de fond"),
-      inp("overlayColor", "Couleur de l’overlay"),
-      inp("overlayOpacity", "Opacité (0–1)"),
-      h("div", { class: "wide" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: f }), "Page d’accueil enregistrée.", reload) }, "Enregistrer"))))];
+    const original = { ...s };
+    const draft = { ...s };
+    const inputs = {};
+    const imageInput = h("input", { class: "input", maxlength: "1200", placeholder: "/media/ma-photo.jpg", value: draft.image ?? "" });
+    inputs.image = imageInput;
+    imageInput.addEventListener("input", () => { draft.image = imageInput.value; });
+    const uploadStatus = h("span", { class: "small muted", role: "status" }, "JPEG, PNG ou WebP · 2 Mo maximum.");
+    const fileInput = h("input", { class: "input", type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Choisir une photo depuis le téléphone" });
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0]; if (!file) return;
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) { uploadStatus.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; fileInput.value = ""; return; }
+      try {
+        uploadStatus.textContent = "Envoi de la photo…";
+        const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Lecture de la photo impossible.")); reader.readAsDataURL(file); });
+        const result = await api("/staff/homepage-image", { method: "POST", body: { dataUrl } });
+        draft.image = result.image; imageInput.value = result.image; uploadStatus.textContent = "Photo importée. Pensez à enregistrer.";
+      } catch (error) { uploadStatus.textContent = error.message || "Envoi impossible."; }
+      fileInput.value = "";
+    });
+    const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
+      const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
+      inputs[key] = i;
+      i.addEventListener("input", () => { draft[key] = i.value; });
+      return h("label", { class: "field" }, h("span", null, label), i);
+    });
+    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
+    const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
+    return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
+        h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
+      panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
+      h("div", { class: "row" }, save, reset)];
   },
 });
 
