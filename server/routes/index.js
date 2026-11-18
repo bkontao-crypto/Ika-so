@@ -1,6 +1,6 @@
 import { premiumOrigin } from "../lib/analytics-events.js";
 import { Router } from "express";
-import { AppError } from "../lib/errors.js";
+import { AppError, forbidden } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
@@ -11,15 +11,17 @@ const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
 export function buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }) {
 
+  // Garde par module pour les actions de staff (DEC-008) : ADMIN soumis à la délégation, SUPERADMIN et MODERATOR inchangés.
+  async function requireOwnerGate(req, module) {
+    const userId = requireUser(req);
+    if (!(await services.ownerDelegations.gate(userId, module))) throw forbidden("Accès refusé à ce module.");
+    return userId;
+  }
   // Contrôle d'accès Owner Center avec délégation (DEC-003)
   async function requireOwnerModule(req, module) {
     const userId = requireUser(req);
     const ok = await services.ownerDelegations.canAccess(userId, module);
-    if (!ok) {
-      const err = new Error("Accès refusé à ce module.");
-      err.status = 403;
-      throw err;
-    }
+    if (!ok) throw forbidden("Accès refusé à ce module.");
     return userId;
   }
 
@@ -197,7 +199,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   });
   router.post("/staff/accounts/:id/reset-link", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await accounts.staffResetLink(requireUser(req), id(req)));
+    res.json(await accounts.staffResetLink(await requireOwnerModule(req, "users"), id(req)));
   });
 
   router.post("/auth/logout", async (req, res) => {
@@ -618,8 +620,8 @@ router.get("/listings/:id", async (req, res) => {
   // Demandes pour devenir annonceur
   router.get("/me/featured-requests", async (req, res) => res.json(await featuredRequests.mine(requireUser(req))));
   router.post("/me/featured-requests", async (req, res) => res.status(201).json(await featuredRequests.create(requireUser(req), { listingId: clean(req.body?.listingId, 80), message: clean(req.body?.message, 500) })));
-  router.get("/staff/featured-requests", async (req, res) => res.json(await featuredRequests.listForStaff(requireUser(req), { status: req.query?.status === "DONE" ? "DONE" : "PENDING" })));
-  router.post("/staff/featured-requests/:id/decision", async (req, res) => res.json(await featuredRequests.decide(requireUser(req), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 500) })));
+  router.get("/staff/featured-requests", async (req, res) => res.json(await featuredRequests.listForStaff(await requireOwnerGate(req, "moderation"), { status: req.query?.status === "DONE" ? "DONE" : "PENDING" })));
+  router.post("/staff/featured-requests/:id/decision", async (req, res) => res.json(await featuredRequests.decide(await requireOwnerGate(req, "moderation"), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 500) })));
   router.get("/me/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listMine(requireUser(req))));
   router.post("/me/advertiser-applications", async (req, res) => res.status(201).json(await advertiserApplications.submit(requireUser(req), req.body ?? {})));
   router.post("/me/advertiser-applications/:id/documents", async (req, res) => {
@@ -630,10 +632,10 @@ router.get("/listings/:id", async (req, res) => {
   router.post("/me/advertiser-applications/:id/documents/renew", async (req, res) => res.json(await advertiserApplications.renewDocuments(requireUser(req), id(req))));
   router.get("/staff/advertiser-applications/:id/documents/:documentId", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await advertiserApplications.viewDocument(requireUser(req), id(req), clean(req.params.documentId, 80)));
+    res.json(await advertiserApplications.viewDocument(await requireOwnerGate(req, "agencies"), id(req), clean(req.params.documentId, 80)));
   });
-  router.get("/staff/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listForStaff(requireUser(req), { status: req.query.status || "PENDING" })));
-  router.post("/staff/advertiser-applications/:id/decide", async (req, res) => res.json(await advertiserApplications.decide(requireUser(req), req.params.id, req.body ?? {})));
+  router.get("/staff/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listForStaff(await requireOwnerGate(req, "agencies"), { status: req.query.status || "PENDING" })));
+  router.post("/staff/advertiser-applications/:id/decide", async (req, res) => res.json(await advertiserApplications.decide(await requireOwnerGate(req, "agencies"), req.params.id, req.body ?? {})));
   router.get("/me/center/map", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.mapPins(requireUser(req))); });
   router.post("/staff/premium/:id", async (req, res) => res.json(await advertiserCenter.grantPremium(requireUser(req), id(req), { days: req.body?.days, reason: clean(req.body?.reason, 300) })));
 
@@ -945,10 +947,10 @@ router.get("/listings/:id", async (req, res) => {
     }
     res.json(result);
   });
-  router.get("/staff/offers", async (req, res) => res.json(await payments.adminOffers(requireUser(req))));
-  router.post("/staff/offers/:id", async (req, res) => res.json(await payments.setOffer(requireUser(req), id(req), { priceXof: req.body?.priceXof, active: req.body?.active === true })));
-  router.get("/staff/payments/reconcile", async (req, res) => res.json(await payments.reconcile(requireUser(req))));
-  router.post("/staff/payments/:id/refund", async (req, res) => res.json(await payments.markRefunded(requireUser(req), id(req), clean(req.body?.reason, 300), { refundRef: clean(req.body?.refundRef, 120) })));
+  router.get("/staff/offers", async (req, res) => res.json(await payments.adminOffers(await requireOwnerGate(req, "payments"))));
+  router.post("/staff/offers/:id", async (req, res) => res.json(await payments.setOffer(await requireOwnerGate(req, "payments"), id(req), { priceXof: req.body?.priceXof, active: req.body?.active === true })));
+  router.get("/staff/payments/reconcile", async (req, res) => res.json(await payments.reconcile(await requireOwnerGate(req, "payments"))));
+  router.post("/staff/payments/:id/refund", async (req, res) => res.json(await payments.markRefunded(await requireOwnerGate(req, "payments"), id(req), clean(req.body?.reason, 300), { refundRef: clean(req.body?.refundRef, 120) })));
 
   // ---------- Campagnes sponsorisées (public, sans compte) ----------
   router.get("/campaigns/sponsored", async (_req, res) => {
@@ -972,6 +974,10 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/places", async (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await places.listPublic()); });
   
   // ---------- Délégations Owner Center (DEC-003) ----------
+  router.get("/staff/owner/access", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await services.ownerDelegations.accessFor(requireUser(req)));
+  });
   router.get("/staff/owner/delegations", async (req, res) => {
     res.json(await services.ownerDelegations.list(requireUser(req)));
   });
@@ -1017,7 +1023,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.post("/staff/partner-logo", async (req, res) => res.status(201).json(await partners.uploadLogo(requireUser(req), req.body?.dataUrl)));
 
   // ---------- Centre de contrôle (droits vérifiés par chaque service) ----------
-  router.get("/staff/queue", async (req, res) => res.json(await moderation.queue(requireUser(req))));
+  router.get("/staff/queue", async (req, res) => res.json(await moderation.queue(await requireOwnerGate(req, "moderation"))));
   // ---------- Journal d'audit de modération (E09) ----------
   router.get("/staff/moderation-audit", async (req, res) => {
     await accounts.requireStaff(requireUser(req), "ADMIN");
@@ -1160,10 +1166,10 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     const b = req.body ?? {};
     res.json(await stats.setWeights(userId, { view: b.view, favorite: b.favorite, contactClick: b.contactClick, reason: clean(b.reason, 300) }));
   });
-  router.get("/staff/accounts", async (req, res) => res.json(await moderation.listAccounts(requireUser(req))));
+  router.get("/staff/accounts", async (req, res) => res.json(await moderation.listAccounts(await requireOwnerModule(req, "users"))));
 
   router.post("/staff/listings/:id/decision", async (req, res) => {
-    const staffId = requireUser(req);
+    const staffId = await requireOwnerGate(req, "moderation");
     const action = clean(req.body?.action);
     const out = await moderation.decide(staffId, id(req), action, clean(req.body?.reason, 500));
     if (action === "APPROVE") track(req, "listing_published", { userId: staffId, listingId: id(req) });
@@ -1171,14 +1177,14 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     res.json(out);
   });
   router.post("/staff/listings/:id/feature", async (req, res) => {
-    const staffId = requireUser(req);
+    const staffId = await requireOwnerGate(req, "moderation");
     const on = Boolean(req.body?.on);
     const out = await moderation.setFeatured(staffId, id(req), on);
     await moderationAudit.log(staffId, { action: on ? "listing_feature" : "listing_unfeature", targetType: "listing", targetId: id(req) }).catch(() => {});
     res.json(out);
   });
   router.post("/staff/reports/:id/dismiss", async (req, res) => {
-    const staffId = requireUser(req);
+    const staffId = await requireOwnerGate(req, "moderation");
     const out = await moderation.dismissReport(staffId, id(req));
     await moderationAudit.log(staffId, { action: "report_dismiss", targetType: "report", targetId: id(req) }).catch(() => {});
     res.json(out);
@@ -1191,7 +1197,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     res.json({ ok: true });
   });
   router.post("/staff/accounts/:id/status", async (req, res) => {
-    const staffId = requireUser(req);
+    const staffId = await requireOwnerModule(req, "users");
     const status = clean(req.body?.status);
     const reason = clean(req.body?.reason, 500);
     const out = await moderation.setAccountStatus(staffId, id(req), status, reason);
@@ -1211,9 +1217,9 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     const [proofs, alerts, commentReports, userReports, reviewReports] = await Promise.all([trust.proofQueue(staffId), trust.alertsOpen(staffId), trust.commentReportsOpen(staffId), engagement.userReportsOpen(staffId), reviews.reportsOpen(staffId)]);
     res.json({ proofs, alerts, commentReports, userReports, reviewReports });
   });
-  router.get("/staff/proofs/:id/file", async (req, res) => res.json(await trust.viewProof(requireUser(req), id(req))));
+  router.get("/staff/proofs/:id/file", async (req, res) => res.json(await trust.viewProof(await requireOwnerGate(req, "trust"), id(req))));
   router.post("/staff/proofs/:id/decision", async (req, res) => {
-    const staffId = requireUser(req);
+    const staffId = await requireOwnerGate(req, "trust");
     const action = clean(req.body?.action);
     const note = clean(req.body?.note, 500);
     const out = await trust.decideProof(staffId, id(req), { action, note, agencyName: clean(req.body?.agencyName, 120) });
@@ -1244,10 +1250,10 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.post("/staff/profiles/:id/images", async (req, res) => res.json(await advertiserProfiles.setImagesHidden(requireUser(req), id(req), req.body?.hidden !== false, clean(req.body?.reason, 300))));
   router.post("/staff/user-reports/:id/dismiss", async (req, res) => res.json(await engagement.dismissUserReports(requireUser(req), id(req))));
   router.post("/staff/comments/:id/dismiss-reports", async (req, res) => res.json(await trust.dismissCommentReports(requireUser(req), id(req))));
-  router.get("/staff/blacklist", async (req, res) => res.json(await trust.blacklistList(requireUser(req))));
+  router.get("/staff/blacklist", async (req, res) => res.json(await trust.blacklistList(await requireOwnerModule(req, "trust"))));
   router.post("/staff/blacklist", async (req, res) =>
-    res.status(201).json(await trust.blacklistAdd(requireUser(req), { kind: clean(req.body?.kind), value: clean(req.body?.value, 254), reason: clean(req.body?.reason, 300) })));
-  router.post("/staff/blacklist/:id/remove", async (req, res) => res.json(await trust.blacklistRemove(requireUser(req), id(req))));
+    res.status(201).json(await trust.blacklistAdd(await requireOwnerModule(req, "trust"), { kind: clean(req.body?.kind), value: clean(req.body?.value, 254), reason: clean(req.body?.reason, 300) })));
+  router.post("/staff/blacklist/:id/remove", async (req, res) => res.json(await trust.blacklistRemove(await requireOwnerModule(req, "trust"), id(req))));
 
   return router;
 }

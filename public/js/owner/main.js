@@ -7,7 +7,7 @@ import * as M from "./v-modules.js";
 
 const NAV = [
   ["Pilotage de la plateforme", [
-    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["listings", "list", "Annonces & modération", { count: "pendingListings" }],
+    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["listings", "list", "Annonces & modération", { count: "pendingListings" }],
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }],
     ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"]]],
   ["Croissance & relation client", [
@@ -19,16 +19,24 @@ const NAV = [
 const FLAT = NAV.flatMap(([, items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
 const VIEWS = { overview: overviewView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), listings: M.listingsView, users: M.usersView, permissions: M.permissionsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
-  subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
+  stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, settings: M.settingsView, homepage: M.homepageView, seo: M.seoView, i18n: M.i18nView, places: M.placesView };
 
 const root = document.getElementById("root");
 const leaveHooks = [];
 let badges = {}; let alerts = []; let me = null;
+// Accès : le serveur renvoie les modules attribués (SUPERADMIN : tous ; ADMIN : délégués par le propriétaire, DEC-003).
+let access = { all: false, modules: [] };
+// Correspondance entre une entrée du menu et le module délégable. Sans correspondance : réservé au SUPERADMIN.
+const MODULE_OF = { overview: "overview", activity: "activity", listings: "moderation", agencies: "agencies", trust: "trust", complaints: "complaints",
+  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", stats: "report", users: "users", payments: "payments" };
+const allowed = (id) => access.all || (MODULE_OF[id] !== undefined && access.modules.includes(MODULE_OF[id]));
+const firstAllowed = () => FLAT.find((m) => allowed(m.id))?.id ?? "overview";
 let content; let side; let scrim; let navEl; let crumb; let bell; let bellBadge;
 
 const ctx = {
   userId: null,
+  isSuperadmin: () => access.all,
   go: (hash) => { location.hash = hash; },
   refresh: () => route(),
   onLeave: (fn) => leaveHooks.push(fn),
@@ -52,10 +60,10 @@ function toggleTheme() {
 function paintNav() {
   if (!navEl) return;
   const current = location.hash.replace(/^#\/?/, "").split("/")[0].split("?")[0] || "overview";
-  navEl.replaceChildren(...NAV.flatMap(([title, items]) => [h("div", { class: "navtitle" }, title), h("nav", { class: "nav", "aria-label": title }, items.map(([id, icon, label, o]) => {
+  navEl.replaceChildren(...NAV.flatMap(([title, all]) => { const items = all.filter(([id]) => allowed(id)); return items.length ? [h("div", { class: "navtitle" }, title), h("nav", { class: "nav", "aria-label": title }, items.map(([id, icon, label, o]) => {
     const n = o?.count ? badges[o.count] : null;
     return h("a", { href: `#/${id}`, "aria-current": current === id ? "page" : null, onClick: () => closeMenu() }, ico(icon), label, o?.tag ? h("span", { class: "new" }, o.tag) : null, n ? h("span", { class: "count" }, n > 99 ? "99+" : n) : null);
-  }))]));
+  }))] : []; }));
 }
 function paintBell() {
   if (!bellBadge) return;
@@ -74,9 +82,9 @@ function shell() {
   navEl = h("div", { class: "navwrap" });
   side = h("aside", { class: "side", "aria-label": "Navigation Owner" },
     h("div", { class: "brand" }, h("img", { src: "/media/logo-ika-so.webp", alt: "IKA SO" }), h("div", null, h("b", null, "IKA SO IMMOBILIER"), h("small", null, "OWNER CONTROL CENTER"))),
-    h("div", { class: "role" }, h("span", { class: "live" }), h("div", null, h("small", null, "SESSION SÉCURISÉE"), h("strong", null, "SUPERADMIN · Contrôle total"))),
+    h("div", { class: "role" }, h("span", { class: "live" }), h("div", null, h("small", null, "SESSION SÉCURISÉE"), h("strong", null, access.all ? "SUPERADMIN · Contrôle total" : "ADMIN · Modules délégués"))),
     navEl,
-    h("div", { class: "sidefoot" }, avatarNode(), h("div", null, h("b", null, me.fullName || "Propriétaire plateforme"), h("small", null, "Accès SUPERADMIN"))));
+    h("div", { class: "sidefoot" }, avatarNode(), h("div", null, h("b", null, me.fullName || "Propriétaire plateforme"), h("small", null, access.all ? "Accès SUPERADMIN" : "Accès délégué"))));
   scrim = h("div", { class: "scrim", onClick: closeMenu });
   crumb = h("b", null, "Vue générale");
   bellBadge = h("span", { class: "dot-badge" }); bellBadge.hidden = true;
@@ -132,10 +140,11 @@ document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.
 function route() {
   leaveHooks.splice(0).forEach((fn) => { try { fn(); } catch { /* nettoyage best effort */ } });
   const parts = location.hash.replace(/^#\/?/, "").split("?")[0].split("/").filter(Boolean);
-  const id = parts[0] || "overview";
+  const id = parts[0] || firstAllowed();
   paintNav();
   let node; let title;
   if (id === "trace" && ["listing", "user"].includes(parts[1]) && parts[2]) { node = traceView(ctx, parts[1], decodeURIComponent(parts[2])); title = "Dossier de traçage"; }
+  else if (VIEWS[id] && !allowed(id)) { node = h("div", { class: "view" }, empty("Ce module ne vous est pas attribué. Demandez l'accès au propriétaire.", "shield")); title = "Accès réservé"; }
   else if (VIEWS[id]) { node = VIEWS[id](ctx); title = FLAT.find((m) => m.id === id)?.label; }
   else { node = h("div", { class: "view" }, empty("Module introuvable.", "search")); title = "Introuvable"; }
   crumb.textContent = title ?? "Owner Control";
@@ -149,7 +158,8 @@ async function start() {
     const session = await api("/me");
     if (!session.user) return gate("Connexion requise", "Ouvrez une session SUPERADMIN pour accéder au centre de commandement.", h("a", { class: "btn primary", href: "/#/connexion?next=%2Fprofil" }, "Connexion"));
     me = session.meta; ctx.userId = session.user.id;
-    if (me.staffRole !== "SUPERADMIN") return gate("Accès réservé", "Le Owner Control Center est réservé au propriétaire (SUPERADMIN).", h("a", { class: "btn", href: "/admin" }, "Centre de contrôle de mon rôle"));
+    access = await api("/staff/owner/access");
+    if (!access.all && !access.modules.length) return gate("Accès réservé", "Le Owner Control Center est réservé au propriétaire et aux administrateurs à qui il a attribué des modules.", h("a", { class: "btn", href: "/admin" }, "Centre de contrôle de mon rôle"));
     // Photo du compte : celle du profil public (même source que « Mon profil »). Absente = initiales.
     const pub = await api("/me/public-profile").catch(() => null);
     me.avatarUrl = pub?.profile?.avatarUrl || null;

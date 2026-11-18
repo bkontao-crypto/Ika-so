@@ -7,7 +7,7 @@ export const DELEGABLE_MODULES = new Set([
   "report", "report.pdf", "premium-funnel", "subscriptions", "monitoring",
   "health", "agencies", "crm", "pipeline", "visits", "complaints", "incidents",
   "marketing", "campaigns", "partners", "imports", "duplicates", "moderation",
-  "reviews", "trust",
+  "reviews", "trust", "users", "payments",
 ]);
 
 export function createOwnerDelegations({ db, accounts }) {
@@ -39,6 +39,25 @@ export function createOwnerDelegations({ db, accounts }) {
       await db.query("delete from ika_owner_delegations where user_id = $1 and module = $2",
                      [targetUserId, module]);
       return { ok: true };
+    },
+
+    // Garde des actions de modération, pièces, demandes et paiements. SUPERADMIN : oui. ADMIN : seulement si le module lui est délégué.
+    // MODERATOR : inchangé (les services contrôlent déjà leurs droits) ; cette garde ne le retire donc d'aucune action existante.
+    async gate(userId, module) {
+      const profile = await accounts.requireStaff(userId, "MODERATOR");
+      if (profile.staff_role !== "ADMIN") return true;
+      if (!DELEGABLE_MODULES.has(module)) return false;
+      const rows = await db.query("select 1 from ika_owner_delegations where user_id = $1 and module = $2", [userId, module]);
+      return rows.length > 0;
+    },
+
+    // Modules accessibles à l'utilisateur connecté (affichage du menu). Le serveur reste la barrière réelle à chaque appel.
+    async accessFor(userId) {
+      const profile = await accounts.requireStaff(userId, "MODERATOR");
+      if (profile.staff_role === "SUPERADMIN") return { role: "SUPERADMIN", all: true, modules: [...DELEGABLE_MODULES] };
+      if (profile.staff_role !== "ADMIN") return { role: profile.staff_role, all: false, modules: [] };
+      const rows = await db.query("select module from ika_owner_delegations where user_id = $1", [userId]);
+      return { role: "ADMIN", all: false, modules: rows.map((r) => r.module) };
     },
 
     async canAccess(userId, module) {

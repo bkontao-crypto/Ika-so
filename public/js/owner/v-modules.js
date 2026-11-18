@@ -17,6 +17,29 @@ const minis = (...m) => h("div", { class: "mini-stats" }, m);
 const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/${type}/${encodeURIComponent(id)}`) }, ico("route"), label);
 const adminLink = (label = "Ouvrir dans le centre de contrôle classique") => h("a", { class: "btn", href: "/admin" }, ico("external"), label);
 
+// Demandes gratuites de mise à la une (repris de l'ancien centre) : mettre à la une ou refuser avec motif.
+const featuredRequestsPanel = (reload) => {
+  const box = h("div", { class: "stack" });
+  const decideFR = (id, action, note) => act(() => api(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: { action, note } }), action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.", reload);
+  const row = (r, open) => h("article", { class: "card panel row" },
+    h("div", { class: "grow stack" }, h("b", null, r.title || "Annonce"), h("p", { class: "muted small" }, `${r.neighborhood || ""} · demandé par ${r.requesterName} · ${dateTime(r.createdAt)}`),
+      h("p", { class: "small" }, r.message ? `« ${r.message} »` : "Aucun message."),
+      r.status === "PENDING" ? null : h("p", { class: "small muted" }, `${r.status === "ACCEPTED" ? "Acceptée" : "Refusée"}${r.note ? ` — ${r.note}` : ""}`)),
+    open ? h("div", { class: "row" },
+      h("a", { class: "btn sm", href: `/#/annonce/${encodeURIComponent(r.listingId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Voir l'annonce"),
+      h("button", { class: "btn primary sm", type: "button", onClick: () => decideFR(r.id, "ACCEPT", "") }, ico("check"), "Mettre à la une"),
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif du refus (obligatoire)", type: "textarea", required: true, max: 500 }], { submit: "Refuser" }); if (v) decideFR(r.id, "REJECT", v.note); } }, "Refuser")) : null);
+  async function fill() {
+    try {
+      const [pending, done] = await Promise.all([api("/staff/featured-requests"), api("/staff/featured-requests?status=DONE")]);
+      box.replaceChildren(...(pending.length ? pending.map((r) => row(r, true)) : [empty("Aucune demande de mise à la une en attente.", "check")]),
+        done.length ? h("h3", { class: "tiny muted" }, "Traitées récemment") : null, ...done.slice(0, 30).map((r) => row(r, false)));
+    } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
+  }
+  fill();
+  return panel("Demandes de mise à la une", "Demandes gratuites envoyées par les annonceurs depuis « Mes annonces ». Aucun paiement n'est lié à cette demande.", box);
+};
+
 // ---------- Pilotage ----------
 export const listingsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Annonces & modération", desc: "File de modération, signalements et annonces en ligne.",
@@ -35,7 +58,7 @@ export const listingsView = (ctx) => page(ctx, {
     const online = table([{ label: "Annonce", render: (r) => h("div", { class: "item" }, h("b", null, r.title), h("small", null, r.neighborhood)) }, { label: "À la une", render: (r) => (r.featured ? pill("ok", "Oui") : pill("neutral", "Non")) },
       { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "listing", r.id), h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/listings/${encodeURIComponent(r.id)}/feature`, { method: "POST", body: { on: !r.featured } }), r.featured ? "Retirée de la une." : "Mise à la une (7 jours).", reload) }, r.featured ? "Retirer de la une" : "Mettre à la une")) }], d.online, { emptyText: "Aucune annonce en ligne." });
     return [minis(mini("Publiées", nf(s.published)), mini("En attente", nf(s.pending)), mini("Signalements ouverts", nf(s.open_reports)), mini("Nouvelles · 7 jours", nf(s.new_7d))),
-      h("div", { class: "stack" }, ...pending), h("div", { class: "cols2" }, panel("Signalements ouverts", null, reports), panel("En ligne (20 dernières)", null, online))];
+      h("div", { class: "stack" }, ...pending), featuredRequestsPanel(reload), h("div", { class: "cols2" }, panel("Signalements ouverts", null, reports), panel("En ligne (20 dernières)", null, online))];
   },
 });
 
@@ -51,8 +74,11 @@ export const usersView = (ctx) => {
         box.replaceChildren(table([{ label: "Compte", render: (r) => h("div", { class: "row" }, h("span", { class: "avatar" }, initials(r.fullName)), h("div", { class: "item" }, h("b", null, r.fullName), h("small", null, `${r.phone ? `•••• ${String(r.phone).slice(-2)}` : "sans numéro"} · ${r.userId.slice(0, 12)}`))) },
           { label: "Rôle", render: (r) => pill(r.staffRole === "USER" ? "neutral" : "info", r.staffRole) }, { label: "Statut", render: (r) => statusPill(r.accountStatus) },
           { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId),
+            h("button", { class: "btn sm", type: "button", title: "Génère un lien à transmettre à la personne (valable 30 minutes, usage unique)", onClick: async () => {
+              try { const link = await api(`/staff/accounts/${encodeURIComponent(r.userId)}/reset-link`, { method: "POST", body: {} }); await formDialog("Lien de réinitialisation", [{ name: "link", label: `Transmettez-le uniquement à ${r.fullName} (valable ${link.validMinutes} min, usage unique)`, value: link.link, max: 500 }], { submit: "Fermer" }); } catch (error) { fail(error); }
+            } }, "Lien mot de passe"),
             h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Statut du compte", [{ name: "status", label: "Nouveau statut", type: "select", options: ["ACTIVE", "RESTRICTED", "BANNED"], value: r.accountStatus }, { name: "reason", label: "Motif (obligatoire sauf réactivation)", type: "textarea", max: 500 }], { intro: r.fullName }); if (v) act(() => api(`/staff/accounts/${encodeURIComponent(r.userId)}/status`, { method: "POST", body: v }), "Statut mis à jour.", reload); } }, "Statut"),
-            h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Rôle équipe", [{ name: "role", label: "Rôle", type: "select", options: ["USER", "MODERATOR", "ADMIN", "SUPERADMIN"], value: r.staffRole }], { intro: `${r.fullName} · le dernier SUPERADMIN actif ne peut pas être rétrogradé.` }); if (v) act(() => api(`/staff/accounts/${encodeURIComponent(r.userId)}/role`, { method: "POST", body: v }), "Rôle mis à jour.", reload); } }, "Rôle")) }], f, { emptyText: "Aucun compte ne correspond." }));
+            (ctx.isSuperadmin() ? h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Rôle équipe", [{ name: "role", label: "Rôle", type: "select", options: ["USER", "MODERATOR", "ADMIN", "SUPERADMIN"], value: r.staffRole }], { intro: `${r.fullName} · le dernier SUPERADMIN actif ne peut pas être rétrogradé.` }); if (v) act(() => api(`/staff/accounts/${encodeURIComponent(r.userId)}/role`, { method: "POST", body: v }), "Rôle mis à jour.", reload); } }, "Rôle") : null)) }], f, { emptyText: "Aucun compte ne correspond." }));
       };
       const input = h("input", { class: "input", type: "search", placeholder: "Filtrer par nom, identifiant, rôle…", "aria-label": "Filtrer" });
       input.addEventListener("input", () => { q = input.value.trim().toLowerCase(); draw(); });
@@ -101,22 +127,100 @@ export const permissionsView = (ctx) => page(ctx, {
   },
 });
 
+// Demandes annonceurs (repris de l'ancien centre) : approuver, demander des informations, refuser ; pièces consultables.
+const APP_DOC = (l) => (l === "PIECE_IDENTITE" ? "pièce d'identité" : l === "RCCM" ? "RCCM" : "justificatif");
+async function openAppDoc(appId, doc) {
+  try {
+    const { fileData } = await api(`/staff/advertiser-applications/${encodeURIComponent(appId)}/documents/${encodeURIComponent(doc.id)}`);
+    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
+    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+  } catch (error) { fail(error); }
+}
+const applicationsPanel = (reload) => {
+  const box = h("div", { class: "stack" });
+  const decide = (a, body, ok) => act(() => api(`/staff/advertiser-applications/${encodeURIComponent(a.id)}/decide`, { method: "POST", body }), ok, reload);
+  async function fill() {
+    try {
+      const apps = await api("/staff/advertiser-applications?status=PENDING");
+      box.replaceChildren(...(apps.length ? apps.map((a) => h("article", { class: "card panel stack" },
+        h("div", { class: "row" }, h("b", null, a.full_name || a.user_name || a.user_id), pill("neutral", a.type)),
+        h("p", { class: "muted small" }, a.data?.description || "Aucune description."),
+        h("p", { class: "muted small" }, `Demandé : ${a.display_role_requested || "—"} · ${dateOnly(a.created_at)}`),
+        (a.documents || []).length ? h("div", { class: "row" }, a.documents.map((d) => h("button", { class: "btn sm", type: "button", onClick: () => openAppDoc(a.id, d) }, ico("external"), `Voir : ${APP_DOC(d.label)}`))) : h("p", { class: "muted small" }, "Aucune pièce jointe (facultatif)."),
+        h("div", { class: "row" },
+          h("button", { class: "btn primary sm", type: "button", onClick: () => decide(a, { action: "APPROVE" }, "Demande approuvée.") }, ico("check"), "Approuver"),
+          h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Demander des informations", [{ name: "note", label: "Informations à demander au candidat", type: "textarea", required: true, max: 500 }], { submit: "Envoyer" }); if (v) decide(a, { action: "NEED_INFO", note: v.note }, "Informations demandées."); } }, "Demander des infos"),
+          h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif du refus", type: "textarea", required: true, max: 500 }], { submit: "Refuser" }); if (v) decide(a, { action: "REJECT", note: v.note }, "Demande refusée."); } }, "Refuser")))) : [empty("Aucune demande annonceur en attente.", "check")]));
+    } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
+  }
+  fill();
+  return panel("Demandes annonceurs en attente", "Approuver, demander des informations ou refuser. Les pièces se consultent sans être téléchargées.", box);
+};
+
 export const agenciesView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Agences & annonceurs", desc: "Profils d'agence et annonceurs vérifiés.", load: () => api("/staff/owner/agencies"),
-  build: (rows) => [minis(mini("Agences / annonceurs", nf(rows.length)), mini("Vérifiés", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
+  build: (rows, reload) => [applicationsPanel(reload), minis(mini("Agences / annonceurs", nf(rows.length)), mini("Vérifiés", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
     panel("Agences", null, table([{ label: "Agence", render: (r) => h("div", { class: "item" }, h("b", null, r.agency ?? r.name), h("small", null, r.name)) }, { label: "Vérifiée", render: (r) => (r.verifiedAt ? pill("ok", dateOnly(r.verifiedAt)) : pill("neutral", "Non")) }, { label: "Statut", render: (r) => statusPill(r.status) },
       { label: "Publiées", key: "published", num: true }, { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId), h("a", { class: "btn sm", href: `/#/annonceur/${encodeURIComponent(r.userId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Profil")) }], rows))],
 });
 
+// Pièces justificatives (repris de l'ancien centre) : consultation, acceptation avec contrôle noté, refus motivé.
+const openProof = async (id) => {
+  try {
+    const { fileData } = await api(`/staff/proofs/${encodeURIComponent(id)}/file`);
+    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
+    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+  } catch (error) { fail(error); }
+};
+const proofsPanel = (proofs, reload) => {
+  const decide = (id, body, ok) => act(() => api(`/staff/proofs/${encodeURIComponent(id)}/decision`, { method: "POST", body }), ok, reload);
+  const card = (p) => h("article", { class: "card panel row" },
+    h("div", { class: "grow stack" }, h("div", { class: "row" }, pill("gold", p.kind === "AGENCE" ? "AGENCE" : "DOCUMENT")), h("b", null, p.listingTitle ?? `Agence de ${p.ownerName}`),
+      h("p", { class: "muted small" }, `${p.ownerName}${p.declaredDocument ? ` · document déclaré : ${p.declaredDocument}` : ""} · ${dateOnly(p.createdAt ?? p.created_at)}`),
+      h("p", { class: "muted small" }, "Un badge n'est donné qu'après un vrai contrôle (cadastre, greffe, mairie…).")),
+    h("div", { class: "row" },
+      h("button", { class: "btn sm", type: "button", onClick: () => openProof(p.id) }, ico("external"), "Voir la pièce"),
+      h("button", { class: "btn primary sm", type: "button", onClick: async () => {
+        const fields = [{ name: "note", label: "Qu'avez-vous contrôlé ? (organisme, numéro)", type: "textarea", required: true, max: 300 }];
+        if (p.kind === "AGENCE") fields.push({ name: "agencyName", label: "Nom de l'agence", required: true, max: 120 });
+        const v = await formDialog("Pièce contrôlée", fields, { submit: "Accepter" });
+        if (v) decide(p.id, { action: "ACCEPT", note: v.note, agencyName: v.agencyName ?? "" }, "Pièce acceptée, badge donné.");
+      } }, ico("check"), "Contrôlée : accepter"),
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la pièce", [{ name: "note", label: "Motif du refus", type: "textarea", required: true, max: 300 }], { submit: "Refuser" }); if (v) decide(p.id, { action: "REFUSE", note: v.note }, "Pièce refusée."); } }, "Refuser")));
+  return panel(`Pièces à contrôler (${proofs.length})`, null, proofs.length ? h("div", { class: "stack" }, proofs.map(card)) : empty("Aucune pièce en attente.", "check"));
+};
+// Liste noire (repris de l'ancien centre) : téléphones et e-mails bloqués ; les comptes concernés sont bloqués.
+const blacklistPanel = (reload) => {
+  const box = h("div", { class: "stack" });
+  async function fill() {
+    try {
+      const list = await api("/staff/blacklist");
+      box.replaceChildren(
+        h("div", { class: "row" }, h("button", { class: "btn primary sm", type: "button", onClick: async () => {
+          const v = await formDialog("Ajouter à la liste noire", [
+            { name: "kind", label: "Type", type: "select", options: [{ value: "PHONE", label: "Numéro de téléphone" }, { value: "EMAIL", label: "Adresse e-mail" }], value: "PHONE" },
+            { name: "value", label: "Numéro (ex. +223 76 12 34 56) ou adresse e-mail", required: true, max: 120 },
+            { name: "reason", label: "Motif", type: "textarea", required: true, max: 300 }], { submit: "Ajouter", intro: "Les comptes concernés sont bloqués." });
+          if (v) act(() => api("/staff/blacklist", { method: "POST", body: { kind: v.kind, value: v.value.trim(), reason: v.reason } }), "Ajouté. Les comptes concernés sont bloqués.", fill);
+        } }, "Ajouter")),
+        ...(list.length ? list.map((b) => h("article", { class: "card panel row" }, h("div", { class: "grow" }, h("b", null, `${b.kind === "PHONE" ? "Téléphone" : "E-mail"} ${b.value}`), h("p", { class: "muted small" }, b.reason)),
+          h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/blacklist/${encodeURIComponent(b.id)}/remove`, { method: "POST", body: {} }), "Retiré de la liste noire.", fill) }, "Retirer"))) : [empty("Liste noire vide.", "check")]));
+    } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
+  }
+  fill();
+  return panel("Liste noire", "Téléphones et adresses e-mail bloqués.", box);
+};
 export const trustView = (ctx) => page(ctx, {
-  eyebrow: "PILOTAGE", title: "Confiance & vérifications", desc: "Pièces à contrôler, alertes et signalements de confiance. Le contrôle des pièces (documents sensibles) reste dans le centre de contrôle classique.",
-  load: () => api("/staff/trust"), actions: () => adminLink("Contrôler les pièces"),
-  build(t) {
+  eyebrow: "PILOTAGE", title: "Confiance & vérifications", desc: "Pièces justificatives à contrôler, alertes, signalements de confiance et liste noire.",
+  load: () => api("/staff/trust"),
+  build(t, reload) {
     const n = (a) => (a ?? []).length;
     const sec = (title, rows, cols) => panel(`${title} (${n(rows)})`, null, table(cols, rows ?? [], { emptyText: "Rien à traiter." }));
     return [minis(mini("Pièces à contrôler", nf(n(t.proofs))), mini("Alertes ouvertes", nf(n(t.alerts))), mini("Commentaires signalés", nf(n(t.commentReports))), mini("Personnes / avis signalés", nf(n(t.userReports) + n(t.reviewReports)))),
-      h("div", { class: "cols2" }, sec("Pièces justificatives", t.proofs, [{ label: "Dépôt", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? r.type ?? "Pièce"), h("small", null, r.ownerName ?? r.listingTitle ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]),
-        sec("Alertes", t.alerts, [{ label: "Alerte", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? "Alerte"), h("small", null, r.detail ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]))];
+      proofsPanel(t.proofs ?? [], reload),
+      h("div", { class: "cols2" },
+        sec("Alertes", t.alerts, [{ label: "Alerte", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? "Alerte"), h("small", null, r.detail ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]),
+        blacklistPanel(reload))];
   },
 });
 
@@ -146,17 +250,47 @@ async function openComplaint(ctx, id, reload) {
   } catch (e) { fail(e); }
 }
 
-export const paymentsView = (ctx) => page(ctx, {
-  eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements et paiements récents. Rapprochement et remboursements : centre de contrôle classique (onglet Paiements).",
-  load: async () => { const [o, s] = await Promise.all([api("/staff/owner/overview"), api("/staff/owner/subscriptions")]); return { o, s }; }, actions: () => adminLink("Rapprochement & remboursements"),
-  build({ o, s }) {
-    const f = o.finance;
-    return [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length))),
-      h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
-        panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus)))),
-      panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))];
+// Paiements (repris de l'ancien centre) : tarifs des offres, rapprochement, remboursements notés.
+const offersPanel = (offers, reload) => panel("Offres (tarifs)", "Une offre inactive ou à prix 0 n'est jamais proposée au public. Les prix relèvent de la permission « offres.tarifs » (Superadmin par défaut).",
+  offers?.length ? h("div", { class: "stack" }, offers.map((o) => h("article", { class: "card panel row" },
+    h("div", { class: "grow" }, h("b", null, o.label), h("p", { class: "muted small" }, `${fcfa(o.priceXof)} · ${o.active ? "active" : "inactive"}`)),
+    h("div", { class: "row" },
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Fixer le prix", [{ name: "price", label: "Prix en FCFA (nombre entier)", type: "number", required: true, max: 12 }], { submit: "Enregistrer" }); if (v) act(() => api(`/staff/offers/${encodeURIComponent(o.code)}`, { method: "POST", body: { priceXof: Number(v.price), active: o.active } }), "Prix enregistré.", reload); } }, "Fixer le prix"),
+      h("button", { class: "btn primary sm", type: "button", onClick: () => act(() => api(`/staff/offers/${encodeURIComponent(o.code)}`, { method: "POST", body: { priceXof: o.priceXof, active: !o.active } }), o.active ? "Offre désactivée." : "Offre activée.", reload) }, o.active ? "Désactiver" : "Activer"))))) : empty("Aucune offre.", "wallet"));
+const reconcilePanels = (rec, reload) => {
+  if (!rec) return [panel("Rapprochement", null, empty("Rapprochement indisponible pour votre rôle.", "wallet"))];
+  const money = (x) => fcfa(x);
+  const refundForm = async (p) => {
+    const v = await formDialog("Noter un remboursement", [
+      { name: "reason", label: "Motif du remboursement (obligatoire)", type: "textarea", required: true, max: 300 },
+      { name: "refundRef", label: "Référence fournisseur (facultatif)", max: 120 }], { submit: "Confirmer le remboursement", intro: "Confirmez que l'argent a bien été rendu chez le fournisseur. Les jours donnés par ce paiement seront retirés de l'annonce." });
+    if (v) act(() => api(`/staff/payments/${encodeURIComponent(p.id)}/refund`, { method: "POST", body: { reason: v.reason, refundRef: v.refundRef ?? "" } }), "Remboursement noté.", reload);
+  };
+  return [
+    panel("À vérifier", `Payé au total : ${money(rec.paid.totalXof)} en ${rec.paid.count} paiement(s).${rec.repaired ? ` ${rec.repaired} paiement(s) réparé(s) à l'ouverture.` : ""}${rec.expired ? ` ${rec.expired} paiement(s) en attente depuis plus de 24 h marqué(s) expiré(s).` : ""}`,
+      table([{ label: "Statut", key: "status" }, { label: "Montant", render: (p) => money(p.amountXof), num: true }, { label: "Annonce", render: (p) => tracer(ctx0, "listing", p.listingId, "Retracer") }, { label: "Date", render: (p) => dateTime(p.createdAt) }, { label: "Référence", render: (p) => h("small", null, p.id) }], rec.toReview, { emptyText: "Rien à vérifier." })),
+    panel(`Remboursements à confirmer chez le fournisseur (${rec.refundsToConfirm.length})`, `Déjà remboursé : ${money(rec.refunded.totalXof)} en ${rec.refunded.count} paiement(s). Un remboursement n'est « confirmé » que lorsque le fournisseur le signale.`,
+      table([{ label: "Montant", render: (p) => money(p.amountXof), num: true }, { label: "Motif", render: (p) => h("small", null, p.refundReason ?? "—") }, { label: "Noté le", render: (p) => dateTime(p.refundedAt) }, { label: "Référence", render: (p) => h("small", null, p.id) }], rec.refundsToConfirm, { emptyText: "Rien à rapprocher." })),
+    panel("Noter un remboursement", "À faire une fois l'argent rendu chez le fournisseur.",
+      rec.refundable.length ? h("div", { class: "stack" }, rec.refundable.map((p) => h("article", { class: "card panel row" },
+        h("div", { class: "grow" }, h("b", null, `${money(p.amountXof)} · ${p.days} jours`), h("p", { class: "muted small" }, `annonce ${p.listingId} · ${dateTime(p.paidAt ?? p.createdAt)}`)),
+        h("button", { class: "btn sm", type: "button", onClick: () => refundForm(p) }, "Noter un remboursement")))) : empty("Aucun paiement confirmé à rembourser.", "wallet")),
+  ];
+};
+let ctx0 = null;
+export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
+  eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements, tarifs des offres, rapprochement et remboursements.",
+  load: async () => { const [o, s, rec, offers] = await Promise.all([api("/staff/owner/overview").catch(() => null), api("/staff/owner/subscriptions").catch(() => null), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => [])]); return { o, s, rec, offers }; },
+  build({ o, s, rec, offers }, reload) {
+    // Les chiffres d'encaissement dépendent des modules « Vue générale » et « Abonnements » ; sans eux, seules les sections « Paiements » s'affichent.
+    const f = o?.finance;
+    const head = f && s ? [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length)))] : [];
+    const stats = f && s ? [h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
+        panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus))))] : [];
+    const recent = s ? [panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))] : [];
+    return [...head, offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
   },
-});
+}); };
 
 export const subscriptionsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Abonnements & formules", desc: "Formules de mise à la une : prix et activation. Aucun tarif n'est imposé.", load: () => api("/staff/owner/offers"),
@@ -215,6 +349,93 @@ export const aiView = (ctx) => page(ctx, {
 });
 
 // ---------- Système ----------
+// Statistiques (repris de l'ancien centre) : agrégats quotidiens, classements, fiche annonceur, comparaison, pondérations.
+// Jamais de calcul en direct : les chiffres viennent des agrégats. Chaque fiche consultée est journalisée côté serveur.
+export const statsView = (ctx) => {
+  let days = 7;
+  const compareSel = [];
+  const pct = (cur, prev) => (!prev ? "" : ` (${cur - prev >= 0 ? "+" : ""}${Math.round(((cur - prev) / prev) * 100)} % sur la période précédente)`);
+  const perf = (p) => [`Indice ${nf(p.current.score)}${pct(p.current.score, p.previous.score)}`, `${nf(p.current.views)} vues · ${nf(p.current.favorites)} favoris · ${nf(p.current.contactClicks)} clics de contact`];
+  const openSheetFor = async (id) => {
+    try { const v = await api(`/staff/stats/advertisers/${encodeURIComponent(id)}?days=${days}`); const a = v.advertiser;
+      openDrawer(a.name, h("p", { class: "muted small" }, `${a.role}${a.agencyVerified ? " · agence vérifiée" : ""} · compte ${a.accountStatus}${a.statusReason ? ` (${a.statusReason})` : ""}`),
+        h("p", { class: "small" }, `Inscrit le ${a.memberSince ? dateOnly(a.memberSince) : "—"} · dernière session : ${v.lastSessionAt ? dateTime(v.lastSessionAt) : "aucune"}`),
+        h("p", { class: "small" }, `Annonces : ${v.listingsTotal} (${Object.entries(v.listingsByStatus).map(([k, n]) => `${n} ${k.toLowerCase()}`).join(" · ") || "aucune"})`),
+        h("h3", null, `Performance du ${v.period.from} au ${v.period.to}`), ...perf(v.performance).map((t) => h("p", { class: "small" }, t)),
+        h("p", { class: "muted small" }, `Pondérations : vue ${v.weights.view}, favori ${v.weights.favorite}, contact ${v.weights.contactClick}.`),
+        h("h3", null, "Meilleures annonces"), ...(v.bestListings.length ? v.bestListings.map((l) => h("p", { class: "small" }, `${l.title} (${l.status.toLowerCase()}) — indice ${nf(l.score)}`)) : [h("p", { class: "muted small" }, "Aucune annonce.")]),
+        h("p", { class: "muted small" }, `Avis : ${v.reviews.count ? `${v.reviews.count} avis, moyenne ${String(v.reviews.average).replace(".", ",")} / 5` : "aucun avis"} · signalements : ${v.reports.listingOpen} d'annonce, ${v.reports.userOpen} de compte (ouverts)`),
+        h("p", { class: "muted small" }, v.notice));
+    } catch (error) { fail(error); }
+  };
+  const compare = async (reload) => {
+    if (compareSel.length !== 2) return;
+    try { const v = await api(`/staff/stats/compare?a=${encodeURIComponent(compareSel[0].id)}&b=${encodeURIComponent(compareSel[1].id)}&days=${days}`);
+      const col = (x) => h("section", { class: "card panel stack" }, h("h3", null, x.name), h("p", { class: "muted small" }, `${x.role}${x.agencyVerified ? " · agence vérifiée" : ""} · ${x.listingsTotal} annonce(s)`), ...perf({ current: x.current, previous: x.previous }).map((t) => h("p", { class: "small" }, t)), ...x.bestListings.map((l) => h("p", { class: "muted small" }, `${l.title} — indice ${nf(l.score)}`)));
+      compareSel.length = 0; reload?.();
+      openDrawer(`Comparaison du ${v.period.from} au ${v.period.to}`, h("div", { class: "stack" }, col(v.a), col(v.b)), h("p", { class: "muted small" }, `Pondérations : vue ${v.weights.view}, favori ${v.weights.favorite}, contact ${v.weights.contactClick}. ${v.notice}`));
+    } catch (error) { fail(error); }
+  };
+  const rankRows = (r, reload) => {
+    const rate = (x) => (x.interactionRate == null ? `taux non affiché (moins de ${r.minViewsForRate} vues)` : `taux d'interaction ${String(x.interactionRate).replace(".", ",")} %`);
+    const line = (x, label) => {
+      const selected = x.ownerId && compareSel.some((c) => c.id === x.ownerId);
+      return h("article", { class: "card panel row" }, h("div", { class: "grow" }, h("b", null, label), h("p", { class: "muted small" }, `indice ${nf(x.score)} · ${nf(x.views)} vues · ${nf(x.favorites)} favoris · ${nf(x.contactClicks)} clics de contact · ${rate(x)}`)),
+        x.ownerId ? h("div", { class: "row" },
+          h("button", { class: "btn sm", type: "button", onClick: () => openSheetFor(x.ownerId) }, "Fiche"),
+          h("button", { class: `btn sm${selected ? " primary" : ""}`, type: "button", "aria-pressed": String(!!selected), onClick: () => {
+            const i = compareSel.findIndex((c) => c.id === x.ownerId);
+            if (i >= 0) compareSel.splice(i, 1); else compareSel.push({ id: x.ownerId, name: x.name ?? x.title }); compareSel.splice(0, compareSel.length - 2);
+            reload?.(); if (compareSel.length === 2) compare(reload);
+          } }, selected ? "Retirer de la comparaison" : "Comparer")) : null);
+    };
+    const block = (title, rows, render, emptyText) => panel(title, null, rows.length ? h("div", { class: "stack" }, rows.map(render)) : empty(emptyText, "search"));
+    return [
+      compareSel.length === 1 ? h("p", { class: "notice" }, `Comparaison : ${compareSel[0].name} sélectionné. Choisissez un deuxième annonceur.`) : null,
+      block("Classement des annonces", r.listings, (x, i) => line(x, `${i + 1}. ${x.title} (${x.ownerName})`), "Aucune activité comptée sur la période."),
+      block("Classement des agences", r.agencies, (x, i) => line(x, `${i + 1}. ${x.name}${x.agencyVerified ? " · vérifiée" : " · en cours de vérification"} · ${x.listingsCounted} annonce(s)`), "Aucune agence avec activité comptée."),
+      block("Classement des autres annonceurs (particuliers, démarcheurs)", r.others, (x, i) => line(x, `${i + 1}. ${x.name} · ${x.role} · ${x.listingsCounted} annonce(s)`), "Aucun annonceur avec activité comptée."),
+    ];
+  };
+  return page(ctx, {
+    eyebrow: "RAPPORTS", title: "Statistiques", desc: "Agrégats quotidiens uniquement. Chaque consultation de fiche annonceur est journalisée.",
+    load: async () => { const [o, r] = await Promise.all([api(`/staff/stats/overview?days=${days}`), api(`/staff/stats/rankings?days=${days}`)]); return { o, r }; },
+    build({ o, r }, reload) {
+      const c = o.collection;
+      const notes = [];
+      if (!c.environmentOn || !c.settingOn) notes.push("Collecte des visites non démarrée : seuls les chiffres d'historique (inscriptions, annonces publiées) sont disponibles.");
+      else if (!c.lastAggregatedDay) notes.push("Aucune agrégation n'a encore été faite : lancez « node scripts/aggregate.mjs --apply » sur le serveur.");
+      if (c.lastAggregatedDay && c.lastAggregatedDay < o.period.to) notes.push(`Chiffres arrêtés au ${c.lastAggregatedDay} : les jours suivants n'ont pas été agrégés.`);
+      if (c.checksFailed7d > 0) notes.push(`${c.checksFailed7d} contrôle(s) de cohérence en écart ces 7 derniers jours : recalculer les jours concernés.`);
+      const delta = (key) => { const now = o.totals[key]; const before = o.previousTotals[key]; if (!before) return now ? "pas de période précédente comparable" : ""; const d = now - before; return `${d >= 0 ? "+" : ""}${nf(d)} (${d >= 0 ? "+" : ""}${Math.round((d / before) * 100)} %) par rapport à la période précédente`; };
+      const shown = o.daily.slice(-31); const max = Math.max(1, ...shown.map((d) => d.views));
+      const setDays = (n) => { days = n; reload(); };
+      const w = r.weights;
+      const weightsForm = async () => {
+        const v = await formDialog("Pondérations de l'indice", [
+          { name: "view", label: `Poids d'une vue (0 à ${r.weightMax})`, type: "number", required: true, value: w.view },
+          { name: "favorite", label: "Poids d'un favori ajouté", type: "number", required: true, value: w.favorite },
+          { name: "contactClick", label: "Poids d'un clic de contact (supérieur à celui d'une vue)", type: "number", required: true, value: w.contactClick },
+          { name: "reason", label: "Motif du changement (obligatoire)", type: "textarea", required: true, max: 300 }], { submit: "Enregistrer" });
+        if (v) act(() => api("/staff/stats/weights", { method: "POST", body: { view: Number(v.view), favorite: Number(v.favorite), contactClick: Number(v.contactClick), reason: v.reason } }), "Pondérations enregistrées.", reload);
+      };
+      return [
+        h("div", { class: "row", role: "group", "aria-label": "Période" }, [7, 30, 90].map((n) => h("button", { class: `btn sm${days === n ? " primary" : ""}`, type: "button", "aria-pressed": String(days === n), onClick: () => setDays(n) }, `${n} jours`)),
+          h("span", { class: "muted small" }, `Du ${o.period.from} au ${o.period.to} (jours complets, fuseau UTC = Mali)`)),
+        ...notes.map((n) => h("p", { class: "notice" }, n)),
+        minis(...o.definitions.map((d) => h("div", { class: "card mini" }, h("small", null, d.label), h("strong", null, nf(o.totals[d.key])), h("small", null, delta(d.key))))),
+        panel("Jour par jour", o.daily.length > shown.length ? `Les ${shown.length} derniers jours sur ${o.daily.length}.` : null,
+          h("div", { class: "stack" }, shown.map((d) => h("div", { class: "row" }, h("small", null, d.day.slice(5)), h("progress", { max: String(max), value: String(d.views), "aria-label": `${d.day} : ${d.views} vues` }), h("small", null, nf(d.views)))))),
+        panel("Annonces les plus vues", null, o.topListings.length ? h("div", { class: "stack" }, o.topListings.map((t) => h("p", { class: "small" }, `${t.title ?? t.listingId} — ${nf(t.views)} vues, ${nf(t.contactClicks)} clics de contact`))) : empty("Aucune annonce vue sur la période.", "search")),
+        panel("Indice de confiance des classements", `Pondérations : vue ${w.view}, favori ${w.favorite}, clic de contact ${w.contactClick} (${r.weightsCustomised ? "réglées par le propriétaire" : "valeurs par défaut"}).`,
+          h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onClick: weightsForm }, "Modifier les pondérations"))),
+        ...rankRows(r, reload),
+        h("details", { class: "panel" }, h("summary", null, "Définitions des indicateurs"), h("ul", { class: "stack" }, o.definitions.map((d) => h("li", null, h("b", null, d.label), ` : ${d.note}`)))),
+      ];
+    },
+  });
+};
+
 export const reportsView = (ctx) => page(ctx, {
   eyebrow: "SYSTÈME", title: "Rapports & exports", desc: "Chaque export du journal des mouvements est inscrit au journal d'audit.", load: async () => api("/staff/owner/report"),
   build(r) {
@@ -248,17 +469,60 @@ export const backupsView = (ctx) => page(ctx, {
     panel("Journal des restaurations", null, table([{ label: "Note", key: "note" }, { label: "Date", render: (x) => dateTime(x.created_at) }], r, { emptyText: "Aucune restauration notée." }))],
 });
 
+// Page d'accueil (repris de l'ancien centre) : tous les textes, couleurs, avantages et photo d'arrière-plan (import ou URL).
+const HOME_FIELDS = [
+  ["badge", "Petit bandeau supérieur", "L’immobilier au Mali, en toute confiance"],
+  ["titleLine1", "Titre – première ligne", "Trouvez votre"],
+  ["titleLine2", "Titre – deuxième ligne", "bien immobilier idéal"],
+  ["subtitle", "Texte descriptif", "Maisons, appartements…"],
+  ["assurance1", "Avantage 1", "Annonces modérées"],
+  ["assurance2", "Avantage 2", "Téléphones vérifiés"],
+  ["assurance3", "Avantage 3", "Contact direct"],
+  ["trustTitle", "Titre du macaron confiance", "Confiance"],
+  ["trustLine1", "Ligne 1 du macaron", "Sécurité"],
+  ["trustLine2", "Ligne 2 du macaron", "Sérénité"],
+  ["overlayColor", "Couleur de l’overlay (hex)", "#091f19"],
+  ["overlayOpacity", "Opacité de l’overlay (0 à 1)", "0.75"],
+  ["accentColor", "Couleur d’accent (titre, badge)", "#C9EF75"],
+  ["textColor", "Couleur du texte principal", "#ffffff"],
+];
 export const homepageView = (ctx) => page(ctx, {
-  eyebrow: "SYSTÈME", title: "Page d’accueil", desc: "Image de fond, couleur et opacité de l’overlay. Appliqué au site public.",
+  eyebrow: "SYSTÈME", title: "Page d’accueil", desc: "Textes, couleurs, avantages et photo d’arrière-plan du site public.",
   load: async () => api("/homepage-settings"),
+  actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
   build(s, reload) {
-    const f = { ...s };
-    const inp = (k, l, type = "text") => { const i = h("input", { class: "input", type, value: f[k] ?? "" }); i.addEventListener("input", () => { f[k] = i.value; }); return h("label", { class: "field" }, l, i); };
-    return [panel("Apparence de l’accueil", null, h("div", { class: "form two" },
-      inp("image", "URL de l’image de fond"),
-      inp("overlayColor", "Couleur de l’overlay"),
-      inp("overlayOpacity", "Opacité (0–1)"),
-      h("div", { class: "wide" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: f }), "Page d’accueil enregistrée.", reload) }, "Enregistrer"))))];
+    const original = { ...s };
+    const draft = { ...s };
+    const inputs = {};
+    const imageInput = h("input", { class: "input", maxlength: "1200", placeholder: "/media/ma-photo.jpg", value: draft.image ?? "" });
+    inputs.image = imageInput;
+    imageInput.addEventListener("input", () => { draft.image = imageInput.value; });
+    const uploadStatus = h("span", { class: "small muted", role: "status" }, "JPEG, PNG ou WebP · 2 Mo maximum.");
+    const fileInput = h("input", { class: "input", type: "file", accept: "image/jpeg,image/png,image/webp", "aria-label": "Choisir une photo depuis le téléphone" });
+    fileInput.addEventListener("change", async () => {
+      const file = fileInput.files?.[0]; if (!file) return;
+      if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size > 2 * 1024 * 1024) { uploadStatus.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; fileInput.value = ""; return; }
+      try {
+        uploadStatus.textContent = "Envoi de la photo…";
+        const dataUrl = await new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result); reader.onerror = () => reject(new Error("Lecture de la photo impossible.")); reader.readAsDataURL(file); });
+        const result = await api("/staff/homepage-image", { method: "POST", body: { dataUrl } });
+        draft.image = result.image; imageInput.value = result.image; uploadStatus.textContent = "Photo importée. Pensez à enregistrer.";
+      } catch (error) { uploadStatus.textContent = error.message || "Envoi impossible."; }
+      fileInput.value = "";
+    });
+    const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
+      const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
+      inputs[key] = i;
+      i.addEventListener("input", () => { draft[key] = i.value; });
+      return h("label", { class: "field" }, h("span", null, label), i);
+    });
+    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
+    const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
+    return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
+        h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
+      panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
+      h("div", { class: "row" }, save, reset)];
   },
 });
 

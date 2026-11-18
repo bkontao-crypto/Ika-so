@@ -1251,3 +1251,60 @@ Base : `main` au commit `2cf342b`. Aucune fusion dans `main`. Déploiement : auc
   - Limite de 10 imports par heure et par compte (partagée avec le CSV) : les contrôles à blanc comptent aussi.
   - Branche créée depuis `main` (2cf342b) : elle ne contient pas les commits de confidentialité lot A (`feat/confidentialite-lot-a`). Les fichiers communs à traiter au rebase : `Important/SUIVI.md`, `public/sw.js`.
 - **Fusions finales (18/11/2026, autorisées par le propriétaire) :** `feat/confidentialite-lot-a` puis `feat/import-annonces-masse` intégrées via `integration/lot-a-import`, puis fusionnées dans `main` (commit `b9f02f6`, `--no-ff`, retour arrière : `git revert -m 1 b9f02f6`). Conflits résolus sans supprimer de ligne : `components.css` (blocs conservés), `SUIVI.md` (sections conservées), classeur (lignes ajoutées, aucune modifiée), `sw.js` re-tamponné. Tests : 311/311. Contrôles navigateur locaux : menu, équipe, import (sans erreur). **DEC-007 reste à arbitrer.** Déploiement Render : non vérifiable depuis l'agent.
+
+## Centre unifié : fusion de l'ancien centre (/admin) dans le Owner Control Center (18/11/2026)
+
+Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. Décision propriétaire : DEC-008 = option B.
+
+- **À réaliser :** supprimer l'ancien centre classique (`/admin`) après avoir branché toutes ses fonctionnalités dans `/owner`, et donner l'accès aux ADMIN via les délégations par module.
+- **Réalisé (étape 1) :** point d'accès `GET /staff/owner/access` (modules accessibles de l'utilisateur) ; menu `/owner` filtré selon ces modules ; route interdite affiche « Accès réservé » ; matrice `docs/etape-1/matrice-owner-center.json` complétée (segment `access`, 42 segments, 30 délégables).
+- **Vérifié :** tests 311/311 ; navigateur : ADMIN délégué voit 2 entrées (Annonces & modération, Confiance) et `#/users` est refusé ; SUPERADMIN voit 25 entrées, sans erreur JavaScript. Ces comptes existent uniquement dans la base de test (`ika_test`).
+- **En cours / À faire (étape 2) :** brancher dans `/owner` les fonctionnalités encore présentes seulement dans `/admin` :
+  1. Annonces : approuver, refuser avec motif, mettre à la une (`/staff/listings/:id/decision`, `/feature`).
+  2. Demandes annonceurs : décider, voir les documents (`/staff/advertiser-applications…`).
+  3. Demandes de mise à la une (`/staff/featured-requests…`).
+  4. Comptes staff : rôle, statut, lien de réinitialisation (`/staff/accounts/:id/…`), liste noire (`/staff/blacklist`).
+  5. Signalements : classer sans suite (`/staff/reports/:id/dismiss`).
+  6. Confiance : ouvrir les pièces (`/staff/proofs/:id/file`) — aujourd'hui renvoi vers `/admin`.
+  7. Paiements : rapprochement, remboursements, tarifs des offres (`/staff/payments/reconcile`, `/staff/offers`).
+  8. Page d'accueil : envoi d'image (`/staff/homepage-image`).
+  9. Statistiques : vue d'ensemble, comparaison, classements, fiche annonceur (`/staff/stats/…`).
+  Puis : supprimer `public/admin.html` et `public/js/admin.js`, rediriger `/admin` vers `/owner`, retirer les liens (menu compte, console, bouton « classique ») — **uniquement après validation du propriétaire sur le site**.
+- **Risques :** les endpoints `/staff/*` existants sont protégés par rôle de staff ; le menu `/owner` ne doit jamais être la seule barrière (le serveur contrôle chaque appel). Les renvois `adminLink` du centre v2 (trust, complaints, payments) doivent disparaître avec leur fonctionnalité.
+
+### Étape 2 — état au 18/11/2026 (branche feat/owner-center-unifie)
+- **2A** Demandes annonceurs (Agences & annonceurs) : approuver, demander des informations, refuser ; pièces consultables. Vérifié navigateur SUPERADMIN.
+- **2B** Mises à la une (Annonces & modération) : accepter, refuser motivé. Vérifié navigateur.
+- **2C** Liste noire (Confiance) et lien de réinitialisation (Utilisateurs). Liste noire vérifiée navigateur ADMIN et SUPERADMIN ; lien de réinitialisation vérifié (dialogue, valeur).
+- **2D** Pièces justificatives (Confiance) : voir, accepter (note + nom d'agence), refuser. Acceptation de bout en bout vérifiée (ADMIN délégué et SUPERADMIN).
+- **2E** Paiements : offres, rapprochement, remboursements notés. Chargement vérifié ; remboursement et modification de prix **non exécutés** (pas de paiement de test).
+- **2F** Page d'accueil : 14 champs, photo importée, annuler. Enregistrement et persistance vérifiés. Aperçu en direct non porté (lien « Voir le site »).
+- **2G** Statistiques (menu « Statistiques », module « report ») : rendu et période vérifiés. Fiche et comparaison : routes 200, affichage non vérifié (pas de données).
+
+**Points à trancher avant l'étape 3 (droits ADMIN) :**
+- Dans l'ancien centre, un ADMIN pouvait restreindre/bloquer un compte et générer un lien de réinitialisation. Dans le nouveau, la vue Utilisateurs reste réservée au SUPERADMIN : ces actions ne sont donc pas accessibles aux ADMIN délégués. À décider (DEC à ouvrir).
+- Les liens « centre de contrôle classique » (actions de l'Annonces, Confiance, Paiements, Utilisateurs) pointent encore vers `/admin` ; ils seront retirés à l'étape 3.
+
+### Étape 2H — actions sur les comptes délégables (18/11/2026, décision propriétaire : option b)
+- Module délégable « Utilisateurs » (`users`) ajouté : liste des comptes, restriction / blocage, lien de réinitialisation. Vérification **côté serveur** à chaque appel (`requireOwnerModule`).
+- Module « Confiance » (`trust`) appliqué à la liste noire (lecture, ajout, retrait).
+- Changement de rôle : toujours réservé au SUPERADMIN (bouton masqué pour les autres).
+- Refus d'un module non délégué : désormais HTTP 403 (auparavant 500, car l'erreur n'était pas reconnue par le gestionnaire). Corrige tous les modules du centre.
+- Vérifié : tests 311/311 ; ADMIN sans délégation « users » : 403 sur liste et lien de réinitialisation ; avec délégation : 200 ; menu et écran cohérents.
+- Non vérifié : restriction/blocage effectif par un ADMIN délégué (action sur compte réel non jouée en test).
+- **Vérifié le 18/11/2026 (base de test) :** un ADMIN délégué « Utilisateurs » restreint, bloque puis réactive un compte jetable (200, statut confirmé en base) ; délégation retirée ensuite. Modification d'une offre (prix puis retour à la valeur d'origine, 200).
+- **Non vérifié :** remboursement (aucun paiement de test). Fiche et comparaison annonceur à l'écran (aucune donnée d'activité).
+
+### Étape 2I — garde serveur par module pour ADMIN + polices (18/11/2026)
+- **À réaliser :** appliquer les propositions : garde par module sur les routes candidatures, offres, paiements, modération, preuves ; polices manquantes (404) ; remboursement et fiche/comparaison à tester.
+- **Réalisé :**
+  - Helper `requireOwnerGate` (routes/index.js) appelant `ownerDelegations.gate` : ADMIN sans délégation → 403 ; SUPERADMIN et MODERATOR inchangés. 15 routes concernées (featured-requests, advertiser-applications, offres, paiements, file d'attente, annonces, signalements, preuves).
+  - Module délégable « payments » ajouté ; route `GET /staff/owner/access` pour afficher seulement les modules attribués.
+  - Polices : `@fontsource-variable/outfit@5.3.0` et `@fontsource-variable/plus-jakarta-sans@5.3.0` ajoutées (dépendances validées par le propriétaire), fichiers copiés dans `public/fonts/` (Outfit-Variable.woff2, PlusJakartaSans-Variable.woff2). Service worker re-stampé (`ika-so-069aeb94b2`).
+  - Commit `b93293b` poussé sur `feat/owner-center-unifie` (non fusionné dans `main`).
+- **Vérifié :** tests 311/311 ; sur base de test, ADMIN délégués « moderation » et « trust » : `/staff/queue`, `/staff/featured-requests` 200 ; `/staff/advertiser-applications`, `/staff/offers`, `/staff/payments/reconcile`, `/staff/accounts` 403. SUPERADMIN : 200 partout. Fichiers polices servis en 200 (font/woff2).
+- **Non vérifié :** rôle MODERATOR (aucun compte de test) ; remboursement (aucun paiement de test) ; fiche et comparaison annonceur (aucune donnée) ; production (inaccessible depuis l'agent).
+- **En cours :** étape 3 (suppression de `/admin`) — uniquement après validation du propriétaire sur le site réel.
+- **À faire :** validation propriétaire du branche sur le site ; autorisation écrite pour fusion dans `main` ; tests remboursement et fiche/comparaison.
+- **Risques :** le dépôt distant a signalé un changement d'emplacement (`github.com/bkontao-crypto/Ika-so`) ; le push a réussi mais il est conseillé de mettre à jour l'URL du remote local.
+- **Vérifié le 18/11/2026 (base de test) — remboursement :** paiement de test PAID (BOOST_30) ; ADMIN sans délégation « payments » : 403 ; SUPERADMIN : 200, statut passé à REFUNDED avec motif et référence enregistrés. Fiche et comparaison annonceur : toujours non vérifiées (pas de données d'activité).
