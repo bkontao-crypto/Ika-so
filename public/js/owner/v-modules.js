@@ -19,19 +19,21 @@ const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn 
 // Demandes gratuites de mise à la une (repris de l'ancien centre) : mettre à la une ou refuser avec motif.
 const featuredRequestsPanel = (reload) => {
   const box = h("div", { class: "stack" });
-  const decideFR = (id, action, note) => act(() => api(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: { action, note } }), action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.", reload);
-  const row = (r, open) => h("article", { class: "card panel row" },
+  const decideFR = (id, action, note, months) => act(() => api(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: { action, note, months } }), action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.", reload);
+  const row = (r, open, max = 1) => h("article", { class: "card panel row" },
     h("div", { class: "grow stack" }, h("b", null, r.title || "Annonce"), h("p", { class: "muted small" }, `${r.neighborhood || ""} · demandé par ${r.requesterName} · ${dateTime(r.createdAt)}`),
       h("p", { class: "small" }, r.message ? `« ${r.message} »` : "Aucun message."),
       r.status === "PENDING" ? null : h("p", { class: "small muted" }, `${r.status === "ACCEPTED" ? "Acceptée" : "Refusée"}${r.note ? ` — ${r.note}` : ""}`)),
     open ? h("div", { class: "row" },
       h("a", { class: "btn sm", href: `/#/annonce/${encodeURIComponent(r.listingId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Voir l'annonce"),
-      h("button", { class: "btn primary sm", type: "button", onClick: () => decideFR(r.id, "ACCEPT", "") }, ico("check"), "Mettre à la une"),
+      h("select", { "aria-label": "Durée de mise à la une" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`))),
+      h("button", { class: "btn primary sm", type: "button", onClick: (e) => decideFR(r.id, "ACCEPT", "", Number(e.currentTarget.parentElement.querySelector("select").value)) }, ico("check"), "Mettre à la une"),
       h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif du refus (obligatoire)", type: "textarea", required: true, max: 500 }], { submit: "Refuser" }); if (v) decideFR(r.id, "REJECT", v.note); } }, "Refuser")) : null);
   async function fill() {
     try {
-      const [pending, done] = await Promise.all([api("/staff/featured-requests"), api("/staff/featured-requests?status=DONE")]);
-      box.replaceChildren(...(pending.length ? pending.map((r) => row(r, true)) : [empty("Aucune demande de mise à la une en attente.", "check")]),
+      const [pending, done, offers] = await Promise.all([api("/staff/featured-requests"), api("/staff/featured-requests?status=DONE"), api("/offers").catch(() => ({}))]);
+      const max = offers?.manualFeaturedMaxMonths ?? 1;
+      box.replaceChildren(...(pending.length ? pending.map((r) => row(r, true, max)) : [empty("Aucune demande de mise à la une en attente.", "check")]),
         done.length ? h("h3", { class: "tiny muted" }, "Traitées récemment") : null, ...done.slice(0, 30).map((r) => row(r, false)));
     } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
   }
@@ -321,6 +323,9 @@ export const paymentSettingsView = (ctx) => page(ctx, {
     box.checked = online;
     const sel = h("select", { id: "pp-months" }, ...[1, 2, 3].map((m) => h("option", { value: String(m) }, `${m} mois`)));
     sel.value = String(max);
+    const maxFeatured = [1, 2, 3].includes(saved?.manualFeaturedMaxMonths) ? saved.manualFeaturedMaxMonths : 1;
+    const selFeatured = h("select", { id: "pp-featured" }, ...[1, 2, 3].map((m) => h("option", { value: String(m) }, `${m} mois`)));
+    selFeatured.value = String(maxFeatured);
     const hint = h("p", { class: "small muted" }, online
       ? "Ouvert : les annonceurs payent par mobile money, pour les formules actives uniquement."
       : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe.");
@@ -334,7 +339,11 @@ export const paymentSettingsView = (ctx) => page(ctx, {
       panel("Approbation manuelle", null, h("div", { class: "stack" },
         h("label", { class: "row", for: "pp-months" }, h("span", null, "Durée maximale accordée par l'équipe")), sel,
         h("p", { class: "small muted" }, "Pendant cette durée, l'annonceur bénéficie de tous les avantages Premium (aucun paiement demandé)."),
-        h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/superadmin-settings/payments_policy", { method: "PUT", body: { value: { onlineEnabled: box.checked, manualPremiumMaxMonths: Number(sel.value) } } }), "Réglages enregistrés.", reload) }, "Enregistrer")))),
+        )),
+      panel("Mise à la une à la main", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "pp-featured" }, h("span", null, "Durée maximale de mise à la une accordée par l'équipe")), selFeatured,
+        h("p", { class: "small muted" }, "L'équipe choisit la durée à l'acceptation d'une demande de mise à la une (1 à cette limite). Les formules payantes gardent leur durée propre."))),
+      h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/superadmin-settings/payments_policy", { method: "PUT", body: { value: { onlineEnabled: box.checked, manualPremiumMaxMonths: Number(sel.value), manualFeaturedMaxMonths: Number(selFeatured.value) } } }), "Réglages enregistrés.", reload) }, "Enregistrer")),
       h("p", { class: "small muted" }, "Les formules se gèrent dans « Abonnements & formules ». Elles ne s'affichent au public que si le paiement en ligne est ouvert."),
     ];
   },

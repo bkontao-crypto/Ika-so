@@ -622,7 +622,7 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/me/featured-requests", async (req, res) => res.json(await featuredRequests.mine(requireUser(req))));
   router.post("/me/featured-requests", async (req, res) => res.status(201).json(await featuredRequests.create(requireUser(req), { listingId: clean(req.body?.listingId, 80), message: clean(req.body?.message, 500) })));
   router.get("/staff/featured-requests", async (req, res) => res.json(await featuredRequests.listForStaff(await requireOwnerGate(req, "moderation"), { status: req.query?.status === "DONE" ? "DONE" : "PENDING" })));
-  router.post("/staff/featured-requests/:id/decision", async (req, res) => res.json(await featuredRequests.decide(await requireOwnerGate(req, "moderation"), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 500) })));
+  router.post("/staff/featured-requests/:id/decision", async (req, res) => res.json(await featuredRequests.decide(await requireOwnerGate(req, "moderation"), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 500), months: req.body?.months })));
   router.get("/me/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listMine(requireUser(req))));
   router.post("/me/advertiser-applications", async (req, res) => res.status(201).json(await advertiserApplications.submit(requireUser(req), req.body ?? {})));
   router.post("/me/advertiser-applications/:id/documents", async (req, res) => {

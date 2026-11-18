@@ -1329,3 +1329,9 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **Vérifié (base de test, API) :** réglage enregistré ; `/offers` → fermé, durée max renvoyée ; demande 3 mois refusée (400) quand max = 2 ; demande en double refusée (409) ; approbation 1 mois → Premium actif, jours ajoutés, grant tracé ; approbation hors limite refusée (400) ; refus avec motif OK ; ADMIN sans délégation « Paiements » : 403 ; avec délégation : 200 ; réglage réservé au superadmin : 403 pour l'administrateur. Navigateur : écran de réglage et panneau des demandes rendus sans erreur ; page Devenir Premium affichée sans erreur (mobile).
 - **Non vérifié :** paiement en ligne réel (aucun fournisseur de paiement configuré en test) ; enregistrement du réglage par le bouton de l'écran (testé via l'API seulement) ; production.
 - **Risques :** tant que le fournisseur de paiement n'est pas configuré, « paiement en ligne ouvert » n'a aucun effet réel (les demandes restent manuelles). Vérifier la configuration du fournisseur avant d'ouvrir le paiement.
+
+### Mise à la une à la main : durée de 1 à 3 mois (18/11/2026, demande du propriétaire)
+- **Réalisé :** réglage `manualFeaturedMaxMonths` (1 à 3, défaut 1) dans « Réglages paiement » ; à l'acceptation d'une demande de mise à la une, l'équipe choisit 1 à N mois (1 mois = 30 jours) ; la durée est enregistrée sur l'annonce (`featured_until`) ; les formules payantes gardent leur durée propre.
+- **Vérifié :** tests 315/315 (dont bornes du réglage) ; API : acceptation hors limite refusée (400) ; `make_interval` contrôlé en base.
+- **Non vérifié :** acceptation d'une demande réelle de bout en bout (aucune demande de test créée), affichage navigateur de la liste avec la durée.
+- **À faire :** décider si les formules payantes de mise à la une doivent aussi proposer 30, 60 ou 90 jours (actuellement 7 et 30 jours, à créer dans « Abonnements & formules »).

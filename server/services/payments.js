@@ -155,9 +155,9 @@ export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy
     /** Offres que le public peut acheter : actives et avec un vrai prix. */
     async offers() {
       const p = await readPolicy();
-      if (!(enabled() && p.onlineEnabled)) return { enabled: false, offers: [], manualMaxMonths: p.manualPremiumMaxMonths };
+      if (!(enabled() && p.onlineEnabled)) return { enabled: false, offers: [], manualMaxMonths: p.manualPremiumMaxMonths, manualFeaturedMaxMonths: p.manualFeaturedMaxMonths };
       const rows = await db.query("select code, label, days, price_xof, kind from ika_offers where active and price_xof > 0 order by kind, days");
-      return { enabled: true, offers: rows.map((r) => ({ code: r.code, label: r.label, days: r.days, priceXof: r.price_xof, kind: r.kind })), manualMaxMonths: p.manualPremiumMaxMonths };
+      return { enabled: true, offers: rows.map((r) => ({ code: r.code, label: r.label, days: r.days, priceXof: r.price_xof, kind: r.kind })), manualMaxMonths: p.manualPremiumMaxMonths, manualFeaturedMaxMonths: p.manualFeaturedMaxMonths };
     },
 
     async adminOffers(userId) {

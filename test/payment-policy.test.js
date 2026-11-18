@@ -5,7 +5,7 @@ import { DEFAULT_POLICY, normalizePolicy } from "../server/lib/payment-policy.js
 
 test("sans réglage : paiement en ligne fermé, approbation manuelle jusqu'à 3 mois", () => {
   assert.deepEqual(normalizePolicy(null), DEFAULT_POLICY);
-  assert.deepEqual(normalizePolicy({}), { onlineEnabled: false, manualPremiumMaxMonths: 3 });
+  assert.deepEqual(normalizePolicy({}), { onlineEnabled: false, manualPremiumMaxMonths: 3, manualFeaturedMaxMonths: 1 });
 });
 
 test("la durée maximale est bornée à 1, 2 ou 3 mois", () => {
@@ -20,4 +20,10 @@ test("le paiement en ligne n'est ouvert que si la valeur est exactement true", (
   assert.equal(normalizePolicy({ onlineEnabled: true }).onlineEnabled, true);
   assert.equal(normalizePolicy({ onlineEnabled: "true" }).onlineEnabled, false);
   assert.equal(normalizePolicy({ onlineEnabled: 1 }).onlineEnabled, false);
+});
+
+test("la mise à la une à la main : 1 mois par défaut, bornée à 1, 2 ou 3 mois", () => {
+  assert.equal(normalizePolicy({}).manualFeaturedMaxMonths, 1);
+  assert.equal(normalizePolicy({ manualFeaturedMaxMonths: 3 }).manualFeaturedMaxMonths, 3);
+  assert.equal(normalizePolicy({ manualFeaturedMaxMonths: 9 }).manualFeaturedMaxMonths, 1);
 });
