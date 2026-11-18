@@ -156,6 +156,26 @@ export async function profilePage() {
           pr.zones.length ? h("div", { class: "mp-intro" }, h("span", null, "🗺️"), h("span", null, pr.zones.join(", "))) : null,
           pr.bio ? h("p", { class: "mp-bio" }, pr.bio) : null));
 
+  /* ---------- Services proposés : saisis par le propriétaire du compte, affichés sur son profil public ---------- */
+  const svcTitle = h("input", { class: "input", type: "text", maxlength: "120", required: "required", placeholder: "Ex. : Gestion locative, Visite guidée, Estimation de bien" });
+  const svcDesc = h("textarea", { class: "input", rows: "2", maxlength: "500", placeholder: "Décrivez ce service en quelques mots (facultatif)" });
+  const services = pub?.services ?? [];
+  const addService = (e) => {
+    e.preventDefault();
+    const title = svcTitle.value.trim();
+    if (title.length < 2) { fail(new Error("Indiquez le titre du service (2 caractères minimum).")); return; }
+    return run(() => api("/me/services", { method: "POST", body: { title, description: svcDesc.value.trim() } }), "Service ajouté à votre profil.");
+  };
+  const servicesCard = h("div", { class: "mp-card" }, h("h3", null, `Services proposés (${services.length})`),
+    h("p", { class: "mp-hint" }, "Ces services apparaissent dans l'onglet « Services » de votre profil public."),
+    services.length
+      ? h("ul", { class: "mp-people" }, services.map((x) => h("li", { style: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", flexWrap: "wrap" } },
+        h("span", null, h("b", null, x.title), x.description ? h("small", { class: "mp-hint" }, h("br"), x.description) : null),
+        h("button", { class: "mp-btn mp-btn-outline sm", type: "button", onClick: () => { if (confirm(`Retirer le service « ${x.title} » de votre profil ?`)) run(() => api(`/me/services/${encodeURIComponent(x.id)}/delete`, { method: "POST", body: {} }), "Service retiré."); } }, "Retirer"))))
+      : h("p", { class: "mp-hint" }, "Aucun service pour le moment."),
+    h("form", { class: "mp-form", onSubmit: addService }, field("Nouveau service", svcTitle), field("Description", svcDesc),
+      h("button", { class: "mp-btn mp-btn-primary", type: "submit" }, "Ajouter ce service")));
+
   const sc = score?.score;
   const scoreCard = h("div", { class: "mp-card" }, h("h3", null, "Score de confiance"),
     h("div", { class: "mp-score" },
@@ -168,7 +188,7 @@ export async function profilePage() {
   const postBox = h("textarea", { class: "input", rows: "3", maxlength: "2000", placeholder: "Partagez une actualité ou un bien… (pas de numéro de téléphone)" });
   const posts = pub?.publications ?? [];
   const publicationsTab = h("div", { class: "mp-grid" },
-    h("div", { class: "mp-col" }, aboutCard, scoreCard),
+    h("div", { class: "mp-col" }, aboutCard, servicesCard, scoreCard),
     h("div", { class: "mp-col" },
       h("div", { class: "mp-card" }, h("h3", null, "Nouvelle publication"), postBox,
         h("div", { class: "mp-row end" }, h("button", { class: "mp-btn mp-btn-primary", type: "button", onClick: () => {
