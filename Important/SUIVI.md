@@ -1284,3 +1284,11 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 **Points à trancher avant l'étape 3 (droits ADMIN) :**
 - Dans l'ancien centre, un ADMIN pouvait restreindre/bloquer un compte et générer un lien de réinitialisation. Dans le nouveau, la vue Utilisateurs reste réservée au SUPERADMIN : ces actions ne sont donc pas accessibles aux ADMIN délégués. À décider (DEC à ouvrir).
 - Les liens « centre de contrôle classique » (actions de l'Annonces, Confiance, Paiements, Utilisateurs) pointent encore vers `/admin` ; ils seront retirés à l'étape 3.
+
+### Étape 2H — actions sur les comptes délégables (18/11/2026, décision propriétaire : option b)
+- Module délégable « Utilisateurs » (`users`) ajouté : liste des comptes, restriction / blocage, lien de réinitialisation. Vérification **côté serveur** à chaque appel (`requireOwnerModule`).
+- Module « Confiance » (`trust`) appliqué à la liste noire (lecture, ajout, retrait).
+- Changement de rôle : toujours réservé au SUPERADMIN (bouton masqué pour les autres).
+- Refus d'un module non délégué : désormais HTTP 403 (auparavant 500, car l'erreur n'était pas reconnue par le gestionnaire). Corrige tous les modules du centre.
+- Vérifié : tests 311/311 ; ADMIN sans délégation « users » : 403 sur liste et lien de réinitialisation ; avec délégation : 200 ; menu et écran cohérents.
+- Non vérifié : restriction/blocage effectif par un ADMIN délégué (action sur compte réel non jouée en test).

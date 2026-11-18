@@ -7,7 +7,7 @@ export const DELEGABLE_MODULES = new Set([
   "report", "report.pdf", "premium-funnel", "subscriptions", "monitoring",
   "health", "agencies", "crm", "pipeline", "visits", "complaints", "incidents",
   "marketing", "campaigns", "partners", "imports", "duplicates", "moderation",
-  "reviews", "trust",
+  "reviews", "trust", "users",
 ]);
 
 export function createOwnerDelegations({ db, accounts }) {

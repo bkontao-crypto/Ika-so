@@ -1,6 +1,6 @@
 import { premiumOrigin } from "../lib/analytics-events.js";
 import { Router } from "express";
-import { AppError } from "../lib/errors.js";
+import { AppError, forbidden } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
@@ -15,11 +15,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   async function requireOwnerModule(req, module) {
     const userId = requireUser(req);
     const ok = await services.ownerDelegations.canAccess(userId, module);
-    if (!ok) {
-      const err = new Error("Accès refusé à ce module.");
-      err.status = 403;
-      throw err;
-    }
+    if (!ok) throw forbidden("Accès refusé à ce module.");
     return userId;
   }
 
@@ -197,7 +193,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   });
   router.post("/staff/accounts/:id/reset-link", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
-    res.json(await accounts.staffResetLink(requireUser(req), id(req)));
+    res.json(await accounts.staffResetLink(await requireOwnerModule(req, "users"), id(req)));
   });
 
   router.post("/auth/logout", async (req, res) => {
@@ -1164,7 +1160,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     const b = req.body ?? {};
     res.json(await stats.setWeights(userId, { view: b.view, favorite: b.favorite, contactClick: b.contactClick, reason: clean(b.reason, 300) }));
   });
-  router.get("/staff/accounts", async (req, res) => res.json(await moderation.listAccounts(requireUser(req))));
+  router.get("/staff/accounts", async (req, res) => res.json(await moderation.listAccounts(await requireOwnerModule(req, "users"))));
 
   router.post("/staff/listings/:id/decision", async (req, res) => {
     const staffId = requireUser(req);
@@ -1195,7 +1191,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     res.json({ ok: true });
   });
   router.post("/staff/accounts/:id/status", async (req, res) => {
-    const staffId = requireUser(req);
+    const staffId = await requireOwnerModule(req, "users");
     const status = clean(req.body?.status);
     const reason = clean(req.body?.reason, 500);
     const out = await moderation.setAccountStatus(staffId, id(req), status, reason);
@@ -1248,10 +1244,10 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.post("/staff/profiles/:id/images", async (req, res) => res.json(await advertiserProfiles.setImagesHidden(requireUser(req), id(req), req.body?.hidden !== false, clean(req.body?.reason, 300))));
   router.post("/staff/user-reports/:id/dismiss", async (req, res) => res.json(await engagement.dismissUserReports(requireUser(req), id(req))));
   router.post("/staff/comments/:id/dismiss-reports", async (req, res) => res.json(await trust.dismissCommentReports(requireUser(req), id(req))));
-  router.get("/staff/blacklist", async (req, res) => res.json(await trust.blacklistList(requireUser(req))));
+  router.get("/staff/blacklist", async (req, res) => res.json(await trust.blacklistList(await requireOwnerModule(req, "trust"))));
   router.post("/staff/blacklist", async (req, res) =>
-    res.status(201).json(await trust.blacklistAdd(requireUser(req), { kind: clean(req.body?.kind), value: clean(req.body?.value, 254), reason: clean(req.body?.reason, 300) })));
-  router.post("/staff/blacklist/:id/remove", async (req, res) => res.json(await trust.blacklistRemove(requireUser(req), id(req))));
+    res.status(201).json(await trust.blacklistAdd(await requireOwnerModule(req, "trust"), { kind: clean(req.body?.kind), value: clean(req.body?.value, 254), reason: clean(req.body?.reason, 300) })));
+  router.post("/staff/blacklist/:id/remove", async (req, res) => res.json(await trust.blacklistRemove(await requireOwnerModule(req, "trust"), id(req))));
 
   return router;
 }
