@@ -3,6 +3,15 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Boîte : nouvelle interface (18 novembre 2026)
+
+- **À réaliser :** remplacer l'interface Boîte par la maquette fournie (« Boîte — Espace Immobilier »), à l'identique.
+- **Réalisé :** nouvelle page `inboxPage` (`public/js/pages/inbox.js`) et feuille `public/css/boite.css` (classes `.bx-*`, rien d'autre touché) : en-tête, recherche, onglets Alertes/Messages/Visites, filtres, cartes d'alertes, messagerie en deux colonnes (liste + fil avec réponse directe), cartes de visites, notifications flottantes, mode sombre. Branchée sur les vraies données (`/me/notifications`, `/me/threads`, `/me/visits`, `/me/team-requests`) ; les anciennes fonctions sont conservées (recherches enregistrées, fréquence des alertes, accepter/refuser une invitation d'équipe, accepter/refuser/annuler une visite ; blocage et signalement via « Options » = page de conversation inchangée). 12 icônes ajoutées à `icons.js`. Feuille ajoutée au cache du service worker (`stamp-sw`).
+- **Écarts assumés avec la maquette :** (1) Tailwind, Lucide et Google Fonts viennent de CDN externes, interdits par la CSP du site et par la règle « aucune requête externe » : tout est recréé en CSS local, polices Inter/Plus Jakarta remplacées par la police système si absentes ; (2) les données de la maquette (Ibrahim, Aminata…) sont fictives : le site affiche les vraies ; (3) « Reporter » devient « Refuser / Reporter » (même action serveur : refus avec motif ou autre date) ; (4) téléphone du visiteur, adresse et rappel SMS absents : ces champs n'existent pas dans les données ; (5) pas de « marquer comme non lu » : aucune route serveur.
+- **Vérifié :** `npm test` 297 OK / 0 échec ; Chromium avec API simulée : ordinateur, téléphone 390 px, mode sombre, aucun défilement horizontal ; filtres, recherche, lecture, accepter invitation, envoi de message, changement de conversation, réponse à une visite.
+- **Non vérifié :** rendu réel avec les données de production et sur téléphone après déploiement.
+- **Retour arrière :** `git revert -m 1 <commit de fusion>`.
+
 ## Connexion Google dans l'application : l'échec est maintenant expliqué (17 novembre 2026)
 
 - **À réaliser :** le propriétaire, après Google (Chrome), restait dans le navigateur, sur le site connecté à un AUTRE compte.
