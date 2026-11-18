@@ -1271,3 +1271,16 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
   9. Statistiques : vue d'ensemble, comparaison, classements, fiche annonceur (`/staff/stats/…`).
   Puis : supprimer `public/admin.html` et `public/js/admin.js`, rediriger `/admin` vers `/owner`, retirer les liens (menu compte, console, bouton « classique ») — **uniquement après validation du propriétaire sur le site**.
 - **Risques :** les endpoints `/staff/*` existants sont protégés par rôle de staff ; le menu `/owner` ne doit jamais être la seule barrière (le serveur contrôle chaque appel). Les renvois `adminLink` du centre v2 (trust, complaints, payments) doivent disparaître avec leur fonctionnalité.
+
+### Étape 2 — état au 18/11/2026 (branche feat/owner-center-unifie)
+- **2A** Demandes annonceurs (Agences & annonceurs) : approuver, demander des informations, refuser ; pièces consultables. Vérifié navigateur SUPERADMIN.
+- **2B** Mises à la une (Annonces & modération) : accepter, refuser motivé. Vérifié navigateur.
+- **2C** Liste noire (Confiance) et lien de réinitialisation (Utilisateurs). Liste noire vérifiée navigateur ADMIN et SUPERADMIN ; lien de réinitialisation vérifié (dialogue, valeur).
+- **2D** Pièces justificatives (Confiance) : voir, accepter (note + nom d'agence), refuser. Acceptation de bout en bout vérifiée (ADMIN délégué et SUPERADMIN).
+- **2E** Paiements : offres, rapprochement, remboursements notés. Chargement vérifié ; remboursement et modification de prix **non exécutés** (pas de paiement de test).
+- **2F** Page d'accueil : 14 champs, photo importée, annuler. Enregistrement et persistance vérifiés. Aperçu en direct non porté (lien « Voir le site »).
+- **2G** Statistiques (menu « Statistiques », module « report ») : rendu et période vérifiés. Fiche et comparaison : routes 200, affichage non vérifié (pas de données).
+
+**Points à trancher avant l'étape 3 (droits ADMIN) :**
+- Dans l'ancien centre, un ADMIN pouvait restreindre/bloquer un compte et générer un lien de réinitialisation. Dans le nouveau, la vue Utilisateurs reste réservée au SUPERADMIN : ces actions ne sont donc pas accessibles aux ADMIN délégués. À décider (DEC à ouvrir).
+- Les liens « centre de contrôle classique » (actions de l'Annonces, Confiance, Paiements, Utilisateurs) pointent encore vers `/admin` ; ils seront retirés à l'étape 3.
