@@ -26,7 +26,7 @@ const PAGES = [
   [owner, "/#/boite?onglet=messages"], [owner, `/#/boite/${threadId}`], [admin, `/#/boite/${threadId}`],
   [guest, "/#/"], [guest, `/#/annonce/${id}`], [guest, "/#/connexion"], [guest, "/#/confiance"],
   [owner, "/#/publier"], [owner, "/#/mes-annonces"], [owner, "/#/favoris"], [owner, "/#/profil"], [owner, "/#/boite"], [owner, "/#/paiements"], [owner, "/#/agence"],
-  [admin, "/admin.html"],
+  [admin, "/owner"],
   [guest, `/#/annonceur/${ownerReg.user.id}`], [owner, `/#/annonceur/${ownerReg.user.id}`],
   [guest, "/quartiers"], [guest, "/quartier/aci-2000"], [guest, `/a/${id}`], [guest, "/agences"], [guest, "/guides"], [guest, "/guides/acheter-un-terrain-a-bamako"],
 ];

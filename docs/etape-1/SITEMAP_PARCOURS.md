@@ -56,7 +56,7 @@ Statuts : **Existant** (vérifié par lecture du code, pas en navigateur) · **�
 
 | ID | Écran | Route | Statut | Besoin | Parcours | Source | Droits | Étape |
 |---|---|---|---|---|---|---|---|---|
-| S40 | Administration (équipe) | `/admin` | Existant | Modérer annonces, confiance, signalements, paiements. | Connexion équipe → file → décision motivée → journal. | admin.html, js/admin.js · /staff/* | Modérateur, admin, Superadmin | E06 |
+| S40 | Administration (équipe) | `/admin` | Existant | Modérer annonces, confiance, signalements, paiements. | Connexion équipe → file → décision motivée → journal. | owner.html, js/owner/main.js · /staff/* | Modérateur, admin, Superadmin | E06 |
 | S41 | Owner Center (console) | `/owner` | Existant | Piloter la plateforme : tableaux, CRM, marketing, sauvegardes, réglages, marque. | Connexion → module autorisé → action journalisée. | owner.html, js/owner/* · 79 routes /staff/owner/* ; DEC-001 | Superadmin et admins autorisés (par module) | E03 |
 | S42 | Owner Center · Marque et contenus | `/owner (module marque)` | À créer | Changer nom, logos, slogan, images, liens et contenus sans toucher au code. | Module → aperçu → validation → historique. | homepage-settings.js, platform-settings ; à compléter | Superadmin (délégable selon la matrice) | E09 |
 

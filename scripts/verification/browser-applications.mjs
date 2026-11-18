@@ -38,7 +38,7 @@ await post(c2, "/me", {}).catch(() => {});
 await c2.request.get(BASE + "/api/me");
 psql(`update ika_profiles set staff_role='ADMIN' where user_id='${modId}'`);
 const auditBefore = Number(psql("select count(*) from ika_audit where action='VIEW_APPLICATION_DOCUMENT'"));
-await p2.goto(BASE + "/admin.html"); await p2.waitForTimeout(2500);
+await p2.goto(BASE + "/owner"); await p2.waitForTimeout(2500);
 await p2.screenshot({ path: `${SH}/3-admin.png` });
 const tab = p2.getByRole("tab", { name: "Demandes annonceurs" });
 if (await tab.count()) { await tab.click().catch(() => {}); await p2.waitForTimeout(1000); }

@@ -358,7 +358,7 @@
   "status": "Existant",
   "need": "Modérer annonces, confiance, signalements, paiements.",
   "journey": "Connexion équipe → file → décision motivée → journal.",
-  "source": "admin.html, js/admin.js · /staff/*",
+  "source": "owner.html, js/owner/main.js · /staff/*",
   "rights": "Modérateur, admin, Superadmin",
   "step": "E06"
  },

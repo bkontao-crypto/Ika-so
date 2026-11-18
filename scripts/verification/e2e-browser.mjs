@@ -56,7 +56,7 @@ async function register(page, name, email) {
 // ---- 1. L'administrateur s'inscrit en premier (devient super administrateur hors production)
 const admin = await newUser("admin", { viewport: { width: 1200, height: 800 } });
 await register(admin.page, "Admin Ika", "admin@ika.test");
-await admin.page.goto(`${BASE}/admin.html`);
+await admin.page.goto(`${BASE}/owner`);
 await admin.page.getByText("Ce qui se passe sur Ika So").waitFor();
 check("l'administrateur ouvre le centre de contrôle", true);
 
