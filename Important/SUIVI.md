@@ -1294,3 +1294,16 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - Non vérifié : restriction/blocage effectif par un ADMIN délégué (action sur compte réel non jouée en test).
 - **Vérifié le 18/11/2026 (base de test) :** un ADMIN délégué « Utilisateurs » restreint, bloque puis réactive un compte jetable (200, statut confirmé en base) ; délégation retirée ensuite. Modification d'une offre (prix puis retour à la valeur d'origine, 200).
 - **Non vérifié :** remboursement (aucun paiement de test). Fiche et comparaison annonceur à l'écran (aucune donnée d'activité).
+
+### Étape 2I — garde serveur par module pour ADMIN + polices (18/11/2026)
+- **À réaliser :** appliquer les propositions : garde par module sur les routes candidatures, offres, paiements, modération, preuves ; polices manquantes (404) ; remboursement et fiche/comparaison à tester.
+- **Réalisé :**
+  - Helper `requireOwnerGate` (routes/index.js) appelant `ownerDelegations.gate` : ADMIN sans délégation → 403 ; SUPERADMIN et MODERATOR inchangés. 15 routes concernées (featured-requests, advertiser-applications, offres, paiements, file d'attente, annonces, signalements, preuves).
+  - Module délégable « payments » ajouté ; route `GET /staff/owner/access` pour afficher seulement les modules attribués.
+  - Polices : `@fontsource-variable/outfit@5.3.0` et `@fontsource-variable/plus-jakarta-sans@5.3.0` ajoutées (dépendances validées par le propriétaire), fichiers copiés dans `public/fonts/` (Outfit-Variable.woff2, PlusJakartaSans-Variable.woff2). Service worker re-stampé (`ika-so-069aeb94b2`).
+  - Commit `b93293b` poussé sur `feat/owner-center-unifie` (non fusionné dans `main`).
+- **Vérifié :** tests 311/311 ; sur base de test, ADMIN délégués « moderation » et « trust » : `/staff/queue`, `/staff/featured-requests` 200 ; `/staff/advertiser-applications`, `/staff/offers`, `/staff/payments/reconcile`, `/staff/accounts` 403. SUPERADMIN : 200 partout. Fichiers polices servis en 200 (font/woff2).
+- **Non vérifié :** rôle MODERATOR (aucun compte de test) ; remboursement (aucun paiement de test) ; fiche et comparaison annonceur (aucune donnée) ; production (inaccessible depuis l'agent).
+- **En cours :** étape 3 (suppression de `/admin`) — uniquement après validation du propriétaire sur le site réel.
+- **À faire :** validation propriétaire du branche sur le site ; autorisation écrite pour fusion dans `main` ; tests remboursement et fiche/comparaison.
+- **Risques :** le dépôt distant a signalé un changement d'emplacement (`github.com/bkontao-crypto/Ika-so`) ; le push a réussi mais il est conseillé de mettre à jour l'URL du remote local.
