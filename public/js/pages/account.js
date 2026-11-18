@@ -140,7 +140,7 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
   const prefs = await api("/me/notify-prefs").catch(() => null);
   const access = await api("/me/center/access").catch(() => null);
   let premiumBlock = null;
-  if (access) { const ui = await import("/js/components/espace.js"); ui.loadCss(); premiumBlock = ui.premiumCard(access, "compte"); }
+  if (access && !embedded) { const ui = await import("/js/components/espace.js"); ui.loadCss(); premiumBlock = ui.premiumCard(access, "compte"); }
   const stats = await api("/me/analytics-consent").catch(() => null);
   const saveStats = async (accepted) => { try { await api("/me/analytics-consent", { method: "PUT", body: { accepted } }); toast(accepted ? "Statistiques autorisées." : "Statistiques refusées."); refresh(); } catch (error) { fail(error); } };
   const savePrefs = async (body) => { try { await api("/me/notify-prefs", { method: "PUT", body }); toast("Préférences enregistrées."); refresh(); } catch (error) { fail(error); } };
