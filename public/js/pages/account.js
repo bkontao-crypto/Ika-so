@@ -228,6 +228,6 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
       h("a", { class: "btn", href: "#/favoris" }, "Mes favoris"),
       h("a", { class: "btn", href: "#/reclamations" }, "Mes réclamations"),
       h("a", { class: "btn", href: "#/agence" }, "Espace agence"),
-      h("button", { class: "btn", type: "button", onClick: async () => { await api("/auth/logout", { method: "POST", body: {} }); clearSession(); toast("Déconnecté."); go("/"); } }, "Se déconnecter")));
+      h("button", { class: "btn", type: "button", onClick: async () => { await api("/auth/logout", { method: "POST", body: {} }); clearSession();toast("Déconnecté."); go("/"); } }, "Se déconnecter")));
 }
 

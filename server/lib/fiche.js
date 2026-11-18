@@ -36,6 +36,18 @@ export function planSvg(vertices) {
     + `<text class="plan-txt" x="${W - 56}" y="34">N ↑</text></svg>`;
 }
 
+/** Plan de secours pour une annonce à simple point GPS (aucun contour) : repère centré, sans mesure ni échelle. */
+export function planPointSvg() {
+  const W = 600, H = 300;
+  return `<svg class="plan plan-point" viewBox="0 0 ${W} ${H}" role="img" aria-label="Position indicative de la parcelle, point GPS sans contour">`
+    + `<rect class="plan-bg" x="0" y="0" width="${W}" height="${H}"/>`
+    + `<line class="plan-bar" x1="${W / 2}" y1="40" x2="${W / 2}" y2="${H - 60}" stroke-dasharray="6 8"/>`
+    + `<line class="plan-bar" x1="60" y1="${H / 2 - 30}" x2="${W - 60}" y2="${H / 2 - 30}" stroke-dasharray="6 8"/>`
+    + `<circle class="plan-dot" cx="${W / 2}" cy="${H / 2 - 30}" r="10"/>`
+    + `<text class="plan-txt" x="30" y="${H - 22}">Position indicative : un point GPS, sans contour ni mesure.</text>`
+    + `<text class="plan-txt" x="${W - 56}" y="34">N ↑</text></svg>`;
+}
+
 /** URL de l'image statique Mapbox (satellite + rues) avec le contour et les sommets numérotés. null sans jeton. */
 export function fondCarteUrl({ vertices, point, token }) {
   if (!token) return null;
@@ -71,8 +83,14 @@ export function ficheHtml({ geo, listing, generatedAt = new Date(), mapboxToken 
 <main class="sheet">
 <header><p class="brand">IKA SO</p><h1>Fiche de localisation</h1><p class="sub">${esc(listing.title)} · ${esc(listing.neighborhood)}, ${esc(listing.city)}</p></header>
 <p class="mention" role="note"><strong>Important.</strong> ${esc(MENTION_OBLIGATOIRE)}</p>
-${(() => { const u = fondCarteUrl({ vertices, point: geo.point, token: mapboxToken }); return u ? `<figure class="fond"><img class="fond-carte" src="${esc(u)}" width="700" height="460" alt="Fond de carte : emplacement de la parcelle"><figcaption>Fond de carte © Mapbox © OpenStreetMap. Position indicative.</figcaption></figure>` : ""; })()}
-${vertices.length >= 3 ? planSvg(vertices) : ""}
+${(() => {
+  const u = fondCarteUrl({ vertices, point: geo.point, token: mapboxToken });
+  if (u) return `<figure class="fond"><img class="fond-carte" src="${esc(u)}" width="700" height="460" alt="Fond de carte : emplacement de la parcelle"><figcaption>Fond de carte © Mapbox © OpenStreetMap. Position indicative.</figcaption></figure>`;
+  // Emplacement vide : public/js/fiche.js y charge le fond Mapbox seulement si le consentement est enregistré dans ce navigateur.
+  if (!vertices.length && !geo.point) return "";
+  return `<div class="fond-auto" id="fond-auto" hidden data-geo="${esc(JSON.stringify({ vertices, point: geo.point ?? null }))}"></div>`;
+})()}
+${vertices.length >= 3 ? planSvg(vertices) : geo.point ? planPointSvg() : ""}
 <table class="facts">
 ${row("Type de bien", geo.category)}
 ${geo.areaM2 != null ? row("Superficie mesurée (indicative)", `${nf(2)(geo.areaM2)} m² (${nf(4)(geo.areaM2 / 10_000)} ha)`) : ""}
@@ -86,7 +104,7 @@ ${vertices.length ? `<h2>Sommets (latitude, longitude)</h2><ol class="vertices">
 <footer><p>Document généré le ${esc(when(generatedAt.toISOString()))} depuis le compte de l'annonceur. Calcul : projection équivalente sur l'ellipsoïde WGS84, effectué par le serveur à l'enregistrement.</p>
 <p class="no-print"><button id="print" type="button">Imprimer ou enregistrer en PDF</button></p></footer>
 </main>
-<script src="/js/fiche.js"></script>
+<script type="module" src="/js/fiche.js"></script>
 </body>
 </html>`;
 }

@@ -1,5 +1,6 @@
-import { DOCUMENTS, PHOTO_PRESETS, ROAD_ACCESS, api, h, mount, toast } from "/js/dom.js";
-import { DRAFT_KEY, S, app } from "/js/core/state.js";
+import { DOCUMENTS, PHOTO_PRESETS, ROAD_ACCESS, api, formatDate, h, mount, toast } from "/js/dom.js";
+import { S, app } from "/js/core/state.js";
+import { claimLegacyDraft, discardLegacyDraft, draftKey, legacyDraftInfo } from "/js/core/draft.js";
 import { go, needLogin } from "/js/core/router.js";
 import { emptyForm, formToBody, listingForm } from "/js/components/listing-form.js";
 
@@ -9,8 +10,10 @@ export async function publishPage() {
   let f = emptyForm();
   // Copie locale (instantanée, marche hors connexion) + copie serveur (suit le compte d'un appareil à l'autre).
   // La plus récente gagne ; si la copie locale est plus récente, elle est renvoyée au serveur.
+  // Copie propre à ce compte. L'ancien brouillon sans compte n'est jamais chargé ici : voir legacyNotice().
+  const KEY = draftKey(S.user.id);
   let local = {};
-  try { local = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "{}") ?? {}; } catch { localStorage.removeItem(DRAFT_KEY); }
+  try { local = JSON.parse(localStorage.getItem(KEY) ?? "{}") ?? {}; } catch { localStorage.removeItem(KEY); }
   const { savedAt: localAt, ...localFields } = local;
   let chosen = localFields;
   let pushLocal = false;
@@ -34,13 +37,13 @@ export async function publishPage() {
     inflight = inflight.then(() => (submitted ? undefined : api("/me/draft", { method: "PUT", body: snapshot(value) }))).catch(() => undefined);
   };
   const saveDraft = (value) => {
-    try { localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...snapshot(value), savedAt: new Date().toISOString() })); } catch { /* stockage plein ou refusé */ }
+    try { localStorage.setItem(KEY, JSON.stringify({ ...snapshot(value), savedAt: new Date().toISOString() })); } catch { /* stockage plein ou refusé */ }
     clearTimeout(timer);
     timer = setTimeout(() => pushRemote(value), 1500);
   };
   if (pushLocal) pushRemote(f);
 
-  mount(app, h("div", null, listingForm({
+  mount(app, h("div", null, legacyNotice(KEY), listingForm({
     f, title: "Publier une annonce", submitLabel: "Publier", withPhone: !S.meta?.phoneVerified, saveDraft,
     onSubmit: async () => {
       // Plus aucun enregistrement automatique après l'envoi : le serveur supprime lui-même le brouillon à la création.
@@ -59,7 +62,7 @@ export async function publishPage() {
         throw error;
       }
       submitted = true;
-      localStorage.removeItem(DRAFT_KEY);
+      localStorage.removeItem(KEY);
       toast(r.similarCount ? "Annonce envoyée. Une annonce très proche existe déjà : la modération la comparera." : "Annonce envoyée. Elle attend la modération.");
       go("/mes-annonces");
     },
@@ -88,3 +91,17 @@ export async function editPage(id) {
     })));
 }
 
+
+/** Ancien brouillon sans compte : proposé à l'utilisateur connecté, jamais appliqué ni supprimé sans son clic. */
+function legacyNotice(KEY) {
+  const legacy = legacyDraftInfo();
+  if (!legacy) return null;
+  const hasOwn = localStorage.getItem(KEY) != null;
+  return h("div", { class: "notice", role: "status" },
+    h("p", null, "Un ancien brouillon, non lié à un compte, a été trouvé sur cet appareil",
+      legacy.savedAt ? ` (enregistré le ${formatDate(legacy.savedAt)})` : "",
+      ". Il n'est ni affiché dans le formulaire ni publié. Récupérez-le uniquement s'il est le vôtre, ou supprimez-le."),
+    h("div", { class: "row" },
+      hasOwn ? null : h("button", { class: "btn btn-small btn-dark", type: "button", onClick: () => { if (claimLegacyDraft(S.user.id)) location.reload(); else toast("Récupération impossible.", true); } }, "Récupérer dans mon brouillon"),
+      h("button", { class: "btn btn-small", type: "button", onClick: () => { if (confirm("Supprimer définitivement cet ancien brouillon ? Cette action est irréversible.")) { discardLegacyDraft(); location.reload(); } } }, "Supprimer définitivement")));
+}

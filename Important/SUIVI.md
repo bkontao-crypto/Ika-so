@@ -56,6 +56,34 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - **Non vérifié :** téléchargement réel sur le site après déploiement ; installation sur téléphone ; contenu/signature de l'APK (aucun outil d'analyse d'APK ici).
 - **Risques :** `Ika-So.apk` (ancien, majuscules) reste dans le même dossier : deux noms ne différant que par la casse posent problème sur Windows/Mac ; non supprimé sans accord. Le serveur garde le fichier en cache 1 h (`maxAge` de `express.static`) : un téléchargement juste après une mise à jour peut servir l'ancien fichier jusqu'à 1 h. Chaque nouvel APK ajoute ~13 Mo à l'historique Git.
 - **Retour arrière :** `git revert -m 1` du commit de fusion.
+## Confidentialité, cookies et traceurs — lot A (17 novembre 2026)
+**À réaliser** : mission 02. Carte Mapbox seulement après accord « Cartes et services externes » ; brouillon lié au compte ; fiche imprimable sans Mapbox par défaut ; panneau « Gérer mes choix ». Branche `feat/confidentialite-lot-a`, aucune modification de Render ni de la production.
+**Réalisé** :
+- `public/js/core/consent.js` (nouveau) : choix versionné (`ika-so-consent`, version 1, 183 jours), quatre catégories, toutes refusées par défaut. Refus et absence de choix = plan local.
+- `public/js/map/provider.js` : sans accord, aucune requête `/api/config/map` et aucune bibliothèque Mapbox. Les appelants (fiche, localisation, centre, carte d'accueil) sont inchangés.
+- `server/routes/index.js` + `pages/localisation.js` : fiche imprimable avec fond Mapbox seulement si `?fond=mapbox` (ajouté après accord). Plan SVG local dans tous les cas.
+- `public/js/core/draft.js` (nouveau) : brouillon par compte (`ika-so-draft:<id>`). Ancien brouillon sans compte : rangé au compte qui se déconnecte, sinon retiré. Plus aucun brouillon partagé entre comptes.
+- `public/js/components/consent-panel.js` (nouveau) + lien « Gérer mes choix » dans le pied de page (`index.html`, `app.js`). Retrait ou acceptation de « Cartes » : rechargement pour appliquer immédiatement.
+- Feuille « Suivi confidentialité » ajoutée à `Important/IKA_SO_SUIVI_TRANSFORMATION_ET_RECETTE.xlsx` (10 feuilles existantes vérifiées identiques).
+**Vérifié** :
+- `npm test` avec PostgreSQL : 296 réussis, 0 échec (275 existants + 21 nouveaux, `test/confidentialite-lot-a.test.js`).
+- Navigateur (mobile 390 px, serveur local) : première visite sans choix, aucune requête vers Mapbox ni service externe, aucune erreur JavaScript, panneau lisible et sans débordement, acceptation puis retrait enregistrés.
+**En cours** : parcours « acceptation → carte Mapbox » non vérifié en navigateur (pas de jeton local, pas d'annonce géolocalisée en test).
+**À faire** : validation du lot A par le propriétaire sur le site ; puis lot B (Statistiques, suppression de `/api/e` quand la collecte est désactivée), lot C (documentation cookies et prestataires), lot D (preuve serveur, si exigée).
+**Risques** : stockage local du choix = pas une preuve juridique ; politique de confidentialité non validée par un juriste (`LEGAL_VALIDATED=false`) ; `MAPBOX_TOKEN` sur Render non vérifié ; les pages rendues côté serveur (quartiers, guides) n'ont pas encore le lien « Gérer mes choix ».
+**Correctifs de la vérification finale (17 novembre 2026, 2e passage)** :
+- Contournement corrigé : `?fond=mapbox` n'a plus aucun effet côté serveur (la route ne lit plus le paramètre et n'envoie plus de jeton). La fiche charge le fond seulement si le consentement est enregistré dans le navigateur (`public/js/fiche.js`, emplacement `#fond-auto`).
+- Tests : 298 réussis avec PostgreSQL (275 existants + 23 nouveaux).
+- Navigateur (serveur local, jeton factice, requêtes Mapbox interceptées) : fiche sans accord (0 requête), fiche avec accord (1 requête), retrait (0 requête) ; carte : première visite (0), acceptation (chargement de la bibliothèque), retrait puis navigation (0).
+- Brouillons : deux comptes dans le même navigateur, 12 vérifications conformes.
+- Non réalisé : rendu réel de Mapbox (aucun jeton local, réseau vers Mapbox bloqué), annonces géolocalisées (aucune donnée de test). Le jeton `/api/config/map` reste visible par conception (jeton public) : restriction à restreindre côté compte Mapbox.
+**Mission 04 — validation finale (17 novembre 2026, 3e passage)** :
+- Brouillons : l'ancien brouillon sans compte n'est plus supprimé ni attribué automatiquement. Il est proposé à l'utilisateur connecté : récupération (sans écrasement) ou suppression après confirmation. Tests : 24 nouveaux tests du lot A ; navigateur : deux comptes, visiteur anonyme, récupération et suppression conformes.
+- Non-régression (navigateur, données réelles de la base de test) : publication complète par le formulaire, localisation par contour, fiche imprimable propriétaire, centre, carte avec repère, favoris, mes annonces, connexion et déconnexion, mobile 390 px. Aucune erreur JavaScript.
+- Mapbox réel : non réalisé, aucun jeton de test disponible et api.mapbox.com injoignable. Aucune requête Mapbox avant, pendant ou après consentement dans les parcours simulés.
+- Tests : 299 réussis avec PostgreSQL.
+- Anomalies restantes : fiche d'une annonce à simple point sans plan ni lien d'impression (existant) ; jeton public visible dans /api/config/map (conception, à restreindre côté Mapbox).
+**Rollback** : lot non commité. Après commit : `git revert <sha>` (commit simple) ou `git revert -m 1 <sha>` (commit de fusion), puis `npm run -s stamp-sw`.
 
 ## Demande de mise à la une (17 novembre 2026)
 **À réaliser** : remplacer le lien vers Réclamations par une demande gratuite envoyée directement à l'équipe, et une interface « Demande de mise à la une » pour les administrateurs (superadmin inclus). Aucun paiement ni tarif lié.
@@ -1164,3 +1192,61 @@ Branche : `fix/profil-equipe-avis` (depuis `origin/main` 2cf342b). Non fusionné
 - **Complément (17/11/2026) :** acceptation de l'invitation testée côté second compte (API, `POST /me/team-requests/:id/accept`) : statut `ACCEPTED`, membre visible des deux côtés. Test local uniquement.
 - **Fusion (17/11/2026, autorisée par le propriétaire) :** `fix/profil-equipe-avis` fusionnée dans `main` (commit de fusion `57914de`, `--no-ff`, retour arrière : `git revert -m 1 57914de`). Tests locaux 276/276 après fusion. Push `main` vérifié sur le dépôt distant. Déploiement Render : non vérifiable depuis l'environnement de l'agent (site injoignable, code 000) : à contrôler sur le site.
 - **Non fusionnées :** `feat/confidentialite-lot-a` (conflits et réserves, aucune fusion sans autorisation écrite), `feat/import-annonces-masse` (conflits, DEC-007 en attente).
+## Confidentialité lot A — mission 04-bis (17/11/2026)
+
+Branche : `feat/confidentialite-lot-a`. Commits : `6cd43b0` (code, recette Mapbox préparée). Mise à jour du suivi : commit suivant. **Aucune fusion dans `main`, lot B non démarré.**
+
+- **À réaliser :** lever les réserves de la mission 04 : fiche d'une annonce à simple point GPS (plan de secours), PDF réel, retrait du consentement Mapbox, recette Mapbox préparée sans jeton de production, non-régression, mise à jour du classeur.
+- **Réalisé :**
+  - Plan de secours `planPointSvg()` dans `server/lib/fiche.js` pour une annonce à point seul (sans contour ni mesure) ; lien d'impression affiché pour un point seul (`public/js/pages/localisation.js`). Contour non obligatoire pour publier.
+  - `clearMapboxStorage()` (`public/js/core/consent.js`) appelé au retrait de « Cartes » (`public/js/components/consent-panel.js`) : suppression des seules clés `mapbox*`.
+  - `scripts/recette/mapbox-consentement.mjs` (jeton `MAPBOX_TEST_TOKEN` requis, jamais affiché, `access_token` masqué dans le journal) et `Important/PROCEDURE_RECETTE_MAPBOX.md` (statut : préparée, non exécutée).
+  - Tests : `test/confidentialite-lot-a.test.js` étendu (29 tests du lot A).
+  - Classeur : feuille « Suivi confidentialité » complétée par CF-027 à CF-037 ; autres feuilles vérifiées identiques (signature valeur + style).
+- **Vérifié :**
+  - `npm test` avec PostgreSQL de test : 304 réussis, 0 échec.
+  - PDF réels (Playwright `page.pdf`) : fiche à point seul avec et sans consentement, fiche à contour avec et sans consentement (`?fond=mapbox` ignoré) : PDF valide, 1 page, mention présente, 0 requête Mapbox, aucun jeton dans la page.
+  - Modération : annonce en attente 404 au public ; refus sans motif 400 ; validation 200 public ; position GPS publique 200.
+  - Navigateur (390 px) : publication, géolocalisation, fiche, centre, favoris, mes annonces, connexion et déconnexion, brouillons (isolation par compte, récupération et suppression explicites) : aucune erreur JavaScript, aucun débordement, 0 requête Mapbox sans consentement.
+  - Pages publiques : statut 200, 0 requête Mapbox avant consentement.
+  - Exécution à blanc de la recette Mapbox (jeton factice, serveur sans jeton) : 10 réussis, 3 échecs attendus (3a, 3b, 3c).
+- **En cours :** recette Mapbox réelle en attente d'un jeton de test restreint fourni hors chat (ou vérification sur le site par le propriétaire).
+- **À faire :**
+  - Décision propriétaire sur le plan de secours (point seul) et sur la mention obligatoire.
+  - Rebaser `feat/confidentialite-lot-a` sur `main` avant toute fusion : `main` distant est à `2cf342b` (12 commits connexion Google / APK / boutons). Conflits constatés par simulation (`git merge-tree`) sur `Important/SUIVI.md`, `public/css/components.css` et `public/sw.js`. Non résolus.
+  - Restreindre le jeton Mapbox public aux domaines du site (compte Mapbox, propriétaire).
+  - Vérifier la licence de `mapbox-gl` 3.33.0 (R9 de l'audit).
+  - Validation juridique (`LEGAL_VALIDATED` reste à `false`).
+  - Lot C (services tiers) et lot D (preuve serveur) : non démarrés.
+- **Risques :**
+  - Rendu réel Mapbox, télémétrie réelle et image statique réelle non vérifiés (aucun jeton de test, `api.mapbox.com` injoignable depuis l'environnement).
+  - Le jeton Mapbox public reste visible dans `/api/config/map` par conception tant que la restriction par domaine n'est pas faite côté compte.
+  - Le script `regress.js` testait `/fiche` (404) : vérification du bouton d'impression à corriger ; couverte par `ui-recette`.
+  - Le dépôt distant a été déplacé (avertissement du remote lors du push) : à mettre à jour côté configuration Git.
+## Import en masse Excel (17/11/2026) — branche `feat/import-annonces-masse`
+
+Base : `main` au commit `2cf342b`. Aucune fusion dans `main`. Déploiement : aucun.
+
+- **À réaliser :** ajouter l'import de plusieurs annonces par fichier Excel, avec un bouton « Exporter le modèle Excel » dans « Mon profil > Mes annonces > Importer en masse », réservé aux annonceurs approuvés, à l'équipe et aux numéros vérifiés par SMS.
+- **Réalisé :**
+  - `server/lib/xlsx.js` : écriture d'un classeur `.xlsx` et lecture de la première feuille, sans dépendance externe. Limites : 400 Ko, 4 Mo décompressés, 1000 lignes, 60 colonnes, CRC contrôlé, fichiers chiffrés refusés.
+  - `server/lib/csv.js` : `rowsToListings` (même contrôle que le CSV, numéros de ligne du fichier Excel). `csvToListings` inchangé pour l'appelant.
+  - `server/services/imports.js` : `assertCanImport` (même règle que le CSV : annonceur approuvé ou équipe, numéro vérifié), `importStatus`, `importXlsx`, `modeleXlsx` (feuilles « Annonces » et « Valeurs acceptées »), traitement commun `importParsed`.
+  - Routes : `GET /api/me/import/statut`, `GET /api/me/import/modele.xlsx`, `POST /api/me/import/xlsx` ; `POST /api/me/import` (CSV) inchangée.
+  - Interface : `public/js/components/bulk-import.js` (partagé), intégré dans « Mon profil > Mes annonces » (bloc repliable) et dans l'espace agence (remplace l'ancien bloc CSV, qui reste accessible via le modèle CSV).
+  - Tests : `test/import-xlsx.test.js` (14 tests : aller-retour, modèle, fichier produit par openpyxl, fichiers piégés, droit d'import). Fixture : `test/fixtures/import-openpyxl.xlsx`.
+- **Vérifié :**
+  - `npm test` : 282 réussis, 0 échec (base de test PostgreSQL).
+  - Interopérabilité : fichier produit par notre écriture relu par openpyxl ; fichier produit par openpyxl relu par notre lecture (chaînes partagées, nombres, booléens, accents).
+  - Navigateur, 390 px : statut du droit affiché, modèle téléchargé en `.xlsx`, fichier fautif refusé avec les lignes concernées (rien créé), fichier correct importé en « En attente » (2 annonces), fichier non Excel refusé avec message clair, compte non approuvé : bouton désactivé et raison affichée, pas de débordement horizontal, aucune erreur JavaScript.
+  - Import CSV existant : toujours fonctionnel (contrôle à blanc : 2 annonces, 0 erreur). Visiteur anonyme : 401 sur le modèle et sur le statut.
+- **En cours :** rien.
+- **À faire :**
+  - Décision propriétaire (DEC-007) : exiger aussi la certification d'agence (registre de commerce) pour importer, ou conserver la règle actuelle (annonceur approuvé + numéro vérifié). Le texte demandé mentionne « agences certifiées » ; la règle existante ne l'exige pas.
+  - Après un import réussi, la page se recharge et le bloc se referme (BUG-014, mineur).
+  - Vérification sur un vrai téléphone Android et dans Excel (non fait : environnement sans Excel).
+  - Recette sur le site de production après fusion, sur autorisation écrite.
+- **Risques :**
+  - Lecteur `.xlsx` maison : surface d'attaque plus large qu'une bibliothèque éprouvée ; limites strictes et tests de fichiers piégés, mais une revue de sécurité est recommandée avant fusion.
+  - Limite de 10 imports par heure et par compte (partagée avec le CSV) : les contrôles à blanc comptent aussi.
+  - Branche créée depuis `main` (2cf342b) : elle ne contient pas les commits de confidentialité lot A (`feat/confidentialite-lot-a`). Les fichiers communs à traiter au rebase : `Important/SUIVI.md`, `public/sw.js`.

@@ -44,8 +44,14 @@ const pick = (list, value) => list.find((x) => normalizeText(x) === normalizeTex
 const intOrNull = (v) => (String(v ?? "").trim() === "" ? null : Number(String(v).replace(/[\s. ]/g, "")));
 
 /** Transforme le CSV en annonces prêtes à valider. Renvoie { items: [{ line, input }], problems: [{ line, message }] }. */
-export function csvToListings(text, { fullName = "Annonceur", ownerRole = "Agence immobilière" } = {}) {
-  const rows = parseCsv(text);
+export function csvToListings(text, options = {}) {
+  return rowsToListings(parseCsv(text), options);
+}
+
+/** Même contrôle à partir de lignes déjà lues (CSV ou Excel). Les numéros de ligne sont ceux du fichier d'origine. */
+export function rowsToListings(allRows, { fullName = "Annonceur", ownerRole = "Agence immobilière" } = {}) {
+  const numbered = allRows.map((cells, i) => ({ cells, line: i + 1 })).filter(({ cells }) => cells.some((x) => String(x ?? "").trim() !== ""));
+  const rows = numbered.map(({ cells }) => cells);
   if (rows.length < 2) return { items: [], problems: [{ line: 1, message: "Le fichier est vide ou n'a pas de ligne d'en-tête." }] };
   const map = rows[0].map((h) => HEADERS[normalizeText(h).replace(/[_-]+/g, " ")] ?? null);
   const unknown = rows[0].filter((_, i) => !map[i]).map((h) => h.trim()).filter(Boolean);
@@ -56,8 +62,7 @@ export function csvToListings(text, { fullName = "Annonceur", ownerRole = "Agenc
   if (rows.length - 1 > IMPORT_MAX_ROWS) return { items: [], problems: [{ line: 1, message: `Trop de lignes : ${IMPORT_MAX_ROWS} au plus par fichier.` }] };
 
   const items = [];
-  rows.slice(1).forEach((cells, index) => {
-    const line = index + 2;
+  numbered.slice(1).forEach(({ cells, line }) => {
     const raw = {};
     map.forEach((key, i) => { if (key) raw[key] = (cells[i] ?? "").trim(); });
     const category = pick(CATEGORIES, raw.category);
