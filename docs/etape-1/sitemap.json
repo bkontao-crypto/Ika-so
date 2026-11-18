@@ -231,6 +231,17 @@
   "step": "E08"
  },
  {
+  "id": "S21b",
+  "title": "Devenir Premium (conditions et paiement)",
+  "route": "#/devenir-premium",
+  "status": "Existant",
+  "need": "Voir les conditions manquantes, choisir une formule et payer en ligne si le superadmin a ouvert les paiements.",
+  "journey": "Conditions (certification, Premium) → formule → paiement en ligne → activation.",
+  "source": "devenir-premium.js · GET /me/center/access, GET /offers, POST /payments/checkout",
+  "rights": "Compte connecté",
+  "step": "E08"
+ },
+ {
   "id": "S22",
   "title": "Paiements",
   "route": "#/paiements",

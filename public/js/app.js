@@ -19,6 +19,7 @@ const routes = [
   [/^\/centre$/, "centre", "centrePage"],
   [/^\/devenir-annonceur$/, "advertiser-apply", "advertiserApplyPage"],
   [/^\/premium$/, "premium", "premiumPage"],
+  [/^\/devenir-premium$/, "devenir-premium", "devenirPremiumPage"],
   [/^\/annonce\/([^/]+)$/, "listing", "listingPage", dec],
   [/^\/publier$/, "publish", "publishPage"],
   [/^\/modifier\/([^/]+)$/, "publish", "editPage", dec],
