@@ -5,6 +5,7 @@ import { currentRoute } from "/js/core/router.js";
 import { renderChrome } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
 import { openConsentPanel } from "/js/components/consent-panel.js";
+import { trackPageView } from "/js/core/analytics.js";
 import "/js/bootstrap-settings.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
@@ -48,7 +49,7 @@ if ("scrollRestoration" in history) history.scrollRestoration = "manual";
 async function render() {
   const { path } = currentRoute();
   renderChrome();
-  api("/e", { method: "POST", body: { pagePath: path } }).catch(() => undefined);
+  trackPageView(path, (pagePath) => api("/e", { method: "POST", body: { pagePath } })); // seulement avec l'accord « Statistiques »
   document.body.classList.remove("in-chat");
   const mine = ++sequence;
   const hit = routes.map(([re, file, name, arg]) => [re.exec(path), file, name, arg]).find(([m]) => m);
