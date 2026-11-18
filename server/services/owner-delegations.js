@@ -41,6 +41,15 @@ export function createOwnerDelegations({ db, accounts }) {
       return { ok: true };
     },
 
+    // Modules accessibles à l'utilisateur connecté (affichage du menu). Le serveur reste la barrière réelle à chaque appel.
+    async accessFor(userId) {
+      const profile = await accounts.requireStaff(userId, "MODERATOR");
+      if (profile.staff_role === "SUPERADMIN") return { role: "SUPERADMIN", all: true, modules: [...DELEGABLE_MODULES] };
+      if (profile.staff_role !== "ADMIN") return { role: profile.staff_role, all: false, modules: [] };
+      const rows = await db.query("select module from ika_owner_delegations where user_id = $1", [userId]);
+      return { role: "ADMIN", all: false, modules: rows.map((r) => r.module) };
+    },
+
     async canAccess(userId, module) {
       const profile = await accounts.requireStaff(userId, "MODERATOR");
       if (profile.staff_role === "SUPERADMIN") return true;

@@ -5,6 +5,12 @@
   "regle": "Un admin n'accède à un module « delegable » que si le Superadmin le lui a attribué. Les modules « superadmin » ne sont jamais délégables. Modérateurs et utilisateurs : aucun accès à l'Owner Center. Refus par défaut, contrôlé côté serveur.",
   "modules": [
     {
+      "segment": "access",
+      "label": "Mes droits d'accès",
+      "access": "delegable",
+      "why": "Lecture de ses propres modules accessibles ; aucune donnée sensible."
+    },
+    {
       "segment": "dashboard",
       "label": "Tableau de bord",
       "access": "delegable",

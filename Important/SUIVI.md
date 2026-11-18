@@ -1251,3 +1251,23 @@ Base : `main` au commit `2cf342b`. Aucune fusion dans `main`. Déploiement : auc
   - Limite de 10 imports par heure et par compte (partagée avec le CSV) : les contrôles à blanc comptent aussi.
   - Branche créée depuis `main` (2cf342b) : elle ne contient pas les commits de confidentialité lot A (`feat/confidentialite-lot-a`). Les fichiers communs à traiter au rebase : `Important/SUIVI.md`, `public/sw.js`.
 - **Fusions finales (18/11/2026, autorisées par le propriétaire) :** `feat/confidentialite-lot-a` puis `feat/import-annonces-masse` intégrées via `integration/lot-a-import`, puis fusionnées dans `main` (commit `b9f02f6`, `--no-ff`, retour arrière : `git revert -m 1 b9f02f6`). Conflits résolus sans supprimer de ligne : `components.css` (blocs conservés), `SUIVI.md` (sections conservées), classeur (lignes ajoutées, aucune modifiée), `sw.js` re-tamponné. Tests : 311/311. Contrôles navigateur locaux : menu, équipe, import (sans erreur). **DEC-007 reste à arbitrer.** Déploiement Render : non vérifiable depuis l'agent.
+
+## Centre unifié : fusion de l'ancien centre (/admin) dans le Owner Control Center (18/11/2026)
+
+Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. Décision propriétaire : DEC-008 = option B.
+
+- **À réaliser :** supprimer l'ancien centre classique (`/admin`) après avoir branché toutes ses fonctionnalités dans `/owner`, et donner l'accès aux ADMIN via les délégations par module.
+- **Réalisé (étape 1) :** point d'accès `GET /staff/owner/access` (modules accessibles de l'utilisateur) ; menu `/owner` filtré selon ces modules ; route interdite affiche « Accès réservé » ; matrice `docs/etape-1/matrice-owner-center.json` complétée (segment `access`, 42 segments, 30 délégables).
+- **Vérifié :** tests 311/311 ; navigateur : ADMIN délégué voit 2 entrées (Annonces & modération, Confiance) et `#/users` est refusé ; SUPERADMIN voit 25 entrées, sans erreur JavaScript. Ces comptes existent uniquement dans la base de test (`ika_test`).
+- **En cours / À faire (étape 2) :** brancher dans `/owner` les fonctionnalités encore présentes seulement dans `/admin` :
+  1. Annonces : approuver, refuser avec motif, mettre à la une (`/staff/listings/:id/decision`, `/feature`).
+  2. Demandes annonceurs : décider, voir les documents (`/staff/advertiser-applications…`).
+  3. Demandes de mise à la une (`/staff/featured-requests…`).
+  4. Comptes staff : rôle, statut, lien de réinitialisation (`/staff/accounts/:id/…`), liste noire (`/staff/blacklist`).
+  5. Signalements : classer sans suite (`/staff/reports/:id/dismiss`).
+  6. Confiance : ouvrir les pièces (`/staff/proofs/:id/file`) — aujourd'hui renvoi vers `/admin`.
+  7. Paiements : rapprochement, remboursements, tarifs des offres (`/staff/payments/reconcile`, `/staff/offers`).
+  8. Page d'accueil : envoi d'image (`/staff/homepage-image`).
+  9. Statistiques : vue d'ensemble, comparaison, classements, fiche annonceur (`/staff/stats/…`).
+  Puis : supprimer `public/admin.html` et `public/js/admin.js`, rediriger `/admin` vers `/owner`, retirer les liens (menu compte, console, bouton « classique ») — **uniquement après validation du propriétaire sur le site**.
+- **Risques :** les endpoints `/staff/*` existants sont protégés par rôle de staff ; le menu `/owner` ne doit jamais être la seule barrière (le serveur contrôle chaque appel). Les renvois `adminLink` du centre v2 (trust, complaints, payments) doivent disparaître avec leur fonctionnalité.

@@ -972,6 +972,10 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/places", async (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await places.listPublic()); });
   
   // ---------- Délégations Owner Center (DEC-003) ----------
+  router.get("/staff/owner/access", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await services.ownerDelegations.accessFor(requireUser(req)));
+  });
   router.get("/staff/owner/delegations", async (req, res) => {
     res.json(await services.ownerDelegations.list(requireUser(req)));
   });
