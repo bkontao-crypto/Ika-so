@@ -134,3 +134,4 @@
 .mp-sheet strong { font: 800 1.05rem var(--display); }
 .mp-sheet .mp-btn.block { margin-top: 0; width: 100%; }
 @media (min-width: 700px) { .mp-sheet-back { place-items: center; } }
+.mp > .pc-card { margin: 16px 0; }

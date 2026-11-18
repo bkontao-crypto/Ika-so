@@ -3,6 +3,13 @@
 Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Mon profil : appel « Passez Premium » sur tous les onglets (18 novembre 2026)
+
+- **À réaliser :** garder l'appel « Passez Premium » en haut de tous les onglets de « Mon profil », pour tous les comptes sauf ceux déjà Premium.
+- **Réalisé :** la carte est maintenant affichée par `profilePage` (`mon-profil.js`) entre l'en-tête et les onglets, donc visible sur les 6 onglets ; masquée si `/me/center/access` indique `premium`. Retirée du bloc « Paramètres » (`account.js`, mode intégré) pour éviter le doublon. Marge ajoutée dans `mon-profil.css`.
+- **Vérifié :** `npm test` OK ; Chromium (API simulée) : non-Premium = 1 carte sur chacun des 6 onglets, Premium = aucune.
+- **À noter :** un compte Premium ne voit plus la carte « Votre Premium est actif » dans son profil (elle reste dans le centre de contrôle). **Non vérifié :** rendu réel après déploiement.
+
 ## Boîte : nouvelle interface (18 novembre 2026)
 
 - **À réaliser :** remplacer l'interface Boîte par la maquette fournie (« Boîte — Espace Immobilier »), à l'identique.

@@ -347,6 +347,12 @@ export async function profilePage() {
     header.querySelectorAll(".mp-tab").forEach((el) => el.setAttribute("aria-selected", String(el.dataset.tab === tab)));
     if (tab === "annonces") paintListings();
   }
-  mount(app, h("div", { class: "mp" }, header, body));
+  // Appel « Passez Premium » : au-dessus de tous les onglets, sauf pour les comptes déjà Premium.
+  let premiumBanner = null;
+  try {
+    const access = await api("/me/center/access").catch(() => null);
+    if (!access?.premium) { const ui = await import("/js/components/espace.js"); ui.loadCss(); premiumBanner = ui.premiumCard(access, "profil"); }
+  } catch { /* la carte est facultative : le profil s'affiche sans elle */ }
+  mount(app, h("div", { class: "mp" }, header, premiumBanner, body));
   show(currentTab);
 }
