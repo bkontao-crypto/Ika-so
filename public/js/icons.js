@@ -1,6 +1,18 @@
 // Icônes SVG en ligne (aucune dépendance, aucune requête réseau). Trait 2 px, couleur = celle du texte (currentColor) :
 // elles suivent donc la palette sans changement. Dessinées sur une grille de 24 × 24.
 const P = {
+  inbox: "M22 12h-6l-2 3h-4l-2-3H2M5.5 5.1L2 12v6a2 2 0 002 2h16a2 2 0 002-2v-6l-3.5-6.9A2 2 0 0016.8 4H7.2a2 2 0 00-1.7 1.1z",
+  "calendar-check": "M8 2v4M16 2v4M3 6h18v15H3zM3 10h18M9 16l2 2 4-4",
+  "calendar-plus": "M8 2v4M16 2v4M3 6h18v15H3zM3 10h18M12 13v6M9 16h6",
+  "calendar-clock": "M8 2v4M16 2v4M3 6h18v6M3 10h18M17 22a5 5 0 100-10 5 5 0 000 10zM17 14.5V17l1.5 1",
+  "check-check": "M18 6L7 17l-5-5M22 10l-7.5 7.5L13 16",
+  "bell-off": "M8.7 3A6 6 0 0118 8c0 2.7.6 4.5 1.3 5.7M17 17H3s3-2 3-9c0-.5.1-1 .2-1.5M10.3 21a2 2 0 003.4 0M2 2l20 20",
+  "bell-ring": "M6 16v-5a6 6 0 1112 0v5l2 2H4zM10 21h4M2 8c0-2.2.7-4.3 2-6M22 8a10 10 0 00-2-6",
+  sparkles: "M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z",
+  "arrow-right": "M5 12h14M13 6l6 6-6 6",
+  "circle-dot": "M12 3a9 9 0 100 18 9 9 0 000-18zM12 10a2 2 0 100 4 2 2 0 000-4z",
+  "check-circle": "M12 3a9 9 0 100 18 9 9 0 000-18zM8.5 12l2.5 2.5 4.5-5",
+  "message-circle": "M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-3.5-.8z",
   home: "M3 11l9-8 9 8M5 10v10h14V10M10 20v-6h4v6",
   store: "M4 9l1.5-5h13L20 9M4 9a2.7 2.7 0 005.3 0 2.7 2.7 0 005.4 0A2.7 2.7 0 0020 9M5 12v8h14v-8M10 20v-5h4v5",
   briefcase: "M4 8h16v11H4zM9 8V5h6v3M4 13h16M11 13h2",
