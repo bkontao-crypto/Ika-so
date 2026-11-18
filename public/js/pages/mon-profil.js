@@ -5,6 +5,7 @@ import { S, app, refreshSession } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { field } from "/js/components/ui.js";
 import { stars } from "/js/components/stars.js";
+import { bulkImportBlock } from "/js/components/bulk-import.js";
 import { accountSettings } from "/js/pages/account.js";
 
 const TABS = [["publications", "Publications"], ["annonces", "Mes annonces"], ["avis", "Avis"], ["abonnes", "Abonnés"], ["equipe", "Équipe"], ["parametres", "Paramètres & Confidentialité"]];
@@ -207,7 +208,13 @@ export async function profilePage() {
     FILTERS.map(([f, ic, label]) => h("button", { class: "mp-intro mp-filter", type: "button", "data-filter": f, onClick: () => { listingFilter = f; paintListings(); } }, h("span", null, ic), `${label} (${count(f)})`)),
     h("a", { class: "mp-btn mp-btn-gold block", href: "#/publier" }, "Nouvelle annonce"),
     h("a", { class: "mp-link block", href: "#/mes-annonces" }, "Gestion avancée (prolonger, vendu, justificatif…)"));
-  const annoncesTab = h("div", { class: "mp-grid" }, h("div", { class: "mp-col" }, filterBox), h("div", { class: "mp-col" }, listingsBox));
+  // Importer en masse : le contenu se charge à l'ouverture ; le serveur indique si le compte peut importer (et pourquoi sinon).
+  const importBody = h("div", { class: "mp-import-body stack" });
+  const importBox = h("details", { class: "mp-card mp-span" }, h("summary", { class: "mp-btn mp-btn-outline sm" }, "📥 Importer en masse (Excel)"), importBody);
+  importBox.addEventListener("toggle", () => {
+    if (importBox.open && !importBody.childElementCount) importBody.append(bulkImportBlock({ onImported: () => reload() }));
+  });
+  const annoncesTab = h("div", { class: "mp-grid" }, h("div", { class: "mp-col" }, filterBox), h("div", { class: "mp-col" }, importBox, listingsBox));
 
   /* ---------- Avis ---------- */
   const rating = pub?.rating ?? { average: 0, count: 0 };

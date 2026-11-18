@@ -851,6 +851,21 @@ router.get("/listings/:id", async (req, res) => {
     limiter.hit(`import:${userId}`, 10, 60 * 60_000);
     res.json(await imports.importCsv(userId, String(req.body?.csv ?? ""), { dryRun: req.body?.dryRun === true }));
   });
+  // Import Excel : modèle à remplir (même droit que l'import), statut du droit, envoi du fichier .xlsx en base64.
+  router.get("/me/import/statut", async (req, res) => res.json(await imports.importStatus(requireUser(req))));
+  router.get("/me/import/modele.xlsx", async (req, res) => {
+    await imports.assertCanImport(requireUser(req));
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="modele-import-ika-so.xlsx"');
+    res.setHeader("Cache-Control", "no-store");
+    res.send(imports.modeleXlsx());
+  });
+  router.post("/me/import/xlsx", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`import:${userId}`, 10, 60 * 60_000);
+    const buffer = Buffer.from(String(req.body?.file ?? ""), "base64");
+    res.json(await imports.importXlsx(userId, buffer, { dryRun: req.body?.dryRun === true }));
+  });
 
 
   // ---------- Personnalisation Superadmin (E09) ----------
