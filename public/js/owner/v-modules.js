@@ -17,6 +17,29 @@ const minis = (...m) => h("div", { class: "mini-stats" }, m);
 const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/${type}/${encodeURIComponent(id)}`) }, ico("route"), label);
 const adminLink = (label = "Ouvrir dans le centre de contrôle classique") => h("a", { class: "btn", href: "/admin" }, ico("external"), label);
 
+// Demandes gratuites de mise à la une (repris de l'ancien centre) : mettre à la une ou refuser avec motif.
+const featuredRequestsPanel = (reload) => {
+  const box = h("div", { class: "stack" });
+  const decideFR = (id, action, note) => act(() => api(`/staff/featured-requests/${encodeURIComponent(id)}/decision`, { method: "POST", body: { action, note } }), action === "ACCEPT" ? "Annonce mise à la une." : "Demande refusée, l'annonceur est prévenu.", reload);
+  const row = (r, open) => h("article", { class: "card panel row" },
+    h("div", { class: "grow stack" }, h("b", null, r.title || "Annonce"), h("p", { class: "muted small" }, `${r.neighborhood || ""} · demandé par ${r.requesterName} · ${dateTime(r.createdAt)}`),
+      h("p", { class: "small" }, r.message ? `« ${r.message} »` : "Aucun message."),
+      r.status === "PENDING" ? null : h("p", { class: "small muted" }, `${r.status === "ACCEPTED" ? "Acceptée" : "Refusée"}${r.note ? ` — ${r.note}` : ""}`)),
+    open ? h("div", { class: "row" },
+      h("a", { class: "btn sm", href: `/#/annonce/${encodeURIComponent(r.listingId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Voir l'annonce"),
+      h("button", { class: "btn primary sm", type: "button", onClick: () => decideFR(r.id, "ACCEPT", "") }, ico("check"), "Mettre à la une"),
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif du refus (obligatoire)", type: "textarea", required: true, max: 500 }], { submit: "Refuser" }); if (v) decideFR(r.id, "REJECT", v.note); } }, "Refuser")) : null);
+  async function fill() {
+    try {
+      const [pending, done] = await Promise.all([api("/staff/featured-requests"), api("/staff/featured-requests?status=DONE")]);
+      box.replaceChildren(...(pending.length ? pending.map((r) => row(r, true)) : [empty("Aucune demande de mise à la une en attente.", "check")]),
+        done.length ? h("h3", { class: "tiny muted" }, "Traitées récemment") : null, ...done.slice(0, 30).map((r) => row(r, false)));
+    } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
+  }
+  fill();
+  return panel("Demandes de mise à la une", "Demandes gratuites envoyées par les annonceurs depuis « Mes annonces ». Aucun paiement n'est lié à cette demande.", box);
+};
+
 // ---------- Pilotage ----------
 export const listingsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Annonces & modération", desc: "File de modération, signalements et annonces en ligne.",
@@ -35,7 +58,7 @@ export const listingsView = (ctx) => page(ctx, {
     const online = table([{ label: "Annonce", render: (r) => h("div", { class: "item" }, h("b", null, r.title), h("small", null, r.neighborhood)) }, { label: "À la une", render: (r) => (r.featured ? pill("ok", "Oui") : pill("neutral", "Non")) },
       { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "listing", r.id), h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/listings/${encodeURIComponent(r.id)}/feature`, { method: "POST", body: { on: !r.featured } }), r.featured ? "Retirée de la une." : "Mise à la une (7 jours).", reload) }, r.featured ? "Retirer de la une" : "Mettre à la une")) }], d.online, { emptyText: "Aucune annonce en ligne." });
     return [minis(mini("Publiées", nf(s.published)), mini("En attente", nf(s.pending)), mini("Signalements ouverts", nf(s.open_reports)), mini("Nouvelles · 7 jours", nf(s.new_7d))),
-      h("div", { class: "stack" }, ...pending), h("div", { class: "cols2" }, panel("Signalements ouverts", null, reports), panel("En ligne (20 dernières)", null, online))];
+      h("div", { class: "stack" }, ...pending), featuredRequestsPanel(reload), h("div", { class: "cols2" }, panel("Signalements ouverts", null, reports), panel("En ligne (20 dernières)", null, online))];
   },
 });
 
