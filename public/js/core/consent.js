@@ -9,7 +9,7 @@ export const CONSENT_DURATION_DAYS = 183; // environ six mois, configurable
 
 export const CONSENT_CATEGORIES = [
   { id: "preferences", label: "Préférences", active: false, description: "Mémorisation de réglages d'affichage." },
-  { id: "statistiques", label: "Statistiques", active: false, description: "Mesure d'audience anonyme." },
+  { id: "statistiques", label: "Statistiques", active: true, description: "Mesure d'audience anonyme : les pages vues sont comptées sans identifiant visiteur ni cookie. Sans votre accord, aucune page vue n'est envoyée." },
   { id: "cartes", label: "Cartes et services externes", active: true, description: "Fond de carte Mapbox (société américaine). Pour afficher ce fond, votre navigateur envoie à Mapbox les tuiles demandées, avec votre adresse IP." },
   { id: "marketing", label: "Marketing et publicité", active: false, description: "Publicité ciblée." },
 ];

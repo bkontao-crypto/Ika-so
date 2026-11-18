@@ -1,7 +1,18 @@
 # Ika So — Suivi du projet
 
-Mis à jour le 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
+Mis à jour le 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
+
+## Confidentialité, cookies et traceurs — lot B (18 novembre 2026)
+**À réaliser** : la mesure de page vue (`POST /api/e`) ne part plus sans l'accord « Statistiques ». Branche `feat/confidentialite-lot-b`.
+**Réalisé** :
+- `public/js/core/analytics.js` (nouveau) : `trackPageView` n'envoie rien tant que « Statistiques » n'est pas accepté dans ce navigateur ; une erreur d'envoi (synchrone ou réseau) ne casse jamais la page.
+- `public/js/app.js` : l'appel direct à `/e` passe par ce filtre. Sans choix, après refus, après retrait ou choix expiré : aucune requête.
+- `public/js/core/consent.js` : catégorie « Statistiques » activée dans le panneau « Gérer mes choix » (case cochable), description précisée (aucun identifiant visiteur ni cookie). Aucune migration, aucune donnée modifiée. Version du service worker re-estampillée.
+**Vérifié** : `npm test` : 310 réussis, 0 échec, 14 ignorés (304 avant, +6 dans `test/confidentialite-lot-b.test.js`). Un test a révélé puis fait corriger une erreur synchrone non interceptée.
+**Non vérifié** : comportement dans un vrai navigateur (case Statistiques, absence de requête `/api/e` sans accord) ; à contrôler sur le site après déploiement.
+**En cours / à faire** : validation des lots A et B par le propriétaire sur le site ; lot C (documentation cookies et prestataires) ; lot D (preuve serveur, si exigée).
+**Risques** : les événements métier enregistrés côté serveur (vue de fiche, contact, etc.) ne sont pas concernés par ce lot : ils n'utilisent aucun identifiant visiteur ; leur base juridique reste à valider (`LEGAL_VALIDATED=false`). Les chiffres de visites baisseront : seuls les visiteurs consentants sont comptés. Retour arrière : `git revert -m 1 <commit de fusion>`.
 
 ## Mon profil : saisie des « Services proposés » par le propriétaire du compte (18 novembre 2026)
 
