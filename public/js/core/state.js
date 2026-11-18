@@ -3,7 +3,6 @@ import { api } from "/js/dom.js";
 
 export const app = document.getElementById("app");
 export const S = { user: null, meta: null, unread: 0 }; // { user, meta } renvoyés par /api/me
-export const DRAFT_KEY = "ika-so-draft";
 
 const listeners = new Set();
 export const onSession = (fn) => listeners.add(fn);
