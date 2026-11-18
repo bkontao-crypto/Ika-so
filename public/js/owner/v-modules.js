@@ -280,15 +280,15 @@ const reconcilePanels = (rec, reload) => {
 let ctx0 = null;
 export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
   eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements, tarifs des offres, rapprochement et remboursements.",
-  load: async () => { const [o, s, rec, offers] = await Promise.all([api("/staff/owner/overview"), api("/staff/owner/subscriptions"), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => [])]); return { o, s, rec, offers }; },
+  load: async () => { const [o, s, rec, offers] = await Promise.all([api("/staff/owner/overview").catch(() => null), api("/staff/owner/subscriptions").catch(() => null), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => [])]); return { o, s, rec, offers }; },
   build({ o, s, rec, offers }, reload) {
-    const f = o.finance;
-    return [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length))),
-      offersPanel(offers, reload),
-      h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
-        panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus)))),
-      ...reconcilePanels(rec, reload),
-      panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))];
+    // Les chiffres d'encaissement dépendent des modules « Vue générale » et « Abonnements » ; sans eux, seules les sections « Paiements » s'affichent.
+    const f = o?.finance;
+    const head = f && s ? [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length)))] : [];
+    const stats = f && s ? [h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
+        panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus))))] : [];
+    const recent = s ? [panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))] : [];
+    return [...head, offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
   },
 }); };
 

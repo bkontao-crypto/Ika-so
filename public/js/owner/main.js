@@ -29,7 +29,7 @@ let badges = {}; let alerts = []; let me = null;
 let access = { all: false, modules: [] };
 // Correspondance entre une entrée du menu et le module délégable. Sans correspondance : réservé au SUPERADMIN.
 const MODULE_OF = { overview: "overview", activity: "activity", listings: "moderation", agencies: "agencies", trust: "trust", complaints: "complaints",
-  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", stats: "report", users: "users" };
+  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", stats: "report", users: "users", payments: "payments" };
 const allowed = (id) => access.all || (MODULE_OF[id] !== undefined && access.modules.includes(MODULE_OF[id]));
 const firstAllowed = () => FLAT.find((m) => allowed(m.id))?.id ?? "overview";
 let content; let side; let scrim; let navEl; let crumb; let bell; let bellBadge;
