@@ -1307,3 +1307,4 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **En cours :** étape 3 (suppression de `/admin`) — uniquement après validation du propriétaire sur le site réel.
 - **À faire :** validation propriétaire du branche sur le site ; autorisation écrite pour fusion dans `main` ; tests remboursement et fiche/comparaison.
 - **Risques :** le dépôt distant a signalé un changement d'emplacement (`github.com/bkontao-crypto/Ika-so`) ; le push a réussi mais il est conseillé de mettre à jour l'URL du remote local.
+- **Vérifié le 18/11/2026 (base de test) — remboursement :** paiement de test PAID (BOOST_30) ; ADMIN sans délégation « payments » : 403 ; SUPERADMIN : 200, statut passé à REFUNDED avec motif et référence enregistrés. Fiche et comparaison annonceur : toujours non vérifiées (pas de données d'activité).
