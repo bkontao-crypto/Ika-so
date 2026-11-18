@@ -1292,3 +1292,5 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - Refus d'un module non délégué : désormais HTTP 403 (auparavant 500, car l'erreur n'était pas reconnue par le gestionnaire). Corrige tous les modules du centre.
 - Vérifié : tests 311/311 ; ADMIN sans délégation « users » : 403 sur liste et lien de réinitialisation ; avec délégation : 200 ; menu et écran cohérents.
 - Non vérifié : restriction/blocage effectif par un ADMIN délégué (action sur compte réel non jouée en test).
+- **Vérifié le 18/11/2026 (base de test) :** un ADMIN délégué « Utilisateurs » restreint, bloque puis réactive un compte jetable (200, statut confirmé en base) ; délégation retirée ensuite. Modification d'une offre (prix puis retour à la valeur d'origine, 200).
+- **Non vérifié :** remboursement (aucun paiement de test). Fiche et comparaison annonceur à l'écran (aucune donnée d'activité).
