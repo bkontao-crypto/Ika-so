@@ -74,6 +74,9 @@ export const usersView = (ctx) => {
         box.replaceChildren(table([{ label: "Compte", render: (r) => h("div", { class: "row" }, h("span", { class: "avatar" }, initials(r.fullName)), h("div", { class: "item" }, h("b", null, r.fullName), h("small", null, `${r.phone ? `•••• ${String(r.phone).slice(-2)}` : "sans numéro"} · ${r.userId.slice(0, 12)}`))) },
           { label: "Rôle", render: (r) => pill(r.staffRole === "USER" ? "neutral" : "info", r.staffRole) }, { label: "Statut", render: (r) => statusPill(r.accountStatus) },
           { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId),
+            h("button", { class: "btn sm", type: "button", title: "Génère un lien à transmettre à la personne (valable 30 minutes, usage unique)", onClick: async () => {
+              try { const link = await api(`/staff/accounts/${encodeURIComponent(r.userId)}/reset-link`, { method: "POST", body: {} }); await formDialog("Lien de réinitialisation", [{ name: "link", label: `Transmettez-le uniquement à ${r.fullName} (valable ${link.validMinutes} min, usage unique)`, value: link.link, max: 500 }], { submit: "Fermer" }); } catch (error) { fail(error); }
+            } }, "Lien mot de passe"),
             h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Statut du compte", [{ name: "status", label: "Nouveau statut", type: "select", options: ["ACTIVE", "RESTRICTED", "BANNED"], value: r.accountStatus }, { name: "reason", label: "Motif (obligatoire sauf réactivation)", type: "textarea", max: 500 }], { intro: r.fullName }); if (v) act(() => api(`/staff/accounts/${encodeURIComponent(r.userId)}/status`, { method: "POST", body: v }), "Statut mis à jour.", reload); } }, "Statut"),
             h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Rôle équipe", [{ name: "role", label: "Rôle", type: "select", options: ["USER", "MODERATOR", "ADMIN", "SUPERADMIN"], value: r.staffRole }], { intro: `${r.fullName} · le dernier SUPERADMIN actif ne peut pas être rétrogradé.` }); if (v) act(() => api(`/staff/accounts/${encodeURIComponent(r.userId)}/role`, { method: "POST", body: v }), "Rôle mis à jour.", reload); } }, "Rôle")) }], f, { emptyText: "Aucun compte ne correspond." }));
       };
@@ -161,15 +164,63 @@ export const agenciesView = (ctx) => page(ctx, {
       { label: "Publiées", key: "published", num: true }, { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId), h("a", { class: "btn sm", href: `/#/annonceur/${encodeURIComponent(r.userId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Profil")) }], rows))],
 });
 
+// Pièces justificatives (repris de l'ancien centre) : consultation, acceptation avec contrôle noté, refus motivé.
+const openProof = async (id) => {
+  try {
+    const { fileData } = await api(`/staff/proofs/${encodeURIComponent(id)}/file`);
+    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
+    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+  } catch (error) { fail(error); }
+};
+const proofsPanel = (proofs, reload) => {
+  const decide = (id, body, ok) => act(() => api(`/staff/proofs/${encodeURIComponent(id)}/decision`, { method: "POST", body }), ok, reload);
+  const card = (p) => h("article", { class: "card panel row" },
+    h("div", { class: "grow stack" }, h("div", { class: "row" }, pill("gold", p.kind === "AGENCE" ? "AGENCE" : "DOCUMENT")), h("b", null, p.listingTitle ?? `Agence de ${p.ownerName}`),
+      h("p", { class: "muted small" }, `${p.ownerName}${p.declaredDocument ? ` · document déclaré : ${p.declaredDocument}` : ""} · ${dateOnly(p.createdAt ?? p.created_at)}`),
+      h("p", { class: "muted small" }, "Un badge n'est donné qu'après un vrai contrôle (cadastre, greffe, mairie…).")),
+    h("div", { class: "row" },
+      h("button", { class: "btn sm", type: "button", onClick: () => openProof(p.id) }, ico("external"), "Voir la pièce"),
+      h("button", { class: "btn primary sm", type: "button", onClick: async () => {
+        const fields = [{ name: "note", label: "Qu'avez-vous contrôlé ? (organisme, numéro)", type: "textarea", required: true, max: 300 }];
+        if (p.kind === "AGENCE") fields.push({ name: "agencyName", label: "Nom de l'agence", required: true, max: 120 });
+        const v = await formDialog("Pièce contrôlée", fields, { submit: "Accepter" });
+        if (v) decide(p.id, { action: "ACCEPT", note: v.note, agencyName: v.agencyName ?? "" }, "Pièce acceptée, badge donné.");
+      } }, ico("check"), "Contrôlée : accepter"),
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la pièce", [{ name: "note", label: "Motif du refus", type: "textarea", required: true, max: 300 }], { submit: "Refuser" }); if (v) decide(p.id, { action: "REFUSE", note: v.note }, "Pièce refusée."); } }, "Refuser")));
+  return panel(`Pièces à contrôler (${proofs.length})`, null, proofs.length ? h("div", { class: "stack" }, proofs.map(card)) : empty("Aucune pièce en attente.", "check"));
+};
+// Liste noire (repris de l'ancien centre) : téléphones et e-mails bloqués ; les comptes concernés sont bloqués.
+const blacklistPanel = (reload) => {
+  const box = h("div", { class: "stack" });
+  async function fill() {
+    try {
+      const list = await api("/staff/blacklist");
+      box.replaceChildren(
+        h("div", { class: "row" }, h("button", { class: "btn primary sm", type: "button", onClick: async () => {
+          const v = await formDialog("Ajouter à la liste noire", [
+            { name: "kind", label: "Type", type: "select", options: [{ value: "PHONE", label: "Numéro de téléphone" }, { value: "EMAIL", label: "Adresse e-mail" }], value: "PHONE" },
+            { name: "value", label: "Numéro (ex. +223 76 12 34 56) ou adresse e-mail", required: true, max: 120 },
+            { name: "reason", label: "Motif", type: "textarea", required: true, max: 300 }], { submit: "Ajouter", intro: "Les comptes concernés sont bloqués." });
+          if (v) act(() => api("/staff/blacklist", { method: "POST", body: { kind: v.kind, value: v.value.trim(), reason: v.reason } }), "Ajouté. Les comptes concernés sont bloqués.", fill);
+        } }, "Ajouter")),
+        ...(list.length ? list.map((b) => h("article", { class: "card panel row" }, h("div", { class: "grow" }, h("b", null, `${b.kind === "PHONE" ? "Téléphone" : "E-mail"} ${b.value}`), h("p", { class: "muted small" }, b.reason)),
+          h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/blacklist/${encodeURIComponent(b.id)}/remove`, { method: "POST", body: {} }), "Retiré de la liste noire.", fill) }, "Retirer"))) : [empty("Liste noire vide.", "check")]));
+    } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
+  }
+  fill();
+  return panel("Liste noire", "Téléphones et adresses e-mail bloqués.", box);
+};
 export const trustView = (ctx) => page(ctx, {
-  eyebrow: "PILOTAGE", title: "Confiance & vérifications", desc: "Pièces à contrôler, alertes et signalements de confiance. Le contrôle des pièces (documents sensibles) reste dans le centre de contrôle classique.",
-  load: () => api("/staff/trust"), actions: () => adminLink("Contrôler les pièces"),
-  build(t) {
+  eyebrow: "PILOTAGE", title: "Confiance & vérifications", desc: "Pièces justificatives à contrôler, alertes, signalements de confiance et liste noire.",
+  load: () => api("/staff/trust"),
+  build(t, reload) {
     const n = (a) => (a ?? []).length;
     const sec = (title, rows, cols) => panel(`${title} (${n(rows)})`, null, table(cols, rows ?? [], { emptyText: "Rien à traiter." }));
     return [minis(mini("Pièces à contrôler", nf(n(t.proofs))), mini("Alertes ouvertes", nf(n(t.alerts))), mini("Commentaires signalés", nf(n(t.commentReports))), mini("Personnes / avis signalés", nf(n(t.userReports) + n(t.reviewReports)))),
-      h("div", { class: "cols2" }, sec("Pièces justificatives", t.proofs, [{ label: "Dépôt", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? r.type ?? "Pièce"), h("small", null, r.ownerName ?? r.listingTitle ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]),
-        sec("Alertes", t.alerts, [{ label: "Alerte", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? "Alerte"), h("small", null, r.detail ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]))];
+      proofsPanel(t.proofs ?? [], reload),
+      h("div", { class: "cols2" },
+        sec("Alertes", t.alerts, [{ label: "Alerte", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? "Alerte"), h("small", null, r.detail ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]),
+        blacklistPanel(reload))];
   },
 });
 
