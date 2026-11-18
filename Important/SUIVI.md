@@ -1316,3 +1316,16 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 - **Non vérifié :** parcours complet dans le navigateur sur le centre ; production (inaccessible depuis l'agent).
 - **Incident de la fusion :** une première fusion dans `main` a été poussée (5eca9ed) pendant que la base de test était arrêtée (14 échecs, sans lien avec le code) ; relance une fois la base remise en route : 311/311.
 - **Environnement de test :** la base `ika_test` a été recréée vide sur le cluster redémarré (les données de test antérieures ne sont plus là) ; aucune donnée de production touchée.
+
+### Paiement en ligne activable + demandes Premium à la main (18/11/2026, demande du propriétaire)
+- **À réaliser :** réglage superadmin « paiement en ligne ouvert ou fermé » ; approbation manuelle du Premium pour 1 à 3 mois maximum (durée choisie par l'équipe), avec tous les avantages pendant ce temps ; écran de réglage dédié.
+- **Réalisé :**
+  - Réglage `payments_policy` (superadmin) : `onlineEnabled` (défaut : fermé) et `manualPremiumMaxMonths` (1 à 3, défaut 3). Écran « Réglages paiement » dans le Owner Center (superadmin seul).
+  - Paiement en ligne : les formules ne sont proposées et le paiement n'est accepté que si le fournisseur est configuré ET le réglage ouvert.
+  - Demandes Premium (table `ika_premium_requests`, migration 071 + script de retour arrière) : l'annonceur demande 1 à N mois ; l'équipe (superadmin, ou administrateur délégué « Paiements ») approuve pour 1 à N mois ou refuse avec motif. L'approbation ajoute les jours au Premium, trace dans `ika_premium_grants` et le journal, et prévient l'annonceur.
+  - Owner Center « Paiements & finances » : panneau « Demandes Premium » (approuver / refuser).
+  - Page « Devenir Premium » : demande à la main quand le paiement en ligne est fermé ; statut de la demande affiché.
+  - Test unitaire des bornes de la politique ; service worker re-stampé.
+- **Vérifié (base de test, API) :** réglage enregistré ; `/offers` → fermé, durée max renvoyée ; demande 3 mois refusée (400) quand max = 2 ; demande en double refusée (409) ; approbation 1 mois → Premium actif, jours ajoutés, grant tracé ; approbation hors limite refusée (400) ; refus avec motif OK ; ADMIN sans délégation « Paiements » : 403 ; avec délégation : 200 ; réglage réservé au superadmin : 403 pour l'administrateur. Navigateur : écran de réglage et panneau des demandes rendus sans erreur ; page Devenir Premium affichée sans erreur (mobile).
+- **Non vérifié :** paiement en ligne réel (aucun fournisseur de paiement configuré en test) ; enregistrement du réglage par le bouton de l'écran (testé via l'API seulement) ; production.
+- **Risques :** tant que le fournisseur de paiement n'est pas configuré, « paiement en ligne ouvert » n'a aucun effet réel (les demandes restent manuelles). Vérifier la configuration du fournisseur avant d'ouvrir le paiement.

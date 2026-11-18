@@ -252,3 +252,7 @@ main>.pc-card{margin-bottom:16px}
 .dp-offer p{margin:2px 0 0}
 .dp-benefits{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
 .dp-foot{text-align:center}
+.dp-ask{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.dp-label{font-weight:600}
+.dp-ask select{min-height:44px;padding:0 12px;border-radius:12px;border:1px solid var(--line);background:var(--surface,#fff)}
+.dp-request{margin:0;padding:10px 12px;border-radius:12px;background:var(--green-soft,#e8f5ee)}

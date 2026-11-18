@@ -1,4 +1,5 @@
 import { premiumOrigin } from "../lib/analytics-events.js";
+import { POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
 import { Router } from "express";
 import { AppError, forbidden } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
@@ -25,7 +26,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { featuredRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -885,7 +886,8 @@ router.get("/listings/:id", async (req, res) => {
   router.put("/staff/superadmin-settings/:key", async (req, res) => {
     const staffId = requireUser(req);
     await accounts.requireStaff(staffId, "SUPERADMIN");
-    const value = req.body?.value ?? req.body;
+    const raw = req.body?.value ?? req.body;
+    const value = req.params.key === POLICY_KEY ? normalizePolicy(raw) : raw;
     const out = await superadminSettings.set(staffId, req.params.key, value);
     await moderationAudit.log(staffId, {
       action: "superadmin_settings_update",
@@ -905,6 +907,12 @@ router.get("/listings/:id", async (req, res) => {
 
   // ---------- Paiements (mise à la une) ----------
   router.get("/offers", async (req, res) => res.json(await payments.offers()));
+
+  // ---------- Demandes Premium à la main (paiement en ligne fermé) ----------
+  router.get("/premium/requests/mine", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await premiumRequests.mine(requireUser(req))); });
+  router.post("/premium/requests", async (req, res) => res.status(201).json(await premiumRequests.create(requireUser(req), { months: req.body?.months })));
+  router.get("/staff/premium-requests", async (req, res) => res.json(await premiumRequests.listForStaff(await requireOwnerGate(req, "payments"))));
+  router.post("/staff/premium-requests/:id/decision", async (req, res) => res.json(await premiumRequests.decide(await requireOwnerGate(req, "payments"), id(req), { action: clean(req.body?.action, 10), months: req.body?.months, note: clean(req.body?.note, 300) })));
   router.post("/payments/checkout", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`pay:${userId}`, 10, 10 * 60_000);

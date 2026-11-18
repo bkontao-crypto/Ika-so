@@ -28,7 +28,7 @@ const ROWS = [
 const FAQ = [
   ["Le Premium me place-t-il en tête de l'annuaire des annonceurs ?", "Non. En tête de l'annuaire, on trouve les annonceurs dont une annonce est « mise à la une ». C'est une option payante distincte, qui s'ajoute au Premium ou s'utilise seule."],
   ["Pourquoi faut-il être certifié ?", "Le centre de contrôle est réservé aux annonceurs dont l'identité professionnelle a été contrôlée : agence vérifiée (registre de commerce) ou annonce avec titre foncier contrôlé par l'équipe."],
-  ["Combien coûte le Premium et comment le payer ?", "Les formules et leurs prix s'affichent sur cette page. Le paiement se fait par mobile money sur la page sécurisée du fournisseur ; le Premium s'active automatiquement dès que le paiement est confirmé, et une facture est émise. Si le paiement en ligne n'est pas encore ouvert, la page « Devenir Premium » indique quand vous pourrez payer."],
+  ["Combien coûte le Premium et comment le payer ?", "Les formules et leurs prix s'affichent sur cette page. Le paiement se fait par mobile money sur la page sécurisée du fournisseur ; le Premium s'active automatiquement dès que le paiement est confirmé, et une facture est émise. Si le paiement en ligne n'est pas encore ouvert, vous pouvez demander le Premium à la main sur la page « Devenir Premium » : l'équipe l'approuve pour une durée de 1 à 3 mois."],
 ];
 const mark = (ok, label) => h("span", { class: `pm-mark ${ok ? "yes" : "no"}`, role: "img", "aria-label": `${label} : ${ok ? "inclus" : "non inclus"}` }, ok ? icon("check") : "—");
 

@@ -278,17 +278,67 @@ const reconcilePanels = (rec, reload) => {
 let ctx0 = null;
 export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
   eyebrow: "PILOTAGE", title: "Paiements & finances", desc: "Encaissements, tarifs des offres, rapprochement et remboursements.",
-  load: async () => { const [o, s, rec, offers] = await Promise.all([api("/staff/owner/overview").catch(() => null), api("/staff/owner/subscriptions").catch(() => null), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => [])]); return { o, s, rec, offers }; },
-  build({ o, s, rec, offers }, reload) {
+  load: async () => { const [o, s, rec, offers, pr] = await Promise.all([api("/staff/owner/overview").catch(() => null), api("/staff/owner/subscriptions").catch(() => null), api("/staff/payments/reconcile").catch(() => null), api("/staff/offers").catch(() => []), api("/staff/premium-requests").catch(() => null)]); return { o, s, rec, offers, pr }; },
+  build({ o, s, rec, offers, pr }, reload) {
     // Les chiffres d'encaissement dépendent des modules « Vue générale » et « Abonnements » ; sans eux, seules les sections « Paiements » s'affichent.
     const f = o?.finance;
     const head = f && s ? [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length)))] : [];
     const stats = f && s ? [h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
         panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus))))] : [];
     const recent = s ? [panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))] : [];
-    return [...head, offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
+    return [...head, ...(pr ? [premiumRequestsPanel(pr, reload)] : []), offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
   },
 }); };
+
+// ---------- Demandes Premium à la main (paiement en ligne fermé) ----------
+const PREMIUM_STATUS = { PENDING: "En attente", APPROVED: "Approuvée", REJECTED: "Refusée" };
+function premiumDecisionControls(r, max, reload) {
+  const sel = h("select", { "aria-label": "Durée accordée" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`)));
+  sel.value = String(Math.min(r.months, max));
+  return h("div", { class: "row" }, sel,
+    h("button", { class: "btn sm primary", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "APPROVE", months: Number(sel.value) } }), "Premium approuvé.", reload) }, "Approuver"),
+    h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT" } }), "Demande refusée.", reload) }, "Refuser"));
+}
+export function premiumRequestsPanel(data, reload) {
+  const max = data.policy?.manualPremiumMaxMonths ?? 3;
+  return panel("Demandes Premium", `Paiement en ligne fermé : approbation à la main, 1 à ${max} mois`, table([
+    { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || "")) },
+    { label: "Demandé", render: (r) => `${r.months} mois`, num: true },
+    { label: "Statut", render: (r) => pill(r.status === "APPROVED" ? "ok" : "neutral", PREMIUM_STATUS[r.status] ?? r.status) },
+    { label: "", render: (r) => (r.status === "PENDING" ? premiumDecisionControls(r, max, reload) : h("small", { class: "muted" }, r.decidedAt ? dateTime(r.decidedAt) : "")) },
+  ], data.requests ?? [], { emptyText: "Aucune demande Premium." }));
+}
+
+// ---------- Réglages paiement (superadmin) ----------
+export const paymentSettingsView = (ctx) => page(ctx, {
+  eyebrow: "PILOTAGE", title: "Réglages paiement",
+  desc: "Décidez si les annonceurs peuvent payer en ligne, et jusqu'à quelle durée l'équipe peut accorder le Premium à la main.",
+  load: () => api("/staff/superadmin-settings/payments_policy").then((r) => r.value ?? null).catch(() => null),
+  build(saved, reload) {
+    const online = saved?.onlineEnabled === true;
+    const max = [1, 2, 3].includes(saved?.manualPremiumMaxMonths) ? saved.manualPremiumMaxMonths : 3;
+    const box = h("input", { type: "checkbox", id: "pp-online" });
+    box.checked = online;
+    const sel = h("select", { id: "pp-months" }, ...[1, 2, 3].map((m) => h("option", { value: String(m) }, `${m} mois`)));
+    sel.value = String(max);
+    const hint = h("p", { class: "small muted" }, online
+      ? "Ouvert : les annonceurs payent par mobile money, pour les formules actives uniquement."
+      : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe.");
+    box.addEventListener("change", () => { hint.textContent = box.checked
+      ? "Ouvert : les annonceurs payent par mobile money, pour les formules actives uniquement."
+      : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe."; });
+    return [
+      panel("Paiement en ligne", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "pp-online" }, box, h("strong", null, "Paiement en ligne ouvert aux annonceurs")),
+        hint)),
+      panel("Approbation manuelle", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "pp-months" }, h("span", null, "Durée maximale accordée par l'équipe")), sel,
+        h("p", { class: "small muted" }, "Pendant cette durée, l'annonceur bénéficie de tous les avantages Premium (aucun paiement demandé)."),
+        h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/superadmin-settings/payments_policy", { method: "PUT", body: { value: { onlineEnabled: box.checked, manualPremiumMaxMonths: Number(sel.value) } } }), "Réglages enregistrés.", reload) }, "Enregistrer")))),
+      h("p", { class: "small muted" }, "Les formules se gèrent dans « Abonnements & formules ». Elles ne s'affichent au public que si le paiement en ligne est ouvert."),
+    ];
+  },
+});
 
 export const subscriptionsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Abonnements & formules", desc: "Formules de mise à la une : prix et activation. Aucun tarif n'est imposé.", load: () => api("/staff/owner/offers"),
