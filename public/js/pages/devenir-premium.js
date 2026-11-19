@@ -12,6 +12,7 @@ const BENEFITS = [
   ["pin", "Carte de vos annonces", "Toutes vos annonces localisées au même endroit."],
   ["bell", "Alertes et échéances", "Signalements, expirations et renouvellement en un coup d'œil."],
 ];
+const ACCOUNT_LABEL = { AGENCY: "Agence immobilière", INDIVIDUAL: "Particulier / propriétaire", OTHER: "Autre professionnel" };
 const REQUEST_STATUS = {
   PENDING: "Demande en attente de l'équipe.",
   APPROVED: "Demande approuvée.",
@@ -53,14 +54,21 @@ export async function devenirPremiumPage() {
     } catch (error) { fail(error); } finally { paying = false; btn.disabled = false; }
   }
 
-  async function askManual(months, btn) {
+  async function askManual(body, btn) {
     btn.disabled = true;
     try {
-      await api("/premium/requests", { method: "POST", body: { months: Number(months) } });
+      await api("/premium/requests", { method: "POST", body });
       toast("Demande envoyée à l'équipe.");
       devenirPremiumPage();
     } catch (error) { fail(error); btn.disabled = false; }
   }
+
+  async function cancelRequest(id, btn) {
+    if (!window.confirm("Retirer cette demande Premium ?")) return;
+    btn.disabled = true;
+    try { await api(`/premium/requests/${encodeURIComponent(id)}/cancel`, { method: "POST", body: {} }); toast("Demande retirée."); devenirPremiumPage(); } catch (error) { fail(error); btn.disabled = false; }
+  }
+  const history = (mine?.history ?? []).filter((r) => r.status !== "PENDING");
 
   const status = premium
     ? `Premium actif${access.premiumUntil ? ` jusqu'au ${day(access.premiumUntil)}` : ""}`
@@ -90,14 +98,33 @@ export async function devenirPremiumPage() {
         h("h2", null, premium ? "Renouveler le Premium" : "Demander le Premium"),
         h("p", { class: "small muted" }, `Le paiement en ligne n'est pas encore ouvert. Demandez la durée souhaitée : l'équipe l'approuve, et pendant cette durée vous bénéficiez de tous les avantages Premium.`),
         request?.status === "PENDING"
-          ? h("p", { class: "dp-request pending" }, `${REQUEST_STATUS.PENDING} ${request.months} mois demandés le ${day(request.createdAt)}.`)
-          : h("div", { class: "stack" },
-              request?.status === "REJECTED" ? h("p", { class: "small dp-warn" }, `${REQUEST_STATUS.REJECTED}${request.decidedNote ? ` Motif : ${request.decidedNote}` : ""}`) : null,
-              request?.status === "APPROVED" ? h("p", { class: "small muted" }, `${REQUEST_STATUS.APPROVED} ${request.grantedMonths} mois accordés le ${day(request.decidedAt)}.`) : null,
-              h("div", { class: "dp-ask" },
-                h("label", { class: "dp-label", for: "dp-months" }, "Durée souhaitée"),
-                h("select", { id: "dp-months" }, ...Array.from({ length: maxMonths }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`))),
-                h("button", { class: "btn btn-primary", type: "button", onClick: (e) => askManual(document.getElementById("dp-months").value, e.currentTarget) }, "Demander le Premium"))));
+          ? h("div", { class: "stack" },
+              h("p", { class: "dp-request pending" }, `${REQUEST_STATUS.PENDING} ${request.months} mois demandés le ${day(request.createdAt)}.`),
+              h("p", { class: "small muted" }, `${ACCOUNT_LABEL[request.accountType] ?? "Compte"} · ${request.phone || "téléphone non renseigné"}${request.message ? ` · « ${request.message} »` : ""}`),
+              h("div", { class: "row" }, h("button", { class: "btn btn-small", type: "button", onClick: (e) => cancelRequest(request.id, e.currentTarget) }, "Retirer ma demande")))
+          : requestForm(request),
+        history.length ? h("div", { class: "stack dp-history" }, h("h3", null, "Mes demandes précédentes"),
+          h("ul", { class: "dp-hist" }, history.map((r) => h("li", null, h("b", null, `${r.months} mois · ${day(r.createdAt)}`), " — ",
+            r.status === "APPROVED" ? `approuvée (${r.grantedMonths} mois accordés)` : r.status === "CANCELLED" ? "retirée" : `non retenue${r.decidedNote ? ` : ${r.decidedNote}` : ""}`)))) : null);
+
+  function requestForm(last) {
+    const type = h("select", { id: "dp-type", required: true }, h("option", { value: "" }, "Choisir…"), ...Object.entries(ACCOUNT_LABEL).map(([v, l]) => h("option", { value: v }, l)));
+    const phone = h("input", { id: "dp-phone", class: "input", type: "tel", inputmode: "tel", autocomplete: "tel", placeholder: "Ex. : 76 00 00 00", maxlength: "20", required: true });
+    const months = h("select", { id: "dp-months" }, ...Array.from({ length: maxMonths }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`)));
+    const msg = h("textarea", { id: "dp-msg", class: "input", rows: "3", maxlength: "500", placeholder: "Votre activité, le nombre d'annonces, ce que vous attendez du Premium (facultatif)." });
+    const terms = h("input", { id: "dp-terms", type: "checkbox" });
+    const send = h("button", { class: "btn btn-primary", type: "submit" }, "Envoyer ma demande");
+    return h("form", { class: "stack dp-form", onSubmit: (e) => { e.preventDefault(); askManual({ months: Number(months.value), accountType: type.value, phone: phone.value, message: msg.value, acceptTerms: terms.checked }, send); } },
+      last?.status === "REJECTED" ? h("p", { class: "small dp-warn" }, `${REQUEST_STATUS.REJECTED}${last.decidedNote ? ` Motif : ${last.decidedNote}` : ""}`) : null,
+      last?.status === "APPROVED" ? h("p", { class: "small muted" }, `${REQUEST_STATUS.APPROVED} ${last.grantedMonths} mois accordés le ${day(last.decidedAt)}.`) : null,
+      !certified ? h("p", { class: "small dp-warn" }, "Votre profil n'est pas encore certifié : vous pouvez demander le Premium, mais le centre de contrôle ne s'ouvrira qu'après certification.") : null,
+      h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-type" }, "Type de compte"), type),
+      h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-phone" }, "Téléphone de contact"), phone),
+      h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-months" }, "Durée souhaitée"), months),
+      h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-msg" }, "Message (facultatif)"), msg),
+      h("label", { class: "dp-terms", for: "dp-terms" }, terms, h("span", null, "Je confirme que les informations sont exactes et j'accepte que l'équipe Ika So vérifie mon profil et me contacte avant d'activer le Premium.")),
+      send);
+  }
 
   mount(app,
     h("section", { class: "dp" },

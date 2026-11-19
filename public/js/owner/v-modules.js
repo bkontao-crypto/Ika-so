@@ -293,23 +293,50 @@ export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
 }); };
 
 // ---------- Demandes Premium à la main (paiement en ligne fermé) ----------
-const PREMIUM_STATUS = { PENDING: "En attente", APPROVED: "Approuvée", REJECTED: "Refusée" };
+const PREMIUM_STATUS = { PENDING: "En attente", APPROVED: "Approuvée", REJECTED: "Refusée", CANCELLED: "Retirée" };
+const PREMIUM_ACCOUNT = { AGENCY: "Agence", INDIVIDUAL: "Particulier", OTHER: "Autre" };
 function premiumDecisionControls(r, max, reload) {
   const sel = h("select", { "aria-label": "Durée accordée" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`)));
   sel.value = String(Math.min(r.months, max));
   return h("div", { class: "row" }, sel,
     h("button", { class: "btn sm primary", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "APPROVE", months: Number(sel.value) } }), "Premium approuvé.", reload) }, "Approuver"),
-    h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT" } }), "Demande refusée.", reload) }, "Refuser"));
+    h("button", { class: "btn sm", type: "button", onClick: () => { const note = window.prompt("Motif du refus (transmis à l'annonceur) :"); if (note === null) return; if (note.trim().length < 3) { toast("Le motif est obligatoire (3 caractères au moins)."); return; } act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT", note: note.trim() } }), "Demande refusée.", reload); } }, "Refuser"));
 }
 export function premiumRequestsPanel(data, reload) {
   const max = data.policy?.manualPremiumMaxMonths ?? 3;
-  return panel("Demandes Premium", `Paiement en ligne fermé : approbation à la main, 1 à ${max} mois`, table([
-    { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || "")) },
-    { label: "Demandé", render: (r) => `${r.months} mois`, num: true },
+  return panel("Demandes Premium", `${(data.requests ?? []).filter((r) => r.status === "PENDING").length} en attente · approbation à la main, 1 à ${max} mois`, table([
+    { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || ""), h("small", null, `${PREMIUM_ACCOUNT[r.accountType] ?? "—"}${r.phone ? ` · ${r.phone}` : ""}`), r.message ? h("small", null, `« ${r.message} »`) : null) },
+    { label: "Demandé", render: (r) => `${r.months} mois · ${dateTime(r.createdAt)}`, num: true },
     { label: "Statut", render: (r) => pill(r.status === "APPROVED" ? "ok" : "neutral", PREMIUM_STATUS[r.status] ?? r.status) },
-    { label: "", render: (r) => (r.status === "PENDING" ? premiumDecisionControls(r, max, reload) : h("small", { class: "muted" }, r.decidedAt ? dateTime(r.decidedAt) : "")) },
+    { label: "", render: (r) => (r.status === "PENDING" ? premiumDecisionControls(r, max, reload) : h("div", { class: "item" }, h("small", { class: "muted" }, r.decidedAt ? `${dateTime(r.decidedAt)}${r.status === "APPROVED" ? ` · ${r.grantedMonths} mois` : ""}` : (r.cancelledAt ? dateTime(r.cancelledAt) : "")), r.decidedNote ? h("small", null, r.decidedNote) : null)) },
   ], data.requests ?? [], { emptyText: "Aucune demande Premium." }));
 }
+
+// ---------- Demandes & validations : toutes les demandes en attente, au même endroit ----------
+const REQ_ICON = { advertisers: "building", listings: "list", featured: "sparkles", premium: "wallet" };
+const REQ_ACTION = { advertisers: "Examiner", listings: "Modérer", featured: "Décider", premium: "Traiter" };
+export const requestsView = (ctx) => page(ctx, {
+  eyebrow: "PILOTAGE", title: "Demandes & validations",
+  desc: "Les demandes annonceur, les annonces à valider, les mises à la une et les demandes Premium, de la plus ancienne à la plus récente.",
+  load: () => api("/staff/requests-hub"),
+  actions: (d, reload) => h("button", { class: "btn", type: "button", onClick: () => { reload(); toast("Données actualisées."); } }, ico("refresh"), "Actualiser"),
+  build(d) {
+    const sections = d.sections ?? [];
+    if (!sections.length) return [empty("Aucun module de demandes ne vous est attribué.", "shield")];
+    const late = sections.reduce((n, x) => n + x.items.filter((i) => i.late).length, 0);
+    const stats = h("section", { class: "grid stats" }, sections.map((x) => h("div", { class: "card stat" },
+      h("div", { class: "stathead" }, x.title, h("span", { class: "staticon" }, ico(REQ_ICON[x.key] ?? "list"))),
+      h("strong", null, x.total == null ? "—" : String(x.total).padStart(2, "0")),
+      h("span", { class: `delta ${x.items.some((i) => i.late) ? "bad" : "flat"}` }, x.total ? (x.items.some((i) => i.late) ? `En attente depuis plus de ${d.lateAfterHours} h` : "À traiter") : "Rien en attente"))));
+    const blocks = sections.map((x) => panel(x.title, x.total ? `${x.total} en attente` : "Aucune demande en attente", table([
+      { label: "Demande", render: (r) => h("div", { class: "item" }, h("b", null, r.title || "—"), r.detail ? h("small", null, r.detail) : null) },
+      { label: "Reçue", render: (r) => h("span", { title: dateTime(r.createdAt) }, ago(r.createdAt)) },
+      { label: "Délai", render: (r) => (r.late ? pill("warn", "En retard") : pill("ok", "Dans les temps")) },
+      { label: "", render: () => h("button", { class: "btn sm primary", type: "button", onClick: () => ctx.go(`#/${x.module}`) }, REQ_ACTION[x.key] ?? "Ouvrir") },
+    ], x.items, { emptyText: "Rien à traiter pour le moment." })));
+    return [h("p", { class: `note ${late ? "bad" : ""}` }, late ? `${late} demande${late > 1 ? "s" : ""} attend${late > 1 ? "ent" : ""} depuis plus de ${d.lateAfterHours} h.` : "Aucune demande en retard."), stats, ...blocks];
+  },
+});
 
 // ---------- Réglages paiement (superadmin) ----------
 export const paymentSettingsView = (ctx) => page(ctx, {

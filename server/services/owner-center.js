@@ -280,6 +280,9 @@ export function createOwnerCenter({ db, accounts, logger = null, clock = () => n
           (select count(*)::int from ika_listings where published_at >= now() - make_interval(days => $1::int)) as listings_new,
           (select count(*)::int from ika_listings where published_at >= now() - make_interval(days => $1::int * 2) and published_at < now() - make_interval(days => $1::int)) as listings_prev,
           (select count(*)::int from ika_listings where status = 'PENDING') as listings_pending,
+          (select count(*)::int from ika_advertiser_applications where status in ('PENDING', 'UNDER_REVIEW', 'ADDITIONAL_INFO_REQUIRED')) as apps_pending,
+          (select count(*)::int from ika_featured_requests where status = 'PENDING') as featured_pending,
+          (select count(*)::int from ika_premium_requests where status = 'PENDING') as premium_pending,
           (select count(*)::int from ika_profiles where account_status = 'ACTIVE') as users_active,
           (select count(*)::int from ika_profiles where created_at >= now() - make_interval(days => $1::int)) as users_new,
           (select count(*)::int from ika_profiles where created_at >= now() - make_interval(days => $1::int * 2) and created_at < now() - make_interval(days => $1::int)) as users_prev,
@@ -342,7 +345,7 @@ export function createOwnerCenter({ db, accounts, logger = null, clock = () => n
         health: { status: worst, items: health, memoryMb: Math.round(mem.rss / 1048576), uptimeSeconds: Math.round(process.uptime()) },
         alerts: alertsList,
         operations: operations.events,
-        counts: { pendingListings: m?.listings_pending ?? null, openComplaints: m?.complaints_open ?? null, pendingProofs: proofs?.[0]?.n ?? null, openIncidents: incidents?.[0]?.n ?? null, pendingPayments: m?.pay_pending ?? null },
+        counts: { pendingRequests: ((m?.listings_pending ?? 0) + (m?.apps_pending ?? 0) + (m?.featured_pending ?? 0) + (m?.premium_pending ?? 0)) || (m ? 0 : null), pendingListings: m?.listings_pending ?? null, openComplaints: m?.complaints_open ?? null, pendingProofs: proofs?.[0]?.n ?? null, openIncidents: incidents?.[0]?.n ?? null, pendingPayments: m?.pay_pending ?? null },
       };
     },
 

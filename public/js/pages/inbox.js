@@ -5,7 +5,7 @@ import { field, select } from "/js/components/ui.js";
 import { avatar, clock, dayLabel, listTime, ticks } from "/js/components/chat.js";
 import { icon } from "/js/icons.js";
 
-const KIND = { SEARCH_MATCH: "Alerte", SEARCH_DIGEST: "Résumé", MESSAGE: "Message", VISIT_REQUEST: "Visite", VISIT_ANSWER: "Visite", LISTING_APPROVED: "Annonce", LISTING_REJECTED: "Annonce", ADVERTISER_APPLICATION: "Demande annonceur", TEAM_REQUEST: "Équipe" };
+const KIND = { SEARCH_MATCH: "Alerte", SEARCH_DIGEST: "Résumé", MESSAGE: "Message", VISIT_REQUEST: "Visite", VISIT_ANSWER: "Visite", LISTING_APPROVED: "Annonce", LISTING_REJECTED: "Annonce", ADVERTISER_APPLICATION: "Demande annonceur", LISTING_PENDING: "Annonce à valider", FEATURED_REQUEST: "Mise à la une", PREMIUM_REQUEST: "Demande Premium", PREMIUM: "Premium", TEAM_REQUEST: "Équipe" };
 const FILTER = { transaction: "Transaction", category: "Type", zone: "Quartier", maxPrice: "Prix max", minPrice: "Prix min", minSurface: "Surface min (m²)", bedrooms: "Chambres min.", q: "Mots" };
 const USER_REPORT_REASONS = ["Harcèlement ou insultes", "Arnaque ou demande d'acompte", "Spam ou publicité", "Autre"];
 const VISIT = { PENDING: "En attente", ACCEPTED: "Acceptée", DECLINED: "Refusée", CANCELLED: "Annulée" };
@@ -79,7 +79,7 @@ export async function inboxPage() {
         action = h("button", { type: "button", class: "bx-a is-mint", onClick: (e) => { e.stopPropagation(); markRead(n); tab = "messages"; activeId = tid; active = null; draw(); } }, h("span", null, "Répondre"), icon("arrow-right"));
       } else if (n.link && n.link !== "#/boite") {
         const visit = n.kind === "VISIT_REQUEST" || n.kind === "VISIT_ANSWER";
-        action = h("button", { type: "button", class: "bx-a is-line", onClick: (e) => { e.stopPropagation(); markRead(n); if (visit) { tab = "visites"; draw(); } else location.hash = n.link; } }, icon("sparkles"), h("span", null, n.kind === "TEAM_REQUEST" ? "Voir l'équipe" : visit ? "Voir la visite" : n.kind === "SEARCH_MATCH" || n.kind === "SEARCH_DIGEST" || n.kind.startsWith("LISTING") ? "Voir l'annonce" : "Ouvrir"));
+        action = h("button", { type: "button", class: "bx-a is-line", onClick: (e) => { e.stopPropagation(); markRead(n); if (visit) { tab = "visites"; draw(); } else if (n.link.startsWith("/")) location.assign(n.link); else location.hash = n.link; } }, icon("sparkles"), h("span", null, n.kind === "TEAM_REQUEST" ? "Voir l'équipe" : visit ? "Voir la visite" : n.kind === "SEARCH_MATCH" || n.kind === "SEARCH_DIGEST" || n.kind.startsWith("LISTING") ? "Voir l'annonce" : n.link.startsWith("/owner") ? "Traiter la demande" : "Ouvrir"));
       }
       return h("li", null, h("article", { class: `bx-card ${n.read ? "" : "is-new"}`, onClick: () => markRead(n) },
         h("div", { class: "bx-bar-l" }),

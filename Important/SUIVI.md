@@ -83,6 +83,17 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - **Non vérifié :** rendu et ajout/suppression réels sur le site (pas d'API ni de base dans mon environnement) ; à contrôler après déploiement.
 - **À faire :** aucun développement restant pour cette demande.
 - **Risques :** faibles (UI seule, routes déjà en production) ; retour arrière : `git revert -m 1 <commit de fusion>`.
+## Demandes : fiche Premium complète + page « Demandes & validations » (19 novembre 2026)
+
+- **À réaliser :** (1) demande Premium plus professionnelle et contrôlable ; (2) vérifier les demandes annonceur : le superadmin doit recevoir toutes les demandes et pouvoir accepter les publications, avec des interfaces professionnelles ; (3) corriger le « Page introuvable » du bouton « Ouvrir » d'une alerte « Demande annonceur ».
+- **Cause du « Page introuvable » :** la notification envoyée à l'équipe avait pour lien `/owner` ; la nouvelle Boîte le traitait comme une page interne (`#/owner`). Corrigé : un lien commençant par `/` ouvre la vraie page ; les nouvelles notifications pointent vers `/owner#/requests`.
+- **Réalisé :**
+  - Migration 072 (+ retour arrière) : demande Premium avec type de compte, téléphone, message, acceptation datée, statut « Retirée ». Formulaire annonceur (champs contrôlés aussi côté serveur), retrait d'une demande en attente, historique des demandes, motif de refus obligatoire et transmis par notification. Panneau « Demandes Premium » de l'équipe : type, téléphone, message, date, motif.
+  - Nouvelle page Owner Center « Demandes & validations » (`/staff/requests-hub`, service `requests-hub.js`) : compteurs et demandes les plus anciennes pour les 4 types (annonceur, annonces à valider, mise à la une, Premium), signal « En retard » après 48 h, bouton direct vers l'écran de traitement ; chaque type n'est visible que par l'équipe habilitée (superadmin : tout ; administrateur : modules délégués). Pastille dans le menu.
+  - Notifications de l'équipe : nouvelles annonces à valider et nouvelles demandes Premium (les demandes annonceur et mise à la une existaient déjà) ; échec de notification sans effet sur la demande.
+- **Vérifié :** `npm test` 311 OK / 0 échec (dont 7 nouveaux tests) ; migration 072, retour arrière et rejeu sur PostgreSQL local ; navigateur (API simulée) : formulaire Premium (envoi, vue « en attente », retrait), page Demandes sur ordinateur et téléphone sombre, sans erreur.
+- **Non vérifié :** parcours complet avec de vraies données de production ; réception réelle des notifications par le superadmin après déploiement ; l'acceptation d'une annonce elle-même (écran « Annonces & modération » existant, non modifié).
+- **Retour arrière :** `git revert -m 1 <fusion>` puis script `scripts/rollback/072_demandes_premium_details_down.sql` si la migration a été appliquée.
 
 ## Mon profil : appel « Passez Premium » sur tous les onglets (18 novembre 2026)
 
