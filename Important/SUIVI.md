@@ -92,6 +92,33 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - **Non vérifié :** rendu et ajout/suppression réels sur le site (pas d'API ni de base dans mon environnement) ; à contrôler après déploiement.
 - **À faire :** aucun développement restant pour cette demande.
 - **Risques :** faibles (UI seule, routes déjà en production) ; retour arrière : `git revert -m 1 <commit de fusion>`.
+## Audit : tous les onglets du centre sont-ils bien sourcés ? (19 novembre 2026)
+
+- **À réaliser :** vérifier que chaque onglet du Owner Center est relié à sa source API et affiche des chiffres justes.
+- **Méthode (tout est rejouable) :** (1) cartographie des 50 appels GET des écrans vers les routes et fonctions serveur ; (2) base PostgreSQL locale avec les 84 tables issues de toutes les migrations ; (3) les 610 requêtes SQL statiques du serveur préparées sur ce schéma ; (4) les vraies routes du serveur exécutées sur une base remplie (comptes, annonces, paiements, demandes…) : 48 appels sur 52 réussis, les 4 autres sont des cas attendus (comparaison sans paramètres, réclamation inexistante, deux réglages non encore créés) ; (5) les 25 onglets affichés dans Chromium avec ces vraies réponses ; (6) recherche des champs lus par l'interface et absents des réponses.
+- **Résultat :** 25 onglets sur 25 s'affichent sans erreur ; les chiffres contrôlés correspondent aux données de test (publiées, en attente, signalements, pièces, contacts, régions). **Deux champs mal reliés trouvés et corrigés** dans « Annonces & modération » : « Signalements ouverts » et « Nouvelles · 7 jours » restaient vides (l'interface lisait `open_reports` / `new_7d`, le serveur renvoie `openReports` / `newListings7d`). Statuts des visites affichés en français dans « Contacts & visites ».
+- **Déjà corrigé plus tôt le même jour :** annonceurs approuvés non comptés (agences) ; Premium accordé à la main non compté (finances).
+- **Limites :** base de test et non vos données de production ; un onglet vide en test (réclamations, incidents, droits du personnel) n'a pas pu confirmer ses chiffres ; les 65 requêtes SQL dynamiques ne passent que si leur écran est appelé ; le contrôle d'un chiffre reste manuel (le test automatique `api-links` ne vérifie que l'existence des routes).
+
+## Compteurs du centre : annonceurs approuvés et Premium à la main (19 novembre 2026)
+
+- **À réaliser :** une demande annonceur acceptée disparaissait de la file mais n'était pas comptée dans « Agences & annonceurs » ; vérifier que les écrans sont reliés aux bonnes sources.
+- **Cause :** `/staff/owner/agencies` ne listait que les profils avec un nom d'agence ou un badge agence ; l'approbation d'une demande ne modifie que `display_role`, donc un annonceur approuvé (particulier compris) n'apparaissait nulle part.
+- **Réalisé :** (1) la liste inclut maintenant les comptes dont la demande annonceur est APPROUVÉE (type, date d'approbation, rôle affiché) ; écran refait : compteurs Annonceurs / Approuvés / Agences vérifiées / Annonces publiées. (2) Même défaut repéré ailleurs : le Premium accordé à la main ne passe pas par `ika_payments` et n'apparaissait pas en finance ; « Paiements & finances » affiche désormais les comptes Premium actifs, les Premium à la main sur 30 jours et la liste des derniers accordés. (3) Garde-fou `test/api-links.test.js` : chaque appel `api("/…")` du front doit correspondre à une route du serveur (305 appels contrôlés, aucun orphelin).
+- **Vérifié :** `npm test` 350 OK / 0 échec ; requête de liste testée sur PostgreSQL local (annonceur approuvé listé, demande en attente exclue) ; navigateur (API simulée) : écrans Agences et Paiements sans erreur.
+- **Limite :** le garde-fou contrôle l'existence des routes, pas le contenu des réponses ; les autres compteurs n'ont pas été audités un par un. **Non vérifié :** données de production (l'annonceur déjà approuvé apparaîtra après déploiement).
+
+## Demandes : fiche Premium complète + page « Demandes & validations » (19 novembre 2026)
+
+- **À réaliser :** (1) demande Premium plus professionnelle et contrôlable ; (2) vérifier les demandes annonceur : le superadmin doit recevoir toutes les demandes et pouvoir accepter les publications, avec des interfaces professionnelles ; (3) corriger le « Page introuvable » du bouton « Ouvrir » d'une alerte « Demande annonceur ».
+- **Cause du « Page introuvable » :** la notification envoyée à l'équipe avait pour lien `/owner` ; la nouvelle Boîte le traitait comme une page interne (`#/owner`). Corrigé : un lien commençant par `/` ouvre la vraie page ; les nouvelles notifications pointent vers `/owner#/requests`.
+- **Réalisé :**
+  - Migration 072 (+ retour arrière) : demande Premium avec type de compte, téléphone, message, acceptation datée, statut « Retirée ». Formulaire annonceur (champs contrôlés aussi côté serveur), retrait d'une demande en attente, historique des demandes, motif de refus obligatoire et transmis par notification. Panneau « Demandes Premium » de l'équipe : type, téléphone, message, date, motif.
+  - Nouvelle page Owner Center « Demandes & validations » (`/staff/requests-hub`, service `requests-hub.js`) : compteurs et demandes les plus anciennes pour les 4 types (annonceur, annonces à valider, mise à la une, Premium), signal « En retard » après 48 h, bouton direct vers l'écran de traitement ; chaque type n'est visible que par l'équipe habilitée (superadmin : tout ; administrateur : modules délégués). Pastille dans le menu.
+  - Notifications de l'équipe : nouvelles annonces à valider et nouvelles demandes Premium (les demandes annonceur et mise à la une existaient déjà) ; échec de notification sans effet sur la demande.
+- **Vérifié :** `npm test` 311 OK / 0 échec (dont 7 nouveaux tests) ; migration 072, retour arrière et rejeu sur PostgreSQL local ; navigateur (API simulée) : formulaire Premium (envoi, vue « en attente », retrait), page Demandes sur ordinateur et téléphone sombre, sans erreur.
+- **Non vérifié :** parcours complet avec de vraies données de production ; réception réelle des notifications par le superadmin après déploiement ; l'acceptation d'une annonce elle-même (écran « Annonces & modération » existant, non modifié).
+- **Retour arrière :** `git revert -m 1 <fusion>` puis script `scripts/rollback/072_demandes_premium_details_down.sql` si la migration a été appliquée.
 
 ## Mon profil : appel « Passez Premium » sur tous les onglets (18 novembre 2026)
 

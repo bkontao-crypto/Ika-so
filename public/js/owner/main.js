@@ -7,7 +7,7 @@ import * as M from "./v-modules.js";
 
 const NAV = [
   ["Pilotage de la plateforme", [
-    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["listings", "list", "Annonces & modération", { count: "pendingListings" }],
+    ["overview", "grid", "Vue générale"], ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["listings", "list", "Annonces & modération", { count: "pendingListings" }],
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }],
     ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["payment-settings", "gear", "Réglages paiement"], ["subscriptions", "clock", "Abonnements & formules"]]],
   ["Croissance & relation client", [
@@ -18,7 +18,7 @@ const NAV = [
 ];
 const FLAT = NAV.flatMap(([, items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { overview: overviewView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, listings: M.listingsView, users: M.usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, listings: M.listingsView, users: M.usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView };
 
@@ -30,7 +30,7 @@ let access = { all: false, modules: [] };
 // Correspondance entre une entrée du menu et le module délégable. Sans correspondance : réservé au SUPERADMIN.
 const MODULE_OF = { overview: "overview", activity: "activity", listings: "moderation", agencies: "agencies", trust: "trust", complaints: "complaints",
   subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", stats: "report", users: "users", payments: "payments" };
-const allowed = (id) => access.all || (MODULE_OF[id] !== undefined && access.modules.includes(MODULE_OF[id]));
+const allowed = (id) => id === "requests" || access.all || (MODULE_OF[id] !== undefined && access.modules.includes(MODULE_OF[id]));
 const firstAllowed = () => FLAT.find((m) => allowed(m.id))?.id ?? "overview";
 let content; let side; let scrim; let navEl; let crumb; let bell; let bellBadge;
 

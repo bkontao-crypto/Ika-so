@@ -560,6 +560,7 @@ router.get("/listings/:id", async (req, res) => {
     if (propertyId && created?.id) {
       await services.properties.linkListing(userId, propertyId, created.id).catch(() => {});
     }
+    if (created?.id) await services.requestsHub.notifyStaff({ kind: "LISTING_PENDING", title: `Annonce à valider : ${clean(draft?.title, 80) || "nouvelle annonce"}`, body: "Une annonce attend votre validation.", link: "/owner#/requests", exceptUserId: userId, module: "moderation" });
     track(req, "listing_created", { userId, listingId: created?.id });
     res.status(201).json(created);
   });
@@ -945,7 +946,9 @@ router.get("/listings/:id", async (req, res) => {
 
   // ---------- Demandes Premium à la main (paiement en ligne fermé) ----------
   router.get("/premium/requests/mine", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await premiumRequests.mine(requireUser(req))); });
-  router.post("/premium/requests", async (req, res) => res.status(201).json(await premiumRequests.create(requireUser(req), { months: req.body?.months })));
+  router.post("/premium/requests", async (req, res) => res.status(201).json(await premiumRequests.create(requireUser(req), { months: req.body?.months, accountType: req.body?.accountType, phone: req.body?.phone, message: req.body?.message, acceptTerms: req.body?.acceptTerms })));
+  router.post("/premium/requests/:id/cancel", async (req, res) => res.json(await premiumRequests.cancel(requireUser(req), id(req))));
+  router.get("/staff/requests-hub", async (req, res) => { res.setHeader("Cache-Control", "no-store"); const userId = requireUser(req); await services.accounts.requireStaff(userId, "MODERATOR"); res.json(await services.requestsHub.summary(userId)); });
   router.get("/staff/premium-requests", async (req, res) => res.json(await premiumRequests.listForStaff(await requireOwnerGate(req, "payments"))));
   router.post("/staff/premium-requests/:id/decision", async (req, res) => res.json(await premiumRequests.decide(await requireOwnerGate(req, "payments"), id(req), { action: clean(req.body?.action, 10), months: req.body?.months, note: clean(req.body?.note, 300) })));
   router.post("/payments/checkout", async (req, res) => {

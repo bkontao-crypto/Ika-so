@@ -446,7 +446,15 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
          from ika_payments p left join ika_offers o on o.code = p.offer_code
          order by p.created_at desc limit 20`
       );
+      // Premium accordé à la main (demandes approuvées, attributions) : ne passe pas par ika_payments, il doit être compté ici aussi.
+      const active = await db.query("select count(*)::int as n from ika_profiles where premium_until > now()");
+      const grants = await db.query(
+        `select g.id, g.days, g.reason, g.created_at, p.full_name from ika_premium_grants g left join ika_profiles p on p.user_id = g.user_id
+          where g.payment_id is null order by g.created_at desc limit 10`);
+      const grants30 = await db.query("select count(*)::int as n from ika_premium_grants where payment_id is null and created_at > now() - interval '30 days'");
       return {
+        premium: { active: active[0]?.n ?? 0, manual30d: grants30[0]?.n ?? 0 },
+        grants: grants.map(g => ({ id: g.id, name: g.full_name, days: g.days, reason: g.reason, createdAt: g.created_at?.toISOString?.() })),
         offers: offers.map(o => ({ code: o.code, label: o.label, days: o.days })),
         byStatus: Object.fromEntries(payments.map(r => [r.status, { count: r.n, total: Number(r.total) }])),
         recent: recent.map(r => ({
@@ -1397,19 +1405,25 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     /** Vue des agences / annonceurs vérifiés. */
     async agenciesOverview(userId) {
       await accounts.requirePermission(userId, "owner.stats");
+      // Annonceurs = agences (nom ou badge) ET comptes dont la demande annonceur a été approuvée (particuliers compris).
       const rows = await db.query(
-        `select p.user_id, p.full_name, p.agency_name, p.agency_verified_at, p.account_status,
+        `select p.user_id, p.full_name, p.agency_name, p.agency_verified_at, p.account_status, p.display_role,
+                a.type as app_type, a.reviewed_at as approved_at,
                 (select count(*)::int from ika_listings l where l.owner_id = p.user_id and l.status = 'PUBLISHED') as published
          from ika_profiles p
-         where p.agency_name is not null or p.agency_verified_at is not null
-         order by p.agency_verified_at desc nulls last, p.full_name
-         limit 100`
+         left join lateral (select type, reviewed_at from ika_advertiser_applications x where x.user_id = p.user_id and x.status = 'APPROVED' order by reviewed_at desc nulls last limit 1) a on true
+         where p.agency_name is not null or p.agency_verified_at is not null or a.type is not null
+         order by coalesce(a.reviewed_at, p.agency_verified_at) desc nulls last, p.full_name
+         limit 200`
       );
       return rows.map(r => ({
         userId: r.user_id,
         name: r.full_name,
         agency: r.agency_name,
         verifiedAt: r.agency_verified_at?.toISOString?.() ?? null,
+        approvedAt: r.approved_at?.toISOString?.() ?? null,
+        kind: r.app_type === "AGENCE" || r.agency_name ? "AGENCE" : r.app_type ? "PARTICULIER" : null,
+        displayRole: r.display_role ?? null,
         status: r.account_status,
         published: r.published,
       }));

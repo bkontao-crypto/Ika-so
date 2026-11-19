@@ -4,34 +4,50 @@ import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { DEFAULT_POLICY, POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
+export const ACCOUNT_TYPES = ["AGENCY", "INDIVIDUAL", "OTHER"];
+const cleanPhone = (v) => String(v ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 
-export function createPremiumRequests({ db, accounts, notify, superadminSettings, moderationAudit, payments }) {
+export function createPremiumRequests({ requestsHub, db, accounts, notify, superadminSettings, moderationAudit, payments }) {
   async function policy() {
     return normalizePolicy((await superadminSettings?.get(POLICY_KEY)) ?? DEFAULT_POLICY);
   }
-  const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email });
+  const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email, accountType: r.account_type, phone: r.phone, message: r.message, acceptedTermsAt: iso(r.accepted_terms_at), cancelledAt: iso(r.cancelled_at) });
 
   return {
     policy,
 
     /** L'annonceur demande le Premium pour 1 à maxMois mois. Refusé si le paiement en ligne est ouvert (il doit payer). */
-    async create(userId, { months } = {}) {
+    async create(userId, { months, accountType, phone, message, acceptTerms } = {}) {
       await accounts.requireActive(userId);
       const p = await policy();
       if (await payments.onlineOpen()) throw forbidden("Le paiement en ligne est ouvert : choisissez une formule et payez directement.");
       const m = Math.floor(Number(months));
       if (!Number.isFinite(m) || m < 1 || m > p.manualPremiumMaxMonths) throw badRequest(`Durée invalide (1 à ${p.manualPremiumMaxMonths} mois).`);
+      const type = String(accountType ?? "");
+      if (!ACCOUNT_TYPES.includes(type)) throw badRequest("Indiquez votre type de compte (agence, particulier ou autre).");
+      const tel = cleanPhone(phone);
+      if (tel.replace(/\D/g, "").length < 8) throw badRequest("Indiquez un numéro de téléphone joignable (8 chiffres au moins).");
+      const note = String(message ?? "").trim().slice(0, 500);
+      if (acceptTerms !== true) throw badRequest("Vous devez accepter les conditions pour envoyer la demande.");
       const pending = await db.query("select id from ika_premium_requests where user_id = $1 and status = 'PENDING'", [userId]);
       if (pending[0]) throw conflict("Une demande Premium est déjà en attente.");
       const id = `pr_${randomUUID()}`;
-      await db.query("insert into ika_premium_requests (id, user_id, months) values ($1, $2, $3)", [id, userId, m]);
+      await db.query("insert into ika_premium_requests (id, user_id, months, account_type, phone, message, accepted_terms_at) values ($1, $2, $3, $4, $5, $6, now())", [id, userId, m, type, tel, note]);
+      await requestsHub?.notifyStaff({ kind: "PREMIUM_REQUEST", title: "Nouvelle demande Premium", body: `${type === "AGENCY" ? "Agence" : type === "INDIVIDUAL" ? "Particulier" : "Professionnel"} · ${m} mois demandés.`, link: "/owner#/requests", exceptUserId: userId, module: "payments" });
       return { ok: true, id };
     },
 
-    /** Dernière demande de l'annonceur (et la politique à afficher). */
+    /** L'annonceur retire sa demande tant qu'elle est en attente. */
+    async cancel(userId, requestId) {
+      const rows = await db.query("update ika_premium_requests set status = 'CANCELLED', cancelled_at = now() where id = $1 and user_id = $2 and status = 'PENDING' returning id", [String(requestId ?? "").slice(0, 80), userId]);
+      if (!rows[0]) throw notFound("Aucune demande en attente à annuler.");
+      return { ok: true };
+    },
+
+    /** Dernière demande de l'annonceur, son historique (10 dernières) et la politique à afficher. */
     async mine(userId) {
-      const rows = await db.query("select * from ika_premium_requests where user_id = $1 order by created_at desc limit 1", [userId]);
-      return { request: rows[0] ? view(rows[0]) : null, policy: await policy() };
+      const rows = await db.query("select * from ika_premium_requests where user_id = $1 order by created_at desc limit 10", [userId]);
+      return { request: rows[0] ? view(rows[0]) : null, history: rows.map(view), policy: await policy() };
     },
 
     /** File des demandes pour l'équipe (en attente d'abord). */
@@ -53,8 +69,10 @@ export function createPremiumRequests({ db, accounts, notify, superadminSettings
         if (!r) throw notFound("Demande introuvable.");
         if (r.status !== "PENDING") throw conflict("Cette demande a déjà été traitée.");
         if (action === "REJECT") {
+          if (why.length < 3) throw badRequest("Indiquez le motif du refus (3 caractères au moins) : il est transmis à l'annonceur.");
           await tx.query("update ika_premium_requests set status = 'REJECTED', decided_by = $2, decided_at = now(), decided_note = $3 where id = $1", [r.id, staffId, why]);
           await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_REJECT", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, note: why } }).catch(() => {});
+          if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Demande Premium non retenue", body: why ? `Motif : ${why}` : "Votre demande Premium n'a pas été retenue. Vous pouvez en déposer une nouvelle.", link: "#/devenir-premium" }).catch(() => undefined);
           return { ok: true, status: "REJECTED" };
         }
         if (action !== "APPROVE") throw badRequest("Action inconnue.");
@@ -66,7 +84,7 @@ export function createPremiumRequests({ db, accounts, notify, superadminSettings
         await tx.query("update ika_premium_requests set status = 'APPROVED', granted_months = $2, decided_by = $3, decided_at = now(), decided_note = $4 where id = $1", [r.id, granted, staffId, why]);
         await tx.query("insert into ika_premium_grants (id, user_id, granted_by, days, reason) values ($1, $2, $3, $4, $5)", [`pg_${randomUUID()}`, r.user_id, staffId, days, `Approbation manuelle Premium (${granted} mois)`]);
         await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted } }).catch(() => {});
-        if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Premium activé", body: `Votre Premium est activé pour ${granted} mois.`, link: "/premium" }).catch(() => undefined);
+        if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Premium activé", body: `Votre Premium est activé pour ${granted} mois.`, link: "#/devenir-premium" }).catch(() => undefined);
         return { ok: true, status: "APPROVED", premiumUntil: iso(prof[0].premium_until) };
       });
     },
