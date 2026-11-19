@@ -76,7 +76,7 @@ ${ld.map(jsonLd).join("\n")}
 <main id="contenu" tabindex="-1">
 ${body}
 </main>
-<footer class="seo-footer"><p class="small muted">Ika So : l'immobilier au Mali, plus accessible. Ika So affiche ce que l'annonceur déclare ; un badge n'est donné qu'après un contrôle par l'équipe. <a href="/#/confiance">Confiance et limites</a> · <a href="/guides">Guides</a> · <a href="/quartiers">Quartiers</a>${site.mentions ? ' · <a href="/mentions-legales">Mentions légales</a>' : ""}</p></footer>
+<footer class="seo-footer"><p class="small muted">Ika So : l'immobilier au Mali, plus accessible. Ika So affiche ce que l'annonceur déclare ; un badge n'est donné qu'après un contrôle par l'équipe. <a href="/#/confiance">Confiance et limites</a> · <a href="/guides">Guides</a> · <a href="/quartiers">Quartiers</a> · <a href="/?choix=1" rel="nofollow">Gérer mes choix</a>${site.mentions ? ' · <a href="/mentions-legales">Mentions légales</a>' : ""}</p></footer>
 </body>
 </html>`;
 }

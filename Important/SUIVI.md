@@ -1,7 +1,14 @@
 # Ika So — Suivi du projet
 
-Mis à jour le 19 novembre 2026 (cookies, lot C : registre des cookies et prestataires) — auparavant : 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
+Mis à jour le 19 novembre 2026 (lien « Gérer mes choix » sur les pages serveur) — auparavant : 19 novembre 2026 (cookies, lot C : registre des cookies et prestataires) — auparavant : 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
+
+## Confidentialité — lien « Gérer mes choix » sur les pages rendues par le serveur (19 novembre 2026)
+**À réaliser** : point resté ouvert du lot A : les pages quartiers, guides, agences et annonces publiques n'avaient pas le lien. Branche `feat/confidentialite-lien-pages-serveur`.
+**Réalisé** : lien « Gérer mes choix » dans le pied de page de ces pages (`server/seo/render.js`, vers `/?choix=1`, `rel="nofollow"`) ; `public/js/app.js` ouvre le panneau quand l'adresse contient `?choix=1` puis retire ce paramètre. Aucune migration. Version du service worker re-estampillée.
+**Vérifié** : `npm test` : 312 réussis, 0 échec, 14 ignorés (+2 dans `test/confidentialite-lien-pages-serveur.test.js`).
+**Non vérifié** : rendu réel sur le site (clic depuis une page quartier, ouverture du panneau, adresse nettoyée) ; à contrôler après déploiement. Les pages `/mentions-legales` et la fiche imprimable n'ont pas été touchées.
+**À faire** : validation par le propriétaire. **Risques** : faibles. Retour arrière : `git revert -m 1 <commit de fusion>`.
 
 ## Confidentialité, cookies et traceurs — lot C (19 novembre 2026)
 **À réaliser** : documenter les cookies, le stockage local et les prestataires. Branche `feat/confidentialite-lot-c`. Documentation seule, aucun code modifié.

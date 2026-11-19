@@ -9,6 +9,11 @@ import { trackPageView } from "/js/core/analytics.js";
 import "/js/bootstrap-settings.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
+// Lien « Gérer mes choix » des pages rendues par le serveur : /?choix=1 ouvre le panneau puis retire le paramètre de l'adresse.
+if (new URLSearchParams(location.search).get("choix") === "1") {
+  history.replaceState(null, "", location.pathname + location.hash);
+  openConsentPanel();
+}
 
 // Chaque route : fichier de la page, fonction à lancer, et façon de lire l'identifiant dans l'adresse.
 const dec = (m) => decodeURIComponent(m[1]);
