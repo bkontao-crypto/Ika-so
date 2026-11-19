@@ -387,7 +387,10 @@ export function createAccounts(ctx) {
         const grants = await activeGrants(userId);
         permissions = ALL_PERMISSIONS.filter((code) => can(profile.staff_role, code, grants));
       }
+      // Photo de profil pour la pastille de l'en-tête (absente ou masquée par la modération : la lettre reste affichée).
+      const photo = (await db.query("select avatar_url, images_hidden from ika_advertiser_profiles where user_id = $1", [userId]).catch(() => []))[0];
       return {
+        avatarUrl: photo && !photo.images_hidden ? photo.avatar_url ?? null : null,
         staffRole: profile.staff_role,
         // Méthodes de connexion du compte (mot de passe et/ou Google) : pour l'écran « Mon profil » seulement.
         authMethods: { password: methods.has_password !== false, google: Boolean(methods.google_sub) },
