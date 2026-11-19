@@ -83,6 +83,14 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - **Non vérifié :** rendu et ajout/suppression réels sur le site (pas d'API ni de base dans mon environnement) ; à contrôler après déploiement.
 - **À faire :** aucun développement restant pour cette demande.
 - **Risques :** faibles (UI seule, routes déjà en production) ; retour arrière : `git revert -m 1 <commit de fusion>`.
+## Compteurs du centre : annonceurs approuvés et Premium à la main (19 novembre 2026)
+
+- **À réaliser :** une demande annonceur acceptée disparaissait de la file mais n'était pas comptée dans « Agences & annonceurs » ; vérifier que les écrans sont reliés aux bonnes sources.
+- **Cause :** `/staff/owner/agencies` ne listait que les profils avec un nom d'agence ou un badge agence ; l'approbation d'une demande ne modifie que `display_role`, donc un annonceur approuvé (particulier compris) n'apparaissait nulle part.
+- **Réalisé :** (1) la liste inclut maintenant les comptes dont la demande annonceur est APPROUVÉE (type, date d'approbation, rôle affiché) ; écran refait : compteurs Annonceurs / Approuvés / Agences vérifiées / Annonces publiées. (2) Même défaut repéré ailleurs : le Premium accordé à la main ne passe pas par `ika_payments` et n'apparaissait pas en finance ; « Paiements & finances » affiche désormais les comptes Premium actifs, les Premium à la main sur 30 jours et la liste des derniers accordés. (3) Garde-fou `test/api-links.test.js` : chaque appel `api("/…")` du front doit correspondre à une route du serveur (305 appels contrôlés, aucun orphelin).
+- **Vérifié :** `npm test` 350 OK / 0 échec ; requête de liste testée sur PostgreSQL local (annonceur approuvé listé, demande en attente exclue) ; navigateur (API simulée) : écrans Agences et Paiements sans erreur.
+- **Limite :** le garde-fou contrôle l'existence des routes, pas le contenu des réponses ; les autres compteurs n'ont pas été audités un par un. **Non vérifié :** données de production (l'annonceur déjà approuvé apparaîtra après déploiement).
+
 ## Demandes : fiche Premium complète + page « Demandes & validations » (19 novembre 2026)
 
 - **À réaliser :** (1) demande Premium plus professionnelle et contrôlable ; (2) vérifier les demandes annonceur : le superadmin doit recevoir toutes les demandes et pouvoir accepter les publications, avec des interfaces professionnelles ; (3) corriger le « Page introuvable » du bouton « Ouvrir » d'une alerte « Demande annonceur ».

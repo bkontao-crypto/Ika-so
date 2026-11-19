@@ -158,10 +158,17 @@ const applicationsPanel = (reload) => {
 };
 
 export const agenciesView = (ctx) => page(ctx, {
-  eyebrow: "PILOTAGE", title: "Agences & annonceurs", desc: "Profils d'agence et annonceurs vérifiés.", load: () => api("/staff/owner/agencies"),
-  build: (rows, reload) => [applicationsPanel(reload), minis(mini("Agences / annonceurs", nf(rows.length)), mini("Vérifiés", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
-    panel("Agences", null, table([{ label: "Agence", render: (r) => h("div", { class: "item" }, h("b", null, r.agency ?? r.name), h("small", null, r.name)) }, { label: "Vérifiée", render: (r) => (r.verifiedAt ? pill("ok", dateOnly(r.verifiedAt)) : pill("neutral", "Non")) }, { label: "Statut", render: (r) => statusPill(r.status) },
-      { label: "Publiées", key: "published", num: true }, { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId), h("a", { class: "btn sm", href: `/#/annonceur/${encodeURIComponent(r.userId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Profil")) }], rows))],
+  eyebrow: "PILOTAGE", title: "Agences & annonceurs", desc: "Annonceurs approuvés (agences et particuliers) et agences vérifiées.", load: () => api("/staff/owner/agencies"),
+  build: (rows, reload) => [applicationsPanel(reload),
+    minis(mini("Annonceurs & agences", nf(rows.length)), mini("Approuvés", nf(rows.filter((r) => r.approvedAt).length)), mini("Agences vérifiées", nf(rows.filter((r) => r.verifiedAt).length)), mini("Annonces publiées", nf(rows.reduce((a, r) => a + r.published, 0)))),
+    panel("Annonceurs & agences", `${rows.length} compte${rows.length > 1 ? "s" : ""}`, table([
+      { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.agency ?? r.name), h("small", null, [r.agency ? r.name : null, r.displayRole].filter(Boolean).join(" · "))) },
+      { label: "Type", render: (r) => (r.kind === "AGENCE" ? pill("info", "Agence") : r.kind === "PARTICULIER" ? pill("neutral", "Particulier") : "—") },
+      { label: "Approuvé", render: (r) => (r.approvedAt ? pill("ok", dateOnly(r.approvedAt)) : pill("neutral", "Non")) },
+      { label: "Badge agence", render: (r) => (r.verifiedAt ? pill("ok", dateOnly(r.verifiedAt)) : pill("neutral", "Non")) },
+      { label: "Statut", render: (r) => statusPill(r.status) },
+      { label: "Publiées", key: "published", num: true },
+      { label: "", render: (r) => h("div", { class: "row" }, tracer(ctx, "user", r.userId), h("a", { class: "btn sm", href: `/#/annonceur/${encodeURIComponent(r.userId)}`, target: "_blank", rel: "noopener" }, ico("external"), "Profil")) }], rows, { emptyText: "Aucun annonceur approuvé pour le moment." }))],
 });
 
 // Pièces justificatives (repris de l'ancien centre) : consultation, acceptation avec contrôle noté, refus motivé.
@@ -284,11 +291,12 @@ export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
   build({ o, s, rec, offers, pr }, reload) {
     // Les chiffres d'encaissement dépendent des modules « Vue générale » et « Abonnements » ; sans eux, seules les sections « Paiements » s'affichent.
     const f = o?.finance;
-    const head = f && s ? [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Statuts suivis", nf(Object.keys(s.byStatus).length)))] : [];
+    const head = f && s ? [minis(mini("Paiements réussis", nf(f.paymentsPaid)), mini("Montant encaissé", fcfa(Number(f.amountPaid))), mini("En attente", nf(f.paymentsPending)), mini("Comptes Premium actifs", nf(s.premium?.active ?? 0)), mini("Premium à la main · 30 j", nf(s.premium?.manual30d ?? 0)))] : [];
+    const grants = s?.grants?.length ? [panel("Premium accordé à la main", "Demandes approuvées et attributions, hors paiement en ligne", table([{ label: "Annonceur", render: (r) => r.name || "—" }, { label: "Jours", render: (r) => nf(r.days), num: true }, { label: "Motif", key: "reason" }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.grants))] : [];
     const stats = f && s ? [h("div", { class: "cols2" }, panel("Par statut", null, bars(Object.entries(s.byStatus).map(([k, v]) => ({ label: k, value: v.count })))),
         panel("Montants par statut", null, table([{ label: "Statut", render: (r) => statusPill(r[0]) }, { label: "Nombre", render: (r) => nf(r[1].count), num: true }, { label: "Total", render: (r) => fcfa(r[1].total), num: true }], Object.entries(s.byStatus))))] : [];
     const recent = s ? [panel("20 derniers paiements", null, table([{ label: "Formule", key: "label" }, { label: "Montant", render: (r) => fcfa(r.amount), num: true }, { label: "Statut", render: (r) => statusPill(r.status) }, { label: "Date", render: (r) => dateTime(r.createdAt) }], s.recent, { emptyText: "Aucun paiement." }))] : [];
-    return [...head, ...(pr ? [premiumRequestsPanel(pr, reload)] : []), offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
+    return [...head, ...(pr ? [premiumRequestsPanel(pr, reload)] : []), ...grants, offersPanel(offers, reload), ...stats, ...reconcilePanels(rec, reload), ...recent];
   },
 }); };
 
