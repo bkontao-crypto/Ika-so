@@ -59,7 +59,7 @@ export async function profilePage() {
   const visible = listings.filter((l) => l.status !== "ARCHIVED");
 
   const reload = () => profilePage();
-  const run = async (fn, ok) => { try { await fn(); if (ok) toast(ok); await reload(); } catch (error) { fail(error); } };
+  const run = async (fn, ok) => { try { await fn(); if (ok) toast(ok); await refreshSession().catch(() => {}); await reload(); } catch (error) { fail(error); } };
 
   /* ---------- Photos ---------- */
   const upload = (kind, label) => h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", class: "sr-only", "aria-label": label,
