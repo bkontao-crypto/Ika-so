@@ -1,5 +1,7 @@
 // Habitudes de connexion (Super Administrateur) : fonctions pures, sans base. Source : journal de connexions (ika_security_log, LOGIN réussies).
 // Heures en UTC, identiques à l'heure du Mali (UTC+0).
+import { csvCell } from "./activity-feed.js";
+import { buildPdf } from "./simple-pdf.js";
 
 export const HOUR_BUCKETS = Object.freeze([[0, 6], [6, 9], [9, 12], [12, 14], [14, 18], [18, 21], [21, 24]]);
 export const DAY_NAMES = Object.freeze(["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]);
@@ -43,4 +45,51 @@ export function countDayTypes(dayKeys) {
   let weekday = 0; let weekend = 0;
   for (const k of dayKeys) { const dow = new Date(`${k}T00:00:00Z`).getUTCDay(); (dow === 0 || dow === 6 ? weekend++ : weekday++); }
   return { weekday, weekend };
+}
+
+const dash = (v) => (v == null ? "—" : String(v));
+const stamp = (iso) => String(iso ?? "").replace("T", " ").slice(0, 16);
+
+/** Lignes « rubrique, libellé, valeur » communes au CSV et au PDF : mêmes chiffres, même périmètre. */
+export function connectionRows(c, generatedAt) {
+  const r = [];
+  r.push(["Périmètre", "Généré le (UTC)", stamp(generatedAt)], ["Périmètre", "Période (jours)", c.days], ["Périmètre", "Du (UTC)", stamp(c.from)], ["Périmètre", "Mesuré depuis (UTC)", c.since ? stamp(c.since) : "aucune connexion enregistrée"]);
+  r.push(["Indicateurs", "Connexions réussies sur la période", c.totals.logins]);
+  r.push(["Indicateurs", "Comptes connectés, 24 dernières heures", dash(c.active.last24h)], ["Indicateurs", "Comptes connectés, 7 jours", dash(c.active.last7d)], ["Indicateurs", "Comptes connectés, 30 jours", dash(c.active.last30d)]);
+  r.push(["Indicateurs", "Comptes sans nouvelle connexion depuis 30 jours", dash(c.inactive.since30d)], ["Indicateurs", "Comptes sans nouvelle connexion depuis 60 jours", dash(c.inactive.since60d)], ["Indicateurs", "Comptes sans nouvelle connexion depuis 90 jours", dash(c.inactive.since90d)]);
+  r.push(["Indicateurs", "Comptes sans connexion enregistrée", dash(c.neverLoggedIn)], ["Indicateurs", "Comptes au total", dash(c.accounts)]);
+  r.push(["Indicateurs", "Heure de pointe (UTC)", c.peakHour == null ? "—" : `${String(c.peakHour).padStart(2, "0")} h`]);
+  for (const b of c.buckets) r.push(["Tranches horaires (UTC)", b.label, `${b.count}${b.sharePct == null ? "" : ` (${String(b.sharePct).replace(".", ",")} %)`}`]);
+  r.push(["Semaine et week-end", "Lundi à vendredi", `${c.week.weekday} (moyenne ${dash(c.week.weekdayAvgPerDay)} par jour)`], ["Semaine et week-end", "Samedi et dimanche", `${c.week.weekend} (moyenne ${dash(c.week.weekendAvgPerDay)} par jour)`], ["Semaine et week-end", "Jour le plus fréquenté", dash(c.week.busiestDay)]);
+  for (const [k, v] of Object.entries(c.devices)) r.push(["Appareils", k, v]);
+  return r;
+}
+
+/** CSV (UTF-8 avec BOM pour Excel, séparateur virgule, cellules protégées contre l'injection de formule). */
+export function connectionsToCsv(c, generatedAt) {
+  const lines = [["rubrique", "libelle", "valeur"].join(",")];
+  for (const row of connectionRows(c, generatedAt)) lines.push(row.map(csvCell).join(","));
+  for (const d of c.perDay) lines.push(["Connexions par jour", d.day, `${d.logins} connexion(s), ${d.users} compte(s) distinct(s)`].map(csvCell).join(","));
+  for (const n of c.notes) lines.push(["Définitions", "Note", n].map(csvCell).join(","));
+  return `\uFEFF${lines.join("\r\n")}\r\n`;
+}
+
+/** PDF de synthèse : périmètre, indicateurs, tranches horaires, jours, définitions. */
+export function connectionsToPdf(c, generatedAt) {
+  const rows = connectionRows(c, generatedAt);
+  const section = (name) => rows.filter((r) => r[0] === name).map(([, label, value]) => [label, String(value)]);
+  return buildPdf({
+    title: "Ika So - Habitudes de connexion",
+    subtitle: `Rapport du Super Administrateur. Généré le ${stamp(generatedAt)} (UTC, identique à l'heure du Mali). Période : ${c.days} jour(s).`,
+    footer: "Ika So - confidentiel",
+    sections: [
+      { heading: "Périmètre", rows: section("Périmètre") },
+      { heading: "Indicateurs", rows: section("Indicateurs") },
+      { heading: "Tranches horaires (UTC)", rows: section("Tranches horaires (UTC)") },
+      { heading: "Semaine et week-end", rows: section("Semaine et week-end") },
+      { heading: "Appareils", rows: section("Appareils").length ? section("Appareils") : [["Aucune connexion sur la période", "—"]] },
+      { heading: "Connexions par jour", table: { head: ["Jour", "Connexions", "Comptes distincts"], rows: c.perDay.map((d) => [d.day, d.logins, d.users]) } },
+      { heading: "Définitions et limites", paragraphs: c.notes },
+    ],
+  });
 }

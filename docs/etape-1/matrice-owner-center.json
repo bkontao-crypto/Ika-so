@@ -179,6 +179,12 @@
       "why": "Export contenant des données personnelles : motif obligatoire et consultation journalisée."
     },
     {
+      "segment": "listings.pdf",
+      "label": "Export des annonces (PDF)",
+      "access": "delegable",
+      "why": "Même contenu et mêmes règles que l'export CSV des annonces : motif obligatoire et consultation journalisée."
+    },
+    {
       "segment": "export.csv",
       "label": "Export de données",
       "access": "delegable",
