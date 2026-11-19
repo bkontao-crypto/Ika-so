@@ -1,5 +1,6 @@
 // Modules du Owner Control Center. Chaque vue lit les endpoints existants (/staff/owner/*, /staff/*) : le contrôle des droits reste côté serveur.
 import { api, h, ico, panel, empty, skeletons, errorBox, table, bars, pill, statusPill, nf, fcfa, dateTime, dateOnly, ago, initials, openDrawer, closeDrawer, formDialog, confirmDialog, act, fail, toast, CAT_COLORS } from "./ui.js";
+import { previewDocument } from "./proof-viewer.js";
 
 /** Gabarit : en-tête + chargement asynchrone + reprise sur erreur. build(data, reload) → nœuds. */
 function page(ctx, { eyebrow, title, desc, load, build, actions }) {
@@ -176,8 +177,7 @@ const APP_DOC = (l) => (l === "PIECE_IDENTITE" ? "pièce d'identité" : l === "R
 async function openAppDoc(appId, doc) {
   try {
     const { fileData } = await api(`/staff/advertiser-applications/${encodeURIComponent(appId)}/documents/${encodeURIComponent(doc.id)}`);
-    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
-    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+    await previewDocument(fileData, APP_DOC(doc.label));
   } catch (error) { fail(error); }
 }
 const applicationsPanel = (reload) => {
@@ -216,11 +216,10 @@ export const agenciesView = (ctx) => page(ctx, {
 });
 
 // Pièces justificatives (repris de l'ancien centre) : consultation, acceptation avec contrôle noté, refus motivé.
-const openProof = async (id) => {
+const openProof = async (id, title) => {
   try {
     const { fileData } = await api(`/staff/proofs/${encodeURIComponent(id)}/file`);
-    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
-    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+    await previewDocument(fileData, title || "Pièce justificative");
   } catch (error) { fail(error); }
 };
 const proofsPanel = (proofs, reload) => {
@@ -230,14 +229,14 @@ const proofsPanel = (proofs, reload) => {
       h("p", { class: "muted small" }, `${p.ownerName}${p.declaredDocument ? ` · document déclaré : ${p.declaredDocument}` : ""} · ${dateOnly(p.createdAt ?? p.created_at)}`),
       h("p", { class: "muted small" }, "Un badge n'est donné qu'après un vrai contrôle (cadastre, greffe, mairie…).")),
     h("div", { class: "row" },
-      h("button", { class: "btn sm", type: "button", onClick: () => openProof(p.id) }, ico("external"), "Voir la pièce"),
+      h("button", { class: "btn sm", type: "button", onClick: () => openProof(p.id, p.listingTitle ?? `Agence de ${p.ownerName}`) }, ico("eye"), "Voir la pièce"),
       h("button", { class: "btn primary sm", type: "button", onClick: async () => {
-        const fields = [{ name: "note", label: "Qu'avez-vous contrôlé ? (organisme, numéro)", type: "textarea", required: true, max: 300 }];
-        if (p.kind === "AGENCE") fields.push({ name: "agencyName", label: "Nom de l'agence", required: true, max: 120 });
+        const fields = [{ name: "note", label: "Qu'avez-vous contrôlé ?", type: "textarea", required: true, min: 3, max: 300, hint: "Exemple : titre foncier n° 1234, vérifié au cadastre de Bamako le 19/11." }];
+        if (p.kind === "AGENCE") fields.push({ name: "agencyName", label: "Nom de l'agence", required: true, min: 2, max: 120 });
         const v = await formDialog("Pièce contrôlée", fields, { submit: "Accepter" });
         if (v) decide(p.id, { action: "ACCEPT", note: v.note, agencyName: v.agencyName ?? "" }, "Pièce acceptée, badge donné.");
       } }, ico("check"), "Contrôlée : accepter"),
-      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la pièce", [{ name: "note", label: "Motif du refus", type: "textarea", required: true, max: 300 }], { submit: "Refuser" }); if (v) decide(p.id, { action: "REFUSE", note: v.note }, "Pièce refusée."); } }, "Refuser")));
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la pièce", [{ name: "note", label: "Motif du refus (transmis au propriétaire)", type: "textarea", required: true, min: 3, max: 300, hint: "Exemple : document illisible, numéro introuvable au cadastre." }], { submit: "Refuser" }); if (v) decide(p.id, { action: "REFUSE", note: v.note }, "Pièce refusée."); } }, "Refuser")));
   return panel(`Pièces à contrôler (${proofs.length})`, null, proofs.length ? h("div", { class: "stack" }, proofs.map(card)) : empty("Aucune pièce en attente.", "check"));
 };
 // Liste noire (repris de l'ancien centre) : téléphones et e-mails bloqués ; les comptes concernés sont bloqués.
