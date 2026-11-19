@@ -2,6 +2,8 @@
 import { METHOD_VERSION, planDays as plan } from "../lib/aggregation.js";
 import { badRequest, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
+import { csvCell } from "../lib/activity-feed.js";
+import { buildPdf } from "../lib/simple-pdf.js";
 import { LISTING_COLUMNS, toCard } from "./cards.js";
 
 const planDays = (opts) => { try { return plan(opts); } catch (error) { throw badRequest(error.message); } };
@@ -1445,17 +1447,28 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     /** Export CSV des annonces (résumé). */
     async listingsReportCsv(userId) {
+      const rows = await this.listingsReportRows(userId);
+      const q = (v) => csvCell(v ?? "");
+      const lines = ["id,title,neighborhood,transaction,category,price,status,created_at"];
+      for (const r of rows) lines.push(`${q(r.id)},${q(r.title)},${q(r.neighborhood)},${q(r.transaction_type)},${q(r.category)},${r.price || 0},${q(r.status)},${q(r.created_at?.toISOString?.())}`);
+      return lines.join("\n");
+    },
+    /** Les 500 annonces les plus récentes, communes au CSV et au PDF. */
+    async listingsReportRows(userId) {
       await accounts.requirePermission(userId, "owner.stats");
-      const rows = await db.query(
+      return db.query(
         `select id, title, neighborhood, transaction_type, category, price, status, created_at
          from ika_listings order by created_at desc limit 500`
       );
-      const lines = ["id,title,neighborhood,transaction,category,price,status,created_at"];
-      for (const r of rows) {
-        const title = String(r.title || "").replace(/"/g, '""');
-        lines.push(`"${r.id}","${title}","${r.neighborhood || ""}","${r.transaction_type || ""}","${r.category || ""}",${r.price || 0},"${r.status}","${r.created_at?.toISOString?.() || ""}"`);
-      }
-      return lines.join("\n");
+    },
+    async listingsReportPdf(userId) {
+      const rows = await this.listingsReportRows(userId);
+      return buildPdf({
+        title: "Ika So - Rapport des annonces",
+        subtitle: `Rapport du Super Administrateur. Généré le ${new Date().toISOString().replace("T", " ").slice(0, 16)} (UTC). ${rows.length} annonce(s), des plus récentes aux plus anciennes (500 au plus). Les textes longs sont coupés : le CSV contient les valeurs complètes.`,
+        footer: "Ika So - confidentiel",
+        sections: [{ heading: "Annonces", table: { head: ["Date", "Titre", "Quartier", "Type", "Prix (XOF)", "Statut"], widths: [1, 2.6, 1.5, 1.2, 1.2, 1], rows: rows.map((r) => [r.created_at?.toISOString?.().slice(0, 10) ?? "", r.title ?? "", r.neighborhood ?? "", `${r.transaction_type ?? ""} ${r.category ?? ""}`.trim(), r.price == null ? "" : Number(r.price).toLocaleString("fr-FR"), r.status ?? ""]) } }],
+      });
     },
     /** Liste des contacts et visites récents (CRM basique) pour le personnel. */
     async crmOverview(userId, { limit = 50 } = {}) {

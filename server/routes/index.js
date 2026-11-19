@@ -1077,7 +1077,27 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.get("/staff/owner/activity/catalog", async (req, res) => res.json(await ownerCenter.catalog(requireUser(req))));
   router.get("/staff/owner/activity/summary", async (req, res) => res.json(await ownerCenter.summary(requireUser(req), { days: Number(req.query.days) || 7 })));
   router.get("/staff/owner/activity/connections", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.connections(requireUser(req), { days: Number(req.query.days) || 30 })); });
+  for (const format of ["csv", "pdf"]) {
+    router.get(`/staff/owner/activity/connections.${format}`, async (req, res) => {
+      const userId = requireUser(req);
+      limiter.hit(`activity-export:${userId}`, 10, 60 * 60_000);
+      const file = await ownerCenter.exportConnections(userId, { days: Number(req.query.days) || 30, format });
+      res.setHeader("Content-Type", file.type);
+      res.setHeader("Content-Disposition", `attachment; filename=${file.filename}`);
+      res.setHeader("Cache-Control", "no-store");
+      res.send(file.body);
+    });
+  }
   router.get("/staff/owner/activity/trace", async (req, res) => res.json(await ownerCenter.trace(requireUser(req), { type: clean(req.query.type, 10), id: clean(req.query.id, 80), before: clean(req.query.before, 40), limit: req.query.limit })));
+  router.get("/staff/owner/activity/export.pdf", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`activity-export:${userId}`, 10, 60 * 60_000);
+    const pdf = await ownerCenter.exportPdf(userId, feedQuery(req.query ?? {}));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=mouvements-ika-so.pdf");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(pdf);
+  });
   router.get("/staff/owner/activity/export.csv", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`activity-export:${userId}`, 10, 60 * 60_000);
@@ -1173,6 +1193,13 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", "attachment; filename=listings-report.csv");
     res.send(csv);
+  });
+  router.get("/staff/owner/listings.pdf", async (req, res) => {
+    const pdf = await stats.listingsReportPdf(requireUser(req));
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=listings-report.pdf");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(pdf);
   });
   router.get("/staff/owner/export.csv", async (req, res) => {
     const csv = await stats.ownerExportCsv(requireUser(req));

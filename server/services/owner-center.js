@@ -6,8 +6,8 @@
 import { badRequest, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { classifyDevice } from "../lib/analytics-events.js";
-import { bucketHours, countDayTypes, peakHour, weekSplit } from "../lib/connection-stats.js";
-import { CATEGORIES, CATEGORY_KEYS, DEFAULT_CATEGORIES, SOURCES, SOURCE_KEYS, buildSourceQuery, eventsToCsv, mergeEvents, selectSources, shapeEvent } from "../lib/activity-feed.js";
+import { bucketHours, connectionsToCsv, connectionsToPdf, countDayTypes, peakHour, weekSplit } from "../lib/connection-stats.js";
+import { CATEGORIES, CATEGORY_KEYS, DEFAULT_CATEGORIES, SOURCES, SOURCE_KEYS, buildSourceQuery, eventsToCsv, eventsToPdf, mergeEvents, selectSources, shapeEvent } from "../lib/activity-feed.js";
 
 const SECURITY_EVENTS = Object.freeze(["REGISTER", "LOGIN", "LOGIN_FAILED", "LOGOUT"]);
 const CURSOR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
@@ -195,6 +195,16 @@ export function createOwnerCenter({ db, accounts, logger = null, clock = () => n
       };
     },
 
+    /** Export des habitudes de connexion (CSV ou PDF) : mêmes chiffres que l'écran, l'export est inscrit au journal d'audit. */
+    async exportConnections(userId, { days = 30, format = "csv" } = {}) {
+      const data = await this.connections(userId, { days });
+      if (!data.available) throw badRequest("Le journal de connexions n'est pas disponible : export impossible.");
+      const fmt = format === "pdf" ? "pdf" : "csv";
+      const generatedAt = clock().toISOString();
+      await accounts.audit(userId, "OWNER_CONNECTIONS_EXPORT", null, `${fmt.toUpperCase()} ; ${data.days} jour(s) ; ${data.totals.logins} connexion(s)`);
+      return fmt === "pdf" ? { body: connectionsToPdf(data, generatedAt), type: "application/pdf", filename: "habitudes-connexion-ika-so.pdf" } : { body: connectionsToCsv(data, generatedAt), type: "text/csv; charset=utf-8", filename: "habitudes-connexion-ika-so.csv" };
+    },
+
     /** Dossier complet d'un compte ou d'une annonce : fiche + tous ses mouvements. La consultation est elle-même inscrite au journal d'audit. */
     async trace(userId, { type, id, before, limit } = {}) {
       await guard(userId);
@@ -247,6 +257,14 @@ export function createOwnerCenter({ db, accounts, logger = null, clock = () => n
       const feed = await readFeed({ ...params, limit: 5000 }, { maxLimit: 5000 });
       await accounts.audit(userId, "OWNER_ACTIVITY_EXPORT", null, `${feed.events.length} ligne(s) ; catégories ${text(params.categories, 120) || "par défaut"}`);
       return eventsToCsv(feed.events);
+    },
+
+    /** Même périmètre et mêmes filtres que le CSV ; imprime les 500 lignes les plus récentes. L'export est inscrit au journal d'audit. */
+    async exportPdf(userId, params = {}) {
+      await guard(userId);
+      const feed = await readFeed({ ...params, limit: 5000 }, { maxLimit: 5000 });
+      await accounts.audit(userId, "OWNER_ACTIVITY_EXPORT", null, `PDF ; ${Math.min(feed.events.length, 500)} ligne(s) sur ${feed.events.length} ; catégories ${text(params.categories, 120) || "par défaut"}`);
+      return eventsToPdf(feed.events, { generatedAt: clock().toISOString(), total: feed.events.length });
     },
 
     /** Tableau de bord de la maquette : tout vient de la base ; un bloc illisible vaut null et n'empêche pas le reste. */

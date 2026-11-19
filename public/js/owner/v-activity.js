@@ -105,7 +105,8 @@ export function activityView(ctx, { preset } = {}) {
       h("div", { class: "welcome" }, h("div", null, h("div", { class: "eyebrow" }, isAudit ? "TRAÇABILITÉ · ÉQUIPE" : "TRAÇABILITÉ · TOUT LE SITE"), h("h1", null, title),
         h("p", null, isAudit ? "Chaque action de l'équipe : qui, quoi, sur quel objet, quand. Les consultations sensibles et les exports sont eux-mêmes inscrits ici." : "Inscriptions, annonces, contacts, messages (sans leur contenu), paiements, signalements, actions de l'équipe, incidents… tout est relu depuis les tables du site, avec l'historique réel.")),
         h("div", { class: "actions" }, liveBtn, h("button", { class: "btn", type: "button", onClick: () => { ctx.refresh(); } }, ico("refresh"), "Actualiser"),
-          h("a", { class: "btn primary", id: "export", href: "#", onClick: (e) => { e.currentTarget.href = `/api/staff/owner/activity/export.csv?${queryOf()}`; } }, ico("download"), "Exporter CSV"))),
+          h("a", { class: "btn primary", id: "export", href: "#", onClick: (e) => { e.currentTarget.href = `/api/staff/owner/activity/export.csv?${queryOf()}`; } }, ico("download"), "Exporter CSV"),
+          h("a", { class: "btn primary", id: "export-pdf", href: "#", onClick: (e) => { e.currentTarget.href = `/api/staff/owner/activity/export.pdf?${queryOf()}`; } }, ico("file"), "Exporter PDF"))),
       h("div", { class: "toolbar" }, h("div", { class: "toolrow" }, seg, h("div", { class: "grow" }, searchInput), actorTag), isAudit ? null : chips),
       unavailable, sumBox, isAudit ? null : connBox,
       h("div", { class: "card panel" }, h("div", { class: "panelhead" }, h("div", null, h("h2", null, "Chronologie"), h("div", { class: "desc", id: "feeddesc" }, "Du plus récent au plus ancien · cliquez un mouvement pour le détail")), h("span", { class: "tiny muted", id: "livestate" })), timeline.el));
@@ -165,6 +166,9 @@ export function activityView(ctx, { preset } = {}) {
       h("div", { class: "split" },
         panel("Habitudes de connexion", `Rythme de la journée · heure de pointe : ${peak == null ? "—" : `${String(peak).padStart(2, "0")} h`}`, h("div", null, hours, h("div", { class: "hourlabels" }, h("span", null, "0 h"), h("span", null, "12 h"), h("span", null, "23 h")), buckets)),
         h("div", { class: "sidecol" }, panel("Semaine et week-end", "Connexions réussies", week), panel("Appareils", "Connexions par type d'appareil", devices))),
+      h("div", { class: "actions" },
+        h("a", { class: "btn", href: `/api/staff/owner/activity/connections.csv?days=${c.days}`, download: "habitudes-connexion-ika-so.csv" }, ico("download"), "Exporter CSV"),
+        h("a", { class: "btn", href: `/api/staff/owner/activity/connections.pdf?days=${c.days}`, download: "habitudes-connexion-ika-so.pdf" }, ico("file"), "Exporter PDF")),
       h("p", { class: "muted small" }, `Mesuré depuis : ${c.since ? dateTime(c.since) : "aucune connexion enregistrée"}. `, c.notes.join(" ")));
   }
 

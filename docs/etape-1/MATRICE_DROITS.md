@@ -58,6 +58,7 @@ Un admin n'accède à un module « delegable » que si le Superadmin le lui a at
 | `languages` | Langues | Délégable à un admin | Référentiels : erreur visible mais réversible ; historique conservé. |
 | `redirects` | Redirections | Délégable à un admin | Référentiels : erreur visible mais réversible ; historique conservé. |
 | `listings.csv` | Export des annonces | Délégable à un admin | Export contenant des données personnelles : motif obligatoire et consultation journalisée. |
+| `listings.pdf` | Export des annonces (PDF) | Délégable à un admin | Même contenu et mêmes règles que l'export CSV des annonces : motif obligatoire et consultation journalisée. |
 | `export.csv` | Export de données | Délégable à un admin | Export contenant des données personnelles : motif obligatoire et consultation journalisée. |
 | `backup` | Sauvegarde manuelle | **Superadmin seul** | Données complètes de la plateforme. |
 | `backups` | Sauvegardes | **Superadmin seul** | Données complètes de la plateforme. |
@@ -71,7 +72,7 @@ Un admin n'accède à un module « delegable » que si le Superadmin le lui a at
 | `security-log` | Journal de sécurité | **Superadmin seul** | Contient des traces de sécurité sensibles. |
 | `countries` | Pays | **Superadmin seul** | Active un pays entier de la plateforme. |
 
-**30 modules délégables, 12 réservés au Superadmin** (total 42 = tous les segments de `/staff/owner/*` du code ; vérifié par test).
+**31 modules délégables, 12 réservés au Superadmin** (total 43 = tous les segments de `/staff/owner/*` du code ; vérifié par test).
 
 ## 3. Tests exigés à l'étape 3
 Pour chaque route `/staff/*` et `/staff/owner/*` : refus (403) pour un utilisateur ordinaire, un modérateur (Owner Center), et un admin sans attribution ; accès accepté pour le rôle prévu ; action journalisée.

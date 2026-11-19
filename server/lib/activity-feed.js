@@ -4,6 +4,8 @@
 // Vie privée : le contenu des messages privés n'est jamais lu ; aucune adresse IP ; les téléphones et e-mails ne sont pas projetés.
 // Module pur (aucune dépendance à la base) : testé avec une fausse base dans test/owner-center.test.js.
 
+import { buildPdf } from "./simple-pdf.js";
+
 export const CATEGORIES = Object.freeze([
   { key: "admin", label: "Équipe & administration" },
   { key: "account", label: "Comptes" },
@@ -208,7 +210,7 @@ const L = {
   COMPLAINT_ASSIGN: ["Réclamation affectée", "info"], COMPLAINT_COMMENT: ["Réclamation commentée", "neutral"], COMPLAINT_CLOSE: ["Réclamation close", "ok"], COMPLAINT_RESOLVE: ["Réclamation résolue", "ok"],
   INCIDENT_CREATE: ["Incident déclaré", "bad"], INCIDENT_RESOLVE: ["Incident résolu", "ok"], BACKUP_AUTO_MANUAL: ["Sauvegarde automatique lancée", "info"], BACKUP_VERIFY: ["Sauvegarde contrôlée", "ok"], INCIDENTS_CHECK_MANUAL: ["Contrôle des incidents", "info"],
   BACKUP_LOG: ["Sauvegarde notée", "neutral"], SETTINGS_UPDATE: ["Paramètres modifiés", "warn"], CAMPAIGN_CREATE: ["Campagne créée", "ok"], CAMPAIGN_UPDATE: ["Campagne modifiée", "info"],
-  OWNER_ACTIVITY_EXPORT: ["Export du journal des mouvements", "warn"], OWNER_TRACE: ["Traçage d'un compte ou d'une annonce", "info"], OWNER_SECURITY_LOG: ["Journal de connexions activé/désactivé", "warn"],
+  OWNER_ACTIVITY_EXPORT: ["Export du journal des mouvements", "warn"], OWNER_CONNECTIONS_EXPORT: ["Export des habitudes de connexion", "warn"], OWNER_TRACE: ["Traçage d'un compte ou d'une annonce", "info"], OWNER_SECURITY_LOG: ["Journal de connexions activé/désactivé", "warn"],
 };
 
 const humanize = (code) => { const t = String(code ?? "").replace(/^CAMPAIGN_/, "Campagne · ").replace(/_/g, " ").toLowerCase(); return t.charAt(0).toUpperCase() + t.slice(1); };
@@ -242,6 +244,19 @@ export function csvCell(value) {
   let s = String(value ?? "");
   if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
   return `"${s.replace(/"/g, '""')}"`;
+}
+export const PDF_MAX_EVENTS = 500;
+export function eventsToPdf(events, { generatedAt, total } = {}) {
+  const label = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
+  const shown = events.slice(0, PDF_MAX_EVENTS);
+  const stamp = String(generatedAt ?? "").replace("T", " ").slice(0, 16);
+  const note = total > shown.length ? `Seules les ${shown.length} lignes les plus récentes sur ${total} sont imprimées ; l'export CSV contient la liste complète (5 000 lignes au plus).` : `${shown.length} ligne(s), de la plus récente à la plus ancienne.`;
+  return buildPdf({
+    title: "Ika So - Journal des mouvements",
+    subtitle: `Rapport du Super Administrateur. Généré le ${stamp} (UTC, identique à l'heure du Mali). ${note}`,
+    footer: "Ika So - confidentiel",
+    sections: [{ heading: "Mouvements", table: { head: ["Date (UTC)", "Catégorie", "Événement", "Acteur", "Objet"], widths: [1.15, 1.2, 2.2, 1.3, 1.6], rows: shown.map((e) => [String(e.at ?? "").replace("T", " ").slice(0, 16), label[e.category] ?? e.category, e.label, e.actor?.name ?? e.actor?.id ?? "", e.object?.label ?? e.object?.id ?? ""]) } }],
+  });
 }
 export function eventsToCsv(events) {
   const head = ["date_utc", "categorie", "source", "evenement", "code", "acteur_id", "acteur", "objet_type", "objet_id", "objet", "detail"];
