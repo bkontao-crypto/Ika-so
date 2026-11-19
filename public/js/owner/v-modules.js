@@ -127,6 +127,50 @@ export const permissionsView = (ctx) => page(ctx, {
   },
 });
 
+// ---------- Délégations de modules (DEC-003) ----------
+// Le Superadmin confie des modules du centre de contrôle à un administrateur. Chaque case coche/décoche aussitôt ; le serveur reste la barrière réelle.
+const DELEG_GROUPS = [
+  ["Pilotage", [["dashboard", "Tableau de bord"], ["overview", "Vue générale"], ["activity", "Mouvements du site"], ["charts", "Graphiques"], ["trends", "Tendances"], ["regions", "Régions"], ["report", "Rapports"], ["report.pdf", "Rapport complet PDF"], ["premium-funnel", "Entonnoir Premium"], ["subscriptions", "Abonnements"]]],
+  ["Surveillance", [["monitoring", "Surveillance"], ["health", "État du système"], ["incidents", "Incidents"]]],
+  ["Clients et croissance", [["agencies", "Agences et annonceurs"], ["crm", "CRM"], ["pipeline", "Pipeline"], ["visits", "Visites"], ["marketing", "Marketing"], ["campaigns", "Campagnes"], ["partners", "Partenaires"]]],
+  ["Contenu et confiance", [["moderation", "Annonces et modération"], ["reviews", "Avis"], ["trust", "Confiance et vérifications"], ["complaints", "Réclamations"], ["imports", "Imports"], ["duplicates", "Doublons"]]],
+  ["Comptes et finances", [["users", "Utilisateurs et comptes"], ["payments", "Paiements"]]],
+];
+export const delegationsView = (ctx) => page(ctx, {
+  eyebrow: "SYSTÈME", title: "Délégations de modules",
+  desc: "Confiez à un administrateur l'accès à certains modules du centre de contrôle. Seul le Superadmin peut le faire ; sans délégation, un administrateur n'a accès à aucun module.",
+  load: async () => { const [rows, accounts] = await Promise.all([api("/staff/owner/delegations"), api("/staff/accounts")]); return { rows, accounts }; },
+  build({ rows, accounts }, reload) {
+    const admins = accounts.filter((a) => a.staffRole === "ADMIN");
+    const byUser = new Map();
+    for (const r of rows) { if (!byUser.has(r.user_id)) byUser.set(r.user_id, new Set()); byUser.get(r.user_id).add(r.module); }
+    const total = DELEG_GROUPS.reduce((n, [, m]) => n + m.length, 0);
+    if (!admins.length) return empty("Aucun administrateur parmi les derniers comptes. Nommez-en un depuis « Utilisateurs & comptes » pour pouvoir lui déléguer des modules.", "users");
+    return [
+      minis(mini("Administrateurs", nf(admins.length)), mini("Avec au moins un module", nf(admins.filter((a) => byUser.get(a.userId)?.size).length)), mini("Modules délégables", nf(total))),
+      ...admins.map((a) => {
+        const have = byUser.get(a.userId) ?? new Set();
+        const toggle = (module, on, box) => { box.disabled = true; act(() => api(on ? "/staff/owner/delegations" : "/staff/owner/delegations/revoke", { method: "POST", body: { userId: a.userId, module } }), on ? "Module délégué." : "Délégation retirée.", reload); };
+        const setAll = async (on) => {
+          const todo = DELEG_GROUPS.flatMap(([, m]) => m.map(([k]) => k)).filter((k) => have.has(k) !== on);
+          if (!todo.length) return;
+          if (!(await confirmDialog(on ? "Tout déléguer ?" : "Tout retirer ?", `${a.fullName} ${on ? "recevra" : "perdra"} ${todo.length} module(s).`, on ? "Tout déléguer" : "Tout retirer"))) return;
+          act(async () => { for (const k of todo) await api(on ? "/staff/owner/delegations" : "/staff/owner/delegations/revoke", { method: "POST", body: { userId: a.userId, module: k } }); }, on ? "Modules délégués." : "Délégations retirées.", reload);
+        };
+        const groups = DELEG_GROUPS.map(([name, mods]) => h("div", { class: "stack", style: "gap:6px;min-width:210px;flex:1" },
+          h("b", { class: "small" }, `${name} · ${mods.filter(([k]) => have.has(k)).length}/${mods.length}`),
+          ...mods.map(([k, label]) => { const box = h("input", { type: "checkbox", style: "accent-color:#087448;width:17px;height:17px" }); box.checked = have.has(k); box.addEventListener("change", () => toggle(k, box.checked, box));
+            return h("label", { class: "row", style: "gap:8px;align-items:center;cursor:pointer" }, box, h("span", null, label)); })));
+        return panel(`${a.fullName}`, have.size ? `${have.size} module(s) délégué(s) sur ${total}` : "Aucun module délégué : cet administrateur n'a accès à aucun module du centre de contrôle.",
+          h("div", { class: "stack" },
+            h("div", { class: "row", style: "flex-wrap:wrap;gap:20px;align-items:flex-start" }, ...groups),
+            h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onClick: () => setAll(true) }, "Tout déléguer"), h("button", { class: "btn sm", type: "button", onClick: () => setAll(false) }, "Tout retirer"))));
+      }),
+      panel("Modules réservés au Superadmin", "Jamais délégables : sauvegardes et restaurations, offres, réglages, logo, mentions légales, SEO, assistance IA, journal de sécurité, pays, délégations.", null),
+    ];
+  },
+});
+
 // Demandes annonceurs (repris de l'ancien centre) : approuver, demander des informations, refuser ; pièces consultables.
 const APP_DOC = (l) => (l === "PIECE_IDENTITE" ? "pièce d'identité" : l === "RCCM" ? "RCCM" : "justificatif");
 async function openAppDoc(appId, doc) {
