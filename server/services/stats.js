@@ -3,7 +3,7 @@ import { METHOD_VERSION, planDays as plan } from "../lib/aggregation.js";
 import { badRequest, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { csvCell } from "../lib/activity-feed.js";
-import { buildPdf } from "../lib/simple-pdf.js";
+import { buildPdf, fmtDate, fmtLong, fmtNumber } from "../lib/simple-pdf.js";
 import { LISTING_COLUMNS, toCard } from "./cards.js";
 
 const planDays = (opts) => { try { return plan(opts); } catch (error) { throw badRequest(error.message); } };
@@ -544,57 +544,26 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     /** Génère un PDF minimal du rapport Owner. */
     async reportPdf(userId) {
       const data = await this.fullReport(userId);
-      const lines = [
-        "IKA SO - RAPPORT OWNER CONTROL CENTER",
-        "Genere le : " + new Date(data.generatedAt).toLocaleString("fr"),
-        "",
-        "ANNONCES",
-        "  Total : " + data.overview.listings.total,
-        "  Publiees : " + data.overview.listings.published,
-        "  En attente : " + data.overview.listings.pending,
-        "  Vente : " + data.overview.listings.sale,
-        "  Location : " + data.overview.listings.rent,
-        "",
-        "UTILISATEURS",
-        "  Total : " + data.overview.users.total,
-        "  Actifs : " + data.overview.users.active,
-        "  Personnel : " + data.overview.users.staff,
-        "",
-        "ACTIVITE",
-        "  Contacts 7j : " + data.overview.activity.contacts7d,
-        "  Visites en attente : " + data.overview.activity.visitsPending,
-        "  Signalements : " + data.overview.activity.reportsOpen,
-        "",
-        "FINANCES",
-        "  Paiements reussis : " + data.overview.finance.paymentsPaid,
-        "  Montant encaisse : " + data.overview.finance.amountPaid + " XOF",
-        "",
-        "AGENCES : " + data.agenciesCount,
-        "RECLAMATIONS OUVERTES : " + data.openComplaints,
-        "BASE DE DONNEES : " + data.health.database,
-      ];
-      // PDF minimal (texte simple)
-      const content = lines.join("\n");
-      const pdf = [
-        "%PDF-1.4",
-        "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj",
-        "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj",
-        "3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >> endobj",
-        "4 0 obj << /Length " + (content.length + 50) + " >> stream",
-        "BT /F1 10 Tf 50 800 Td 14 TL",
-        ...content.split("\n").map((l, i) => `(${l.replace(/[()\\]/g, "\\$&")}) Tj T*`),
-        "ET",
-        "endstream endobj",
-        "5 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj",
-        "xref",
-        "0 6",
-        "0000000000 65535 f ",
-        "trailer << /Size 6 /Root 1 0 R >>",
-        "startxref",
-        "0",
-        "%%EOF",
-      ].join("\n");
-      return Buffer.from(pdf, "utf8");
+      const o = data.overview; const n = fmtNumber;
+      const dbOk = data.health?.database === "ok";
+      return buildPdf({
+        eyebrow: "Owner Control Center",
+        title: "Rapport de la plateforme",
+        subtitle: `Généré le ${fmtLong(data.generatedAt)} (UTC, identique à l'heure du Mali). Synthèse des annonces, des utilisateurs, de l'activité et des finances.`,
+        generatedAt: data.generatedAt, footer: "Ika Sô · Rapport de la plateforme · document confidentiel",
+        sections: [
+          { heading: "Vue d'ensemble", kpis: { cols: 4, items: [
+            { label: "Annonces", value: n(o.listings.total), sub: `${n(o.listings.published)} publiées` }, { label: "Utilisateurs", value: n(o.users.total), sub: `${n(o.users.active)} actifs` },
+            { label: "Contacts · 7 jours", value: n(o.activity.contacts7d) }, { label: "Montant encaissé", value: `${n(o.finance.amountPaid)} XOF`, sub: `${n(o.finance.paymentsPaid)} paiement(s) réussi(s)` },
+            { label: "En attente de validation", value: n(o.listings.pending), tone: "warn" }, { label: "Visites en attente", value: n(o.activity.visitsPending), tone: "warn" },
+            { label: "Signalements ouverts", value: n(o.activity.reportsOpen), tone: o.activity.reportsOpen > 0 ? "bad" : "ok" }, { label: "Réclamations ouvertes", value: n(data.openComplaints), tone: data.openComplaints > 0 ? "bad" : "ok" },
+          ] } },
+          { heading: "Annonces", rows: [["Total", n(o.listings.total)], ["Publiées", n(o.listings.published)], ["En attente", n(o.listings.pending)], ["Vente", n(o.listings.sale)], ["Location", n(o.listings.rent)]] },
+          { heading: "Utilisateurs", rows: [["Total", n(o.users.total)], ["Actifs", n(o.users.active)], ["Personnel", n(o.users.staff)], ["Agences", n(data.agenciesCount)]] },
+          { heading: "Finances", rows: [["Paiements réussis", n(o.finance.paymentsPaid)], ["Montant encaissé", `${n(o.finance.amountPaid)} XOF`]] },
+          { heading: "État technique", rows: [["Base de données", { t: dbOk ? "Connectée" : "Injoignable", c: dbOk ? "ok" : "bad" }]] },
+        ],
+      });
     },
     /** Rapport consolidé (JSON) pour export / impression. */
     async fullReport(userId) {
@@ -1463,11 +1432,25 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     async listingsReportPdf(userId) {
       const rows = await this.listingsReportRows(userId);
+      const STATUS = { PUBLISHED: ["Publiée", "ok"], PENDING: ["En attente", "warn"], REJECTED: ["Refusée", "bad"], DRAFT: ["Brouillon", "muted"], EXPIRED: ["Expirée", "muted"], SOLD: ["Vendue", "info"], RENTED: ["Louée", "info"], ARCHIVED: ["Archivée", "muted"] };
+      const TX = { sale: "Vente", rent: "Location" };
+      const count = (fn) => rows.filter(fn).length;
+      const byStatus = new Map(); for (const r of rows) byStatus.set(r.status, (byStatus.get(r.status) ?? 0) + 1);
+      const when = clock().toISOString();
       return buildPdf({
-        title: "Ika So - Rapport des annonces",
-        subtitle: `Rapport du Super Administrateur. Généré le ${new Date().toISOString().replace("T", " ").slice(0, 16)} (UTC). ${rows.length} annonce(s), des plus récentes aux plus anciennes (500 au plus). Les textes longs sont coupés : le CSV contient les valeurs complètes.`,
-        footer: "Ika So - confidentiel",
-        sections: [{ heading: "Annonces", table: { head: ["Date", "Titre", "Quartier", "Type", "Prix (XOF)", "Statut"], widths: [1, 2.6, 1.5, 1.2, 1.2, 1], rows: rows.map((r) => [r.created_at?.toISOString?.().slice(0, 10) ?? "", r.title ?? "", r.neighborhood ?? "", `${r.transaction_type ?? ""} ${r.category ?? ""}`.trim(), r.price == null ? "" : Number(r.price).toLocaleString("fr-FR"), r.status ?? ""]) } }],
+        eyebrow: "Super Administrateur · Annonces",
+        title: "Rapport des annonces",
+        subtitle: `Généré le ${fmtLong(when)} (UTC). ${fmtNumber(rows.length)} annonce(s), des plus récentes aux plus anciennes (500 au plus). Les textes longs sont coupés : le CSV contient les valeurs complètes.`,
+        generatedAt: when, footer: "Ika Sô · Rapport des annonces · document confidentiel",
+        sections: [
+          { heading: "Vue d'ensemble", kpis: { cols: 4, items: [
+            { label: "Annonces listées", value: fmtNumber(rows.length) }, { label: "Publiées", value: fmtNumber(count((r) => r.status === "PUBLISHED")), tone: "ok" },
+            { label: "En attente de validation", value: fmtNumber(count((r) => r.status === "PENDING")), tone: "warn" },
+            { label: "Vente / location", value: `${fmtNumber(count((r) => r.transaction_type === "sale"))} / ${fmtNumber(count((r) => r.transaction_type === "rent"))}` },
+          ] } },
+          ...(byStatus.size ? [{ heading: "Répartition par statut", table: { head: ["Statut", "Annonces", "Part"], widths: [3, 1, 1], align: ["l", "r", "r"], rows: [...byStatus.entries()].sort((x, y) => y[1] - x[1]).map(([k, v]) => { const [lab, tone] = STATUS[k] ?? [k, "muted"]; return [{ t: lab, c: tone, b: true }, fmtNumber(v), `${String(Math.round((v / rows.length) * 1000) / 10).replace(".", ",")} %`]; }) } }] : []),
+          { heading: "Liste des annonces", table: { head: ["Date", "Titre", "Quartier", "Type", "Prix (XOF)", "Statut"], widths: [1, 2.7, 1.5, 1.3, 1.3, 1.1], align: ["l", "l", "l", "l", "r", "l"], rows: rows.map((r) => { const [lab, tone] = STATUS[r.status] ?? [r.status ?? "", "muted"]; return [r.created_at ? fmtDate(r.created_at) : "", r.title ?? "", r.neighborhood ?? "", `${TX[r.transaction_type] ?? r.transaction_type ?? ""} ${r.category ?? ""}`.trim(), r.price == null ? "" : fmtNumber(r.price), { t: lab, c: tone, b: true }]; }) } },
+        ],
       });
     },
     /** Liste des contacts et visites récents (CRM basique) pour le personnel. */

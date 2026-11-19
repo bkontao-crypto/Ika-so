@@ -1,7 +1,7 @@
 // Habitudes de connexion (Super Administrateur) : fonctions pures, sans base. Source : journal de connexions (ika_security_log, LOGIN réussies).
 // Heures en UTC, identiques à l'heure du Mali (UTC+0).
 import { csvCell } from "./activity-feed.js";
-import { buildPdf } from "./simple-pdf.js";
+import { buildPdf, fmtDate, fmtDateTime, fmtLong, fmtNumber } from "./simple-pdf.js";
 
 export const HOUR_BUCKETS = Object.freeze([[0, 6], [6, 9], [9, 12], [12, 14], [14, 18], [18, 21], [21, 24]]);
 export const DAY_NAMES = Object.freeze(["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]);
@@ -74,22 +74,45 @@ export function connectionsToCsv(c, generatedAt) {
   return `\uFEFF${lines.join("\r\n")}\r\n`;
 }
 
-/** PDF de synthèse : périmètre, indicateurs, tranches horaires, jours, définitions. */
+/** PDF de synthèse aux couleurs de la marque : cartes d'indicateurs, graphiques (heures, jours), tableaux, définitions. */
 export function connectionsToPdf(c, generatedAt) {
-  const rows = connectionRows(c, generatedAt);
-  const section = (name) => rows.filter((r) => r[0] === name).map(([, label, value]) => [label, String(value)]);
+  const n = (v) => (v == null ? "—" : fmtNumber(v));
+  const pct = (v) => (v == null ? "—" : `${String(v).replace(".", ",")} %`);
+  const peak = c.peakHour;
+  const dayLabel = (d) => `${d.slice(8)}/${d.slice(5, 7)}`;
+  const busiestIdx = (() => { const max = Math.max(0, ...c.perDay.map((d) => d.logins)); return max > 0 ? c.perDay.findIndex((d) => d.logins === max) : -1; })();
+  const devEntries = Object.entries(c.devices).sort((a, b) => b[1] - a[1]);
+  const devTotal = devEntries.reduce((a, [, v]) => a + v, 0);
+  const peakBucket = peak == null ? -1 : c.buckets.findIndex((b) => peak >= b.from && peak < b.to);
   return buildPdf({
-    title: "Ika So - Habitudes de connexion",
-    subtitle: `Rapport du Super Administrateur. Généré le ${stamp(generatedAt)} (UTC, identique à l'heure du Mali). Période : ${c.days} jour(s).`,
-    footer: "Ika So - confidentiel",
+    eyebrow: "Super Administrateur · Activité et sécurité",
+    title: "Habitudes de connexion",
+    subtitle: `Généré le ${fmtLong(generatedAt)} (UTC, identique à l'heure du Mali) · ${c.days} dernier(s) jour(s) · mesuré depuis le ${c.since ? fmtDate(c.since) : "—"}`,
+    generatedAt, footer: "Ika Sô · Habitudes de connexion · document confidentiel",
     sections: [
-      { heading: "Périmètre", rows: section("Périmètre") },
-      { heading: "Indicateurs", rows: section("Indicateurs") },
-      { heading: "Tranches horaires (UTC)", rows: section("Tranches horaires (UTC)") },
-      { heading: "Semaine et week-end", rows: section("Semaine et week-end") },
-      { heading: "Appareils", rows: section("Appareils").length ? section("Appareils") : [["Aucune connexion sur la période", "—"]] },
-      { heading: "Connexions par jour", table: { head: ["Jour", "Connexions", "Comptes distincts"], rows: c.perDay.map((d) => [d.day, d.logins, d.users]) } },
-      { heading: "Définitions et limites", paragraphs: c.notes },
+      { heading: "Vue d'ensemble", caption: "Connexions réussies enregistrées au journal de sécurité du site.", kpis: { cols: 4, items: [
+        { label: "Connexions réussies", value: n(c.totals.logins), sub: `sur ${c.days} jour(s)` },
+        { label: "Connectés · 24 h", value: n(c.active.last24h), sub: "comptes distincts" }, { label: "Connectés · 7 jours", value: n(c.active.last7d), sub: "comptes distincts" }, { label: "Connectés · 30 jours", value: n(c.active.last30d), sub: "comptes distincts" },
+        { label: "Sans connexion · 30 j", value: n(c.inactive.since30d), sub: "dernière connexion plus ancienne", tone: "warn" }, { label: "Sans connexion · 60 j", value: n(c.inactive.since60d), sub: "dernière connexion plus ancienne", tone: "warn" },
+        { label: "Sans connexion · 90 j", value: n(c.inactive.since90d), sub: "dernière connexion plus ancienne", tone: "bad" }, { label: "Aucune connexion notée", value: n(c.neverLoggedIn), sub: c.accounts == null ? undefined : `sur ${n(c.accounts)} comptes`, tone: "warn" },
+      ] } },
+      { heading: "Rythme de la journée", caption: peak == null ? "Aucune connexion sur la période." : `Connexions par heure (UTC). Heure de pointe : ${String(peak).padStart(2, "0")} h, en doré.`, blocks: [
+        { chart: { values: c.byHour, labels: c.byHour.map((_, i) => String(i)), highlight: peak ?? -1, labelEvery: 1, xTitle: "Heure de la journée (UTC)" } },
+        { table: { head: ["Tranche horaire (UTC)", "Connexions", "Part du total"], widths: [2.2, 1, 1], align: ["l", "r", "r"], rows: c.buckets.map((b, i) => { const hi = i === peakBucket; const cell = (t) => (hi ? { t, c: "ok", b: true } : t); return [cell(b.label), cell(fmtNumber(b.count)), cell(pct(b.sharePct))]; }) } },
+      ] },
+      { heading: "Semaine et week-end", rows: [
+        ["Lundi à vendredi", { t: `${fmtNumber(c.week.weekday)} · moyenne ${c.week.weekdayAvgPerDay == null ? "—" : String(c.week.weekdayAvgPerDay).replace(".", ",")} par jour` }],
+        ["Samedi et dimanche", { t: `${fmtNumber(c.week.weekend)} · moyenne ${c.week.weekendAvgPerDay == null ? "—" : String(c.week.weekendAvgPerDay).replace(".", ",")} par jour` }],
+        ["Jour le plus fréquenté", c.week.busiestDay ?? "—"],
+      ] },
+      { heading: "Appareils", blocks: devEntries.length
+        ? [{ table: { head: ["Type d'appareil", "Connexions", "Part du total"], widths: [2.2, 1, 1], align: ["l", "r", "r"], rows: devEntries.map(([k, v]) => [k, fmtNumber(v), pct(devTotal ? Math.round((v / devTotal) * 1000) / 10 : null)]) } }]
+        : [{ notes: ["Aucune connexion sur la période."] }] },
+      { heading: "Connexions par jour", caption: busiestIdx >= 0 ? `Jour le plus chargé de la période : ${fmtDate(c.perDay[busiestIdx].day)}, en doré.` : "Aucune connexion sur la période.", blocks: [
+        { chart: { values: c.perDay.map((d) => d.logins), labels: c.perDay.map((d) => dayLabel(d.day)), highlight: busiestIdx, labelEvery: Math.ceil(c.perDay.length / 14), xTitle: "Jour (jj/mm)" } },
+        ...(c.perDay.length <= 31 ? [{ table: { head: ["Jour", "Connexions", "Comptes distincts"], widths: [2, 1, 1], align: ["l", "r", "r"], rows: c.perDay.map((d) => [fmtDate(d.day), fmtNumber(d.logins), fmtNumber(d.users)]) } }] : [{ notes: ["Le détail jour par jour est dans l'export CSV."] }]),
+      ] },
+      { heading: "Définitions et limites", notes: c.notes },
     ],
   });
 }

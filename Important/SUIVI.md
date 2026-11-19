@@ -1,7 +1,18 @@
 # Ika So — Suivi du projet
 
-Mis à jour le 19 novembre 2026 (exports PDF en plus du CSV) — auparavant : 19 novembre 2026 (Super Administrateur : habitudes de connexion) — auparavant : 19 novembre 2026 (lien « Gérer mes choix » sur les pages serveur) — auparavant : 19 novembre 2026 (cookies, lot C : registre des cookies et prestataires) — auparavant : 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
+Mis à jour le 19 novembre 2026 (mise en page professionnelle des PDF) — auparavant : 19 novembre 2026 (exports PDF en plus du CSV) — auparavant : 19 novembre 2026 (Super Administrateur : habitudes de connexion) — auparavant : 19 novembre 2026 (lien « Gérer mes choix » sur les pages serveur) — auparavant : 19 novembre 2026 (cookies, lot C : registre des cookies et prestataires) — auparavant : 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
+
+## PDF : mise en page professionnelle aux couleurs de la marque (19 novembre 2026)
+**À réaliser** : rendre tous les PDF bien structurés, très soignés, avec des couleurs professionnelles. Branche `feat/pdf-design`. Aucune migration, aucune donnée modifiée.
+**Réalisé** :
+- `server/lib/simple-pdf.js` réécrit : bandeau d'en-tête vert forêt avec filet doré, mention « CONFIDENTIEL », cartes d'indicateurs (couleur selon le niveau), histogrammes (point fort en doré), tableaux à en-tête répété et lignes alternées, encadré de notes, pied de page « Page n / N ». Toujours sans dépendance.
+- Les 4 PDF repris : habitudes de connexion (avec graphiques), journal des mouvements (catégories, événements colorés par gravité), rapport des annonces (statuts en français et en couleur), rapport complet de la plateforme (ancien PDF invalide remplacé).
+- Libellés des cartes raccourcis, espacement des lettres corrigé (il se propageait aux textes suivants).
+**Vérifié** : `npm test` : 340 réussis, 0 échec, 14 ignorés. PDF d'essai validés avec `qpdf --check`, rendus en images et relus à l'œil (pages 1 des quatre documents).
+**Non vérifié** : téléchargement réel depuis le site ; ouverture sur téléphone et Adobe ; pages suivantes relues seulement par extraction de texte.
+**À faire** : PDF des deux exports faits dans le navigateur (CRM, audit de modération) : génération côté serveur ou navigateur, à décider. Colonne « Type » des annonces à affiner si besoin.
+**Risques** : faibles. Retour arrière : `git revert -m 1 <commit de fusion>`.
 
 ## Exports : le PDF s'ajoute au CSV (19 novembre 2026)
 **À réaliser** : règle du propriétaire : tout export CSV existe aussi en PDF. Branche `feat/superadmin-connexions-export`. Lecture seule, aucune migration, aucune donnée modifiée.

@@ -4,7 +4,7 @@
 // Vie privée : le contenu des messages privés n'est jamais lu ; aucune adresse IP ; les téléphones et e-mails ne sont pas projetés.
 // Module pur (aucune dépendance à la base) : testé avec une fausse base dans test/owner-center.test.js.
 
-import { buildPdf } from "./simple-pdf.js";
+import { buildPdf, fmtDate, fmtDateTime, fmtLong, fmtNumber } from "./simple-pdf.js";
 
 export const CATEGORIES = Object.freeze([
   { key: "admin", label: "Équipe & administration" },
@@ -249,13 +249,25 @@ export const PDF_MAX_EVENTS = 500;
 export function eventsToPdf(events, { generatedAt, total } = {}) {
   const label = Object.fromEntries(CATEGORIES.map((c) => [c.key, c.label]));
   const shown = events.slice(0, PDF_MAX_EVENTS);
-  const stamp = String(generatedAt ?? "").replace("T", " ").slice(0, 16);
-  const note = total > shown.length ? `Seules les ${shown.length} lignes les plus récentes sur ${total} sont imprimées ; l'export CSV contient la liste complète (5 000 lignes au plus).` : `${shown.length} ligne(s), de la plus récente à la plus ancienne.`;
+  const byCat = new Map(); const actors = new Set();
+  for (const e of shown) { byCat.set(e.category, (byCat.get(e.category) ?? 0) + 1); const a = e.actor?.id ?? e.actor?.name; if (a) actors.add(a); }
+  const oldest = shown.at(-1)?.at; const newest = shown[0]?.at;
+  const cats = [...byCat.entries()].sort((x, y) => y[1] - x[1]);
+  const cut = total > shown.length;
   return buildPdf({
-    title: "Ika So - Journal des mouvements",
-    subtitle: `Rapport du Super Administrateur. Généré le ${stamp} (UTC, identique à l'heure du Mali). ${note}`,
-    footer: "Ika So - confidentiel",
-    sections: [{ heading: "Mouvements", table: { head: ["Date (UTC)", "Catégorie", "Événement", "Acteur", "Objet"], widths: [1.15, 1.2, 2.2, 1.3, 1.6], rows: shown.map((e) => [String(e.at ?? "").replace("T", " ").slice(0, 16), label[e.category] ?? e.category, e.label, e.actor?.name ?? e.actor?.id ?? "", e.object?.label ?? e.object?.id ?? ""]) } }],
+    eyebrow: "Super Administrateur · Traçabilité",
+    title: "Journal des mouvements",
+    subtitle: `Généré le ${fmtLong(generatedAt)} (UTC, identique à l'heure du Mali). ${cut ? `Les ${shown.length} lignes les plus récentes sur ${fmtNumber(total)} sont imprimées ; l'export CSV contient la liste complète (5 000 lignes au plus).` : `${fmtNumber(shown.length)} ligne(s), de la plus récente à la plus ancienne.`}`,
+    generatedAt, footer: "Ika Sô · Journal des mouvements · document confidentiel",
+    sections: [
+      { heading: "Vue d'ensemble", kpis: { cols: 4, items: [
+        { label: "Lignes imprimées", value: fmtNumber(shown.length), sub: cut ? `sur ${fmtNumber(total)} disponibles` : "liste complète" },
+        { label: "Catégories", value: fmtNumber(byCat.size) }, { label: "Acteurs distincts", value: fmtNumber(actors.size) },
+        { label: "Période imprimée", value: oldest ? fmtDate(oldest) : "—", sub: newest ? `au ${fmtDate(newest)}` : undefined },
+      ] } },
+      ...(cats.length ? [{ heading: "Répartition par catégorie", table: { head: ["Catégorie", "Lignes", "Part"], widths: [3, 1, 1], align: ["l", "r", "r"], rows: cats.map(([k, v]) => [label[k] ?? k, fmtNumber(v), `${String(Math.round((v / shown.length) * 1000) / 10).replace(".", ",")} %`]) } }] : []),
+      { heading: "Mouvements", caption: "Du plus récent au plus ancien. La couleur de l'événement indique sa gravité : vert normal, orange à surveiller, rouge sensible.", table: { head: ["Date (UTC)", "Catégorie", "Événement", "Acteur", "Objet"], widths: [1.2, 1.2, 2.2, 1.3, 1.6], rows: shown.map((e) => [fmtDateTime(e.at), label[e.category] ?? e.category, { t: e.label, c: e.tone === "ok" || e.tone === "warn" || e.tone === "bad" || e.tone === "info" ? e.tone : null }, e.actor?.name ?? e.actor?.id ?? "", e.object?.label ?? e.object?.id ?? ""]) } },
+    ],
   });
 }
 export function eventsToCsv(events) {
