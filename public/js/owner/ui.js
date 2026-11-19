@@ -226,25 +226,37 @@ export function openDrawer(title, ...body) {
 export function closeDrawer() { drawerEl?.remove(); overlayEl?.remove(); drawerEl = overlayEl = null; }
 document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawerEl) closeDrawer(); });
 
-/** Dialogue de formulaire. fields : [{ name, label, type, options, required, value }] → promesse de valeurs ou null. */
+/** Dialogue de formulaire. fields : [{ name, label, type, options, required, value, min, max, hint }] → promesse de valeurs ou null.
+ *  Les erreurs (champ vide, texte trop court) s'affichent sous le champ concerné, dans le dialogue. */
 export function formDialog(title, fields, { submit = "Valider", intro } = {}) {
   return new Promise((resolve) => {
-    const inputs = {};
+    const inputs = {}, errs = {}, labels = {};
     const rows = fields.map((f) => {
       const el = f.type === "select" ? h("select", { class: "input" }, f.options.map((o) => h("option", { value: o.value ?? o }, o.label ?? o)))
-        : f.type === "textarea" ? h("textarea", { class: "input" }) : h("input", { class: "input", type: f.type ?? "text", maxlength: f.max ?? 200 });
+        : f.type === "textarea" ? h("textarea", { class: "input", rows: 4, maxlength: f.max ?? 500 }) : h("input", { class: "input", type: f.type ?? "text", maxlength: f.max ?? 200 });
       if (f.value != null) el.value = f.value;
       inputs[f.name] = el;
-      return h("label", { class: "field" }, f.label, el);
+      errs[f.name] = h("div", { class: "err", role: "alert" });
+      el.addEventListener("input", () => { errs[f.name].textContent = ""; labels[f.name].classList.remove("bad"); });
+      labels[f.name] = h("label", { class: "field" }, f.label, el, f.hint ? h("div", { class: "hint" }, f.hint) : null, errs[f.name]);
+      return labels[f.name];
     });
     const dlg = h("dialog", { "aria-label": title }, h("div", { class: "pad" }, h("h2", null, title), intro ? h("p", { class: "muted small" }, intro) : null, ...rows,
       h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => {
-        const out = {};
-        for (const f of fields) { out[f.name] = inputs[f.name].value.trim(); if (f.required && !out[f.name]) { toast(`« ${f.label} » est obligatoire.`, true); return; } }
+        const out = {}; let first = null;
+        for (const f of fields) {
+          out[f.name] = inputs[f.name].value.trim();
+          const need = f.min ?? (f.required ? 1 : 0);
+          if (out[f.name].length < need) {
+            errs[f.name].textContent = out[f.name] ? `Précisez davantage (au moins ${need} caractères).` : "Ce champ est obligatoire.";
+            labels[f.name].classList.add("bad"); first ??= inputs[f.name];
+          }
+        }
+        if (first) { first.focus(); return; }
         dlg.close("ok"); resolve(out);
       } }, submit), h("button", { class: "btn", type: "button", onClick: () => dlg.close("no") }, "Annuler"))));
     dlg.addEventListener("close", () => { dlg.remove(); if (dlg.returnValue !== "ok") resolve(null); });
-    document.body.append(dlg); dlg.showModal();
+    document.body.append(dlg); dlg.showModal(); inputs[fields[0]?.name]?.focus();
   });
 }
 export const confirmDialog = async (title, text, label = "Confirmer") => {

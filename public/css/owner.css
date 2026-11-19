@@ -297,3 +297,19 @@ dialog::backdrop{background:rgba(5,30,20,.55)}dialog .pad{padding:20px;display:g
 .ps-tab:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 .ps-pane{display:grid;gap:14px;min-width:0}
 .ps-pane[hidden]{display:none}
+
+/* ---------- Aperçu protégé d'une pièce justificative ---------- */
+.pv-back{position:fixed;inset:0;z-index:200;background:rgba(5,30,20,.72);display:grid;place-items:center;padding:12px}
+.pv{background:var(--card);color:var(--ink);border-radius:16px;box-shadow:var(--shadow-lg);width:min(960px,100%);max-height:calc(100vh - 24px);display:flex;flex-direction:column;overflow:hidden}
+.pv-head{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:12px 16px;border-bottom:1px solid var(--line)}
+.pv-head strong{flex:1;min-width:140px}.pv-note{font-size:12px;color:var(--muted,#5b6b63)}
+.pv-body{overflow:auto;padding:8px;display:grid;gap:10px;justify-items:center;background:#e9eee9;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.pv-img{max-width:100%;height:auto;-webkit-user-drag:none;pointer-events:none}
+.pv-page{max-width:100%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.2)}
+.pv-wait{padding:30px;color:var(--muted,#5b6b63)}
+body.pv-open{overflow:hidden}
+@media print{.pv-back{display:none!important}}
+/* Champ en erreur dans un dialogue de formulaire */
+dialog .field .err{color:#b42318;font-size:13px;margin-top:4px}
+dialog .field.bad .input{border-color:#b42318}
+dialog .field .hint{color:var(--muted,#5b6b63);font-size:12px;margin-top:4px}
