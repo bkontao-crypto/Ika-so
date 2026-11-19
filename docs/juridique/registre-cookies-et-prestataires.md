@@ -44,5 +44,5 @@ Polices et bibliothèques : hébergées chez nous (`/fonts`, `/vendor`), aucun C
 ## 5. Points ouverts
 - Valider ce registre et la politique par un juriste malien ; formalités APDP et transferts hors du Mali (voir `note-cadre-juridique-mali.md`).
 - Confirmer sur Render quels prestataires sont réellement activés, puis mettre à jour la colonne « État ».
-- Les pages rendues côté serveur (quartiers, guides) n'ont pas encore le lien « Gérer mes choix » (lot A).
+- Le lien « Gérer mes choix » est présent sur les pages rendues côté serveur (quartiers, guides, agences, annonces) ; `/mentions-legales` et la fiche imprimable ne l'ont pas.
 - Lot D (preuve de consentement côté serveur) : seulement si le juriste l'exige.
