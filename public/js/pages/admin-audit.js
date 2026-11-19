@@ -24,7 +24,8 @@ export async function adminAuditPage() {
     ),
     h("button", { class: "btn", type: "submit" }, "Filtrer"),
     h("button", { class: "btn btn-quiet", type: "button", onClick: () => { filters.reset(); load(); } }, "Réinitialiser"),
-    h("button", { class: "btn btn-outline", type: "button", onClick: () => exportCsv() }, "Exporter CSV")
+    h("button", { class: "btn btn-outline", type: "button", onClick: () => exportCsv() }, "Exporter CSV"),
+    h("button", { class: "btn btn-outline", type: "button", onClick: () => { const f = new FormData(filters), q = new URLSearchParams(); if (f.get("targetType")) q.set("targetType", f.get("targetType")); if (f.get("targetId")) q.set("targetId", f.get("targetId")); location.href = `/api/staff/moderation-audit.pdf?${q}`; } }, "Exporter PDF")
   );
 
   const tableWrap = h("div", { class: "card" }, h("p", { class: "muted" }, "Chargement…"));
