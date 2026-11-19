@@ -1,4 +1,5 @@
 import { premiumOrigin } from "../lib/analytics-events.js";
+import { leadsToPdf, moderationAuditToPdf } from "../lib/table-pdfs.js";
 import { POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
 import { Router } from "express";
 import { AppError, forbidden } from "../lib/errors.js";
@@ -353,6 +354,13 @@ router.get("/listings/:id", async (req, res) => {
       limit: Number(req.query.limit) || 100,
       offset: Number(req.query.offset) || 0,
     }));
+  });
+  router.get("/me/crm/leads.pdf", async (req, res) => {
+    const leads = await crm.list(requireUser(req), { status: clean(req.query.status, 20) || undefined, limit: 500, offset: 0 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=leads.pdf");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(leadsToPdf(leads));
   });
   router.get("/me/crm/stats", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
@@ -1057,6 +1065,14 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.post("/staff/partners/:id/delete", async (req, res) => res.json(await partners.remove(requireUser(req), id(req))));
   router.post("/staff/partner-logo", async (req, res) => res.status(201).json(await partners.uploadLogo(requireUser(req), req.body?.dataUrl)));
 
+  router.get("/staff/moderation-audit.pdf", async (req, res) => {
+    await accounts.requireStaff(requireUser(req), "ADMIN");
+    const rows = await moderationAudit.list({ targetType: req.query.targetType || undefined, targetId: req.query.targetId || undefined, actorId: req.query.actorId || undefined, limit: 500, offset: 0 });
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", "attachment; filename=audit-moderation.pdf");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(moderationAuditToPdf(rows));
+  });
   // ---------- Centre de contrôle (droits vérifiés par chaque service) ----------
   router.get("/staff/queue", async (req, res) => res.json(await moderation.queue(await requireOwnerGate(req, "moderation"))));
   // ---------- Journal d'audit de modération (E09) ----------

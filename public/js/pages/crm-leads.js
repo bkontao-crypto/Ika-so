@@ -50,7 +50,8 @@ export async function crmLeadsPage() {
         h("option", { value: "80" }, "≥ 80 (chaud)")
       )
     ),
-    h("button", { class: "btn btn-outline", type: "button", onClick: () => exportCsv() }, "Exporter CSV")
+    h("button", { class: "btn btn-outline", type: "button", onClick: () => exportCsv() }, "Exporter CSV"),
+    h("a", { class: "btn btn-outline", href: "/api/me/crm/leads.pdf", download: "" }, "Exporter PDF")
   );
 
   const statsEl = h("div", { class: "card" }, h("p", { class: "muted" }, "Chargement des stats…"));
