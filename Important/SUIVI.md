@@ -83,6 +83,14 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - **Non vérifié :** rendu et ajout/suppression réels sur le site (pas d'API ni de base dans mon environnement) ; à contrôler après déploiement.
 - **À faire :** aucun développement restant pour cette demande.
 - **Risques :** faibles (UI seule, routes déjà en production) ; retour arrière : `git revert -m 1 <commit de fusion>`.
+## Audit : tous les onglets du centre sont-ils bien sourcés ? (19 novembre 2026)
+
+- **À réaliser :** vérifier que chaque onglet du Owner Center est relié à sa source API et affiche des chiffres justes.
+- **Méthode (tout est rejouable) :** (1) cartographie des 50 appels GET des écrans vers les routes et fonctions serveur ; (2) base PostgreSQL locale avec les 84 tables issues de toutes les migrations ; (3) les 610 requêtes SQL statiques du serveur préparées sur ce schéma ; (4) les vraies routes du serveur exécutées sur une base remplie (comptes, annonces, paiements, demandes…) : 48 appels sur 52 réussis, les 4 autres sont des cas attendus (comparaison sans paramètres, réclamation inexistante, deux réglages non encore créés) ; (5) les 25 onglets affichés dans Chromium avec ces vraies réponses ; (6) recherche des champs lus par l'interface et absents des réponses.
+- **Résultat :** 25 onglets sur 25 s'affichent sans erreur ; les chiffres contrôlés correspondent aux données de test (publiées, en attente, signalements, pièces, contacts, régions). **Deux champs mal reliés trouvés et corrigés** dans « Annonces & modération » : « Signalements ouverts » et « Nouvelles · 7 jours » restaient vides (l'interface lisait `open_reports` / `new_7d`, le serveur renvoie `openReports` / `newListings7d`). Statuts des visites affichés en français dans « Contacts & visites ».
+- **Déjà corrigé plus tôt le même jour :** annonceurs approuvés non comptés (agences) ; Premium accordé à la main non compté (finances).
+- **Limites :** base de test et non vos données de production ; un onglet vide en test (réclamations, incidents, droits du personnel) n'a pas pu confirmer ses chiffres ; les 65 requêtes SQL dynamiques ne passent que si leur écran est appelé ; le contrôle d'un chiffre reste manuel (le test automatique `api-links` ne vérifie que l'existence des routes).
+
 ## Compteurs du centre : annonceurs approuvés et Premium à la main (19 novembre 2026)
 
 - **À réaliser :** une demande annonceur acceptée disparaissait de la file mais n'était pas comptée dans « Agences & annonceurs » ; vérifier que les écrans sont reliés aux bonnes sources.
