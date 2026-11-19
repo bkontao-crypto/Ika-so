@@ -82,6 +82,7 @@ export function activityView(ctx, { preset } = {}) {
   const unavailable = h("div");
   const timeline = createTimeline(ctx, { onMore: loadMore });
   const sumBox = h("div");
+  const connBox = h("div");
 
   async function init() {
     let cat;
@@ -90,13 +91,13 @@ export function activityView(ctx, { preset } = {}) {
     else if (!state.cats || state.wasAudit) state.cats = new Set(cat.defaultCategories);
     state.wasAudit = isAudit;
     draw(cat);
-    await Promise.all([loadSummary(), loadFeed()]);
+    await Promise.all([loadSummary(), loadFeed(), loadConnections()]);
   }
 
   function draw(cat) {
     const searchInput = h("input", { class: "input", type: "search", placeholder: "Rechercher : nom, annonce, identifiant, détail…", value: state.q, "aria-label": "Rechercher" });
     let t; searchInput.addEventListener("input", () => { clearTimeout(t); t = setTimeout(() => { state.q = searchInput.value.trim(); loadFeed(); }, 350); });
-    const seg = h("div", { class: "seg", role: "group", "aria-label": "Période" }, PERIODS.map(([v, l]) => h("button", { type: "button", "aria-pressed": String(state.period === v), onClick: (e) => { state.period = v; seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false")); e.currentTarget.setAttribute("aria-pressed", "true"); loadSummary(); loadFeed(); } }, l)));
+    const seg = h("div", { class: "seg", role: "group", "aria-label": "Période" }, PERIODS.map(([v, l]) => h("button", { type: "button", "aria-pressed": String(state.period === v), onClick: (e) => { state.period = v; seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", "false")); e.currentTarget.setAttribute("aria-pressed", "true"); loadSummary(); loadFeed(); loadConnections(); } }, l)));
     const chips = h("div", { class: "chips", id: "chips" });
     const liveBtn = h("button", { class: "btn livebtn", type: "button", "aria-pressed": "false", onClick: () => { live = !live; liveBtn.setAttribute("aria-pressed", String(live)); live ? start() : stop(); toast(live ? "Direct activé : mise à jour toutes les 15 s." : "Direct désactivé."); } }, ico("pulse"), "Direct");
     const actorTag = state.actor ? h("button", { class: "chip", type: "button", "aria-pressed": "true", onClick: () => { state.actor = null; actorTag.remove(); loadFeed(); } }, `Acteur : ${state.actor.slice(0, 10)}…`, ico("x")) : null;
@@ -106,7 +107,7 @@ export function activityView(ctx, { preset } = {}) {
         h("div", { class: "actions" }, liveBtn, h("button", { class: "btn", type: "button", onClick: () => { ctx.refresh(); } }, ico("refresh"), "Actualiser"),
           h("a", { class: "btn primary", id: "export", href: "#", onClick: (e) => { e.currentTarget.href = `/api/staff/owner/activity/export.csv?${queryOf()}`; } }, ico("download"), "Exporter CSV"))),
       h("div", { class: "toolbar" }, h("div", { class: "toolrow" }, seg, h("div", { class: "grow" }, searchInput), actorTag), isAudit ? null : chips),
-      unavailable, sumBox,
+      unavailable, sumBox, isAudit ? null : connBox,
       h("div", { class: "card panel" }, h("div", { class: "panelhead" }, h("div", null, h("h2", null, "Chronologie"), h("div", { class: "desc", id: "feeddesc" }, "Du plus récent au plus ancien · cliquez un mouvement pour le détail")), h("span", { class: "tiny muted", id: "livestate" })), timeline.el));
     renderChips(cat, null);
     root.querySelector("#livestate").textContent = "";
@@ -128,6 +129,43 @@ export function activityView(ctx, { preset } = {}) {
     const days = state.period === "all" ? 90 : Math.max(1, Number(state.period));
     sumBox.replaceChildren(skeletons(1, 160));
     try { lastSummary = await api(`/staff/owner/activity/summary?days=${days}`); renderChips(lastCat, lastSummary); drawSummary(lastSummary); } catch (e) { if (!e.stale) sumBox.replaceChildren(errorBox(e.message, loadSummary)); }
+  }
+
+  // Habitudes de connexion : connexions réussies enregistrées au journal de sécurité (le texte « notes » du serveur dit ce que le chiffre veut dire).
+  async function loadConnections() {
+    if (isAudit) return;
+    const days = state.period === "all" ? 90 : Math.max(1, Number(state.period));
+    connBox.replaceChildren(skeletons(1, 160));
+    try { drawConnections(await api(`/staff/owner/activity/connections?days=${Math.max(days, 7)}`)); } catch (e) { if (!e.stale) connBox.replaceChildren(errorBox(e.message, loadConnections)); }
+  }
+
+  function drawConnections(c) {
+    if (!c.available) { connBox.replaceChildren(panel("Habitudes de connexion", "Journal de connexions", h("p", { class: "note warn" }, "Le journal de connexions n'est pas disponible (migration à appliquer)."))); return; }
+    const mini = (l, v, sub) => h("div", { class: "card mini" }, h("small", null, l), h("strong", null, v), sub ? h("small", null, sub) : null);
+    const val = (v) => (v == null ? "—" : nf(v));
+    const peak = c.peakHour;
+    const max = Math.max(1, ...c.byHour);
+    const hours = h("div", { class: "hourbars", role: "img", "aria-label": "Connexions par heure de la journée (UTC, identique à l'heure du Mali)" }, c.byHour.map((v, i) => { const b = h("i", { class: i === peak ? "peak" : v ? "on" : "", title: `${String(i).padStart(2, "0")} h : ${v}` }); b.style.height = `${Math.max(4, (v / max) * 100)}%`; return b; }));
+    const buckets = h("div", null, c.buckets.map((b) => h("div", { class: "actor-row" }, h("span", null, b.label), h("strong", null, `${nf(b.count)}${b.sharePct == null ? "" : ` · ${String(b.sharePct).replace(".", ",")} %`}`))));
+    const w = c.week;
+    const avg = (v) => (v == null ? "—" : String(v).replace(".", ","));
+    const week = h("div", null,
+      h("div", { class: "actor-row" }, h("span", null, "Lundi à vendredi"), h("strong", null, `${nf(w.weekday)} · ${avg(w.weekdayAvgPerDay)} / jour`)),
+      h("div", { class: "actor-row" }, h("span", null, "Samedi et dimanche"), h("strong", null, `${nf(w.weekend)} · ${avg(w.weekendAvgPerDay)} / jour`)),
+      h("div", { class: "actor-row" }, h("span", null, "Jour le plus fréquenté"), h("strong", null, w.busiestDay ?? "—")));
+    const dev = Object.entries(c.devices).sort((a, b) => b[1] - a[1]);
+    const devices = dev.length ? h("div", null, dev.map(([k, v]) => h("div", { class: "actor-row" }, h("span", null, k), h("strong", null, nf(v))))) : h("p", { class: "muted small" }, "Aucune connexion sur la période.");
+    connBox.replaceChildren(
+      h("div", { class: "mini-stats" },
+        mini("Connexions", nf(c.totals.logins), `${c.days} jour(s)`),
+        mini("Comptes connectés", val(c.active.last24h), "24 dernières heures"),
+        mini("Comptes connectés (7 j)", val(c.active.last7d)), mini("Comptes connectés (30 j)", val(c.active.last30d)),
+        mini("Sans connexion depuis 30 j", val(c.inactive.since30d), `${val(c.inactive.since60d)} depuis 60 j · ${val(c.inactive.since90d)} depuis 90 j`),
+        mini("Sans connexion enregistrée", val(c.neverLoggedIn), c.accounts == null ? null : `sur ${nf(c.accounts)} comptes`)),
+      h("div", { class: "split" },
+        panel("Habitudes de connexion", `Rythme de la journée · heure de pointe : ${peak == null ? "—" : `${String(peak).padStart(2, "0")} h`}`, h("div", null, hours, h("div", { class: "hourlabels" }, h("span", null, "0 h"), h("span", null, "12 h"), h("span", null, "23 h")), buckets)),
+        h("div", { class: "sidecol" }, panel("Semaine et week-end", "Connexions réussies", week), panel("Appareils", "Connexions par type d'appareil", devices))),
+      h("p", { class: "muted small" }, `Mesuré depuis : ${c.since ? dateTime(c.since) : "aucune connexion enregistrée"}. `, c.notes.join(" ")));
   }
 
   function drawSummary(sm) {

@@ -6,6 +6,7 @@
 import { badRequest, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { classifyDevice } from "../lib/analytics-events.js";
+import { bucketHours, countDayTypes, peakHour, weekSplit } from "../lib/connection-stats.js";
 import { CATEGORIES, CATEGORY_KEYS, DEFAULT_CATEGORIES, SOURCES, SOURCE_KEYS, buildSourceQuery, eventsToCsv, mergeEvents, selectSources, shapeEvent } from "../lib/activity-feed.js";
 
 const SECURITY_EVENTS = Object.freeze(["REGISTER", "LOGIN", "LOGIN_FAILED", "LOGOUT"]);
@@ -141,6 +142,56 @@ export function createOwnerCenter({ db, accounts, logger = null, clock = () => n
         days: n, from, perDay, bySource, byCategory, byHour, peakHour: max > 0 ? byHour.indexOf(max) : null,
         topActors: actorRows.map((r) => ({ id: r.a, name: r.an || null, count: r.n })),
         totals: { movements: Object.entries(byCategory).reduce((a, [c, v]) => a + (c === "traffic" ? 0 : v), 0), traffic, actors: distinctRows[0]?.n ?? 0 },
+      };
+    },
+
+    /**
+     * Habitudes de connexion : connexions réussies enregistrées au journal de sécurité (LOGIN, issue OK). Rien n'est inventé :
+     * « connexion » = ouverture de session enregistrée (une session dure 30 jours : un compte peut être actif sans nouvelle connexion).
+     * `since` indique le début réel de la mesure ; avant cette date, aucune donnée n'existe.
+     */
+    async connections(userId, { days = 30 } = {}) {
+      await guard(userId);
+      const n = clamp(days, 1, 90, 30);
+      const now = clock();
+      const upper = new Date(now.getTime() + 60_000).toISOString();
+      const keys = dayList(n);
+      const from = `${keys[0]}T00:00:00.000Z`;
+      const ago = (d) => new Date(now.getTime() - d * DAY_MS).toISOString();
+      const where = "event = 'LOGIN' and outcome = 'OK'";
+      const [perDayRows, hourRows, dowRows, deviceRows, activeRows, lastRows, sinceRows, neverRows] = await Promise.all([
+        safe(db.query(`select to_char(occurred_at at time zone 'UTC', 'YYYY-MM-DD') as d, count(*)::int as n, count(distinct user_id)::int as u from ika_security_log where ${where} and occurred_at >= $1 and occurred_at < $2 group by 1`, [from, upper])),
+        safe(db.query(`select extract(hour from occurred_at at time zone 'UTC')::int as h, count(*)::int as n from ika_security_log where ${where} and occurred_at >= $1 and occurred_at < $2 group by 1`, [from, upper])),
+        safe(db.query(`select extract(isodow from occurred_at at time zone 'UTC')::int as d, count(*)::int as n from ika_security_log where ${where} and occurred_at >= $1 and occurred_at < $2 group by 1`, [from, upper])),
+        safe(db.query(`select coalesce(device_type, 'inconnu') as t, count(*)::int as n from ika_security_log where ${where} and occurred_at >= $1 and occurred_at < $2 group by 1`, [from, upper])),
+        safe(db.query(`select count(distinct user_id) filter (where occurred_at >= $1)::int as d1, count(distinct user_id) filter (where occurred_at >= $2)::int as d7, count(distinct user_id)::int as d30 from ika_security_log where ${where} and user_id is not null and occurred_at >= $3 and occurred_at < $4`, [ago(1), ago(7), ago(30), upper])),
+        safe(db.query(`select count(*) filter (where last < $1)::int as i30, count(*) filter (where last < $2)::int as i60, count(*) filter (where last < $3)::int as i90, count(*)::int as known from (select user_id, max(occurred_at) as last from ika_security_log where ${where} and user_id is not null group by user_id) x`, [ago(30), ago(60), ago(90)])),
+        safe(db.query(`select min(occurred_at) as since from ika_security_log where ${where}`)),
+        safe(db.query(`select count(*)::int as never, (select count(*)::int from ika_users) as users from ika_users u where not exists (select 1 from ika_security_log l where l.user_id = u.id and l.event = 'LOGIN' and l.outcome = 'OK')`)),
+      ]);
+      if (!perDayRows) return { available: false, days: n };
+      const perDayMap = new Map(perDayRows.map((r) => [r.d, r]));
+      const perDay = keys.map((d) => ({ day: d, logins: perDayMap.get(d)?.n ?? 0, users: perDayMap.get(d)?.u ?? 0 }));
+      const byHour = Array(24).fill(0);
+      for (const r of hourRows ?? []) byHour[r.h] = r.n;
+      const byIsoDow = {};
+      for (const r of dowRows ?? []) byIsoDow[r.d] = r.n;
+      const types = countDayTypes(keys);
+      const total = perDay.reduce((a, d) => a + d.logins, 0);
+      const act = activeRows?.[0]; const last = lastRows?.[0]; const never = neverRows?.[0];
+      return {
+        available: true, days: n, from, since: sinceRows?.[0]?.since?.toISOString?.() ?? null,
+        totals: { logins: total },
+        perDay, byHour, peakHour: peakHour(byHour), buckets: bucketHours(byHour), week: weekSplit(byIsoDow, types.weekday, types.weekend),
+        devices: Object.fromEntries((deviceRows ?? []).map((r) => [r.t, r.n])),
+        active: { last24h: act?.d1 ?? null, last7d: act?.d7 ?? null, last30d: act?.d30 ?? null },
+        inactive: { since30d: last?.i30 ?? null, since60d: last?.i60 ?? null, since90d: last?.i90 ?? null, accountsWithLogin: last?.known ?? null },
+        neverLoggedIn: never?.never ?? null, accounts: never?.users ?? null,
+        notes: [
+          "Une connexion est une ouverture de session enregistrée. Une session dure 30 jours : un compte peut rester actif sans se reconnecter.",
+          "« Sans connexion enregistrée » : comptes sans aucune connexion au journal depuis le début de la mesure (voir « mesuré depuis »), pas forcément des comptes jamais utilisés.",
+          "Heures en UTC, identiques à l'heure du Mali.",
+        ],
       };
     },
 

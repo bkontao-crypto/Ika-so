@@ -1076,6 +1076,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.get("/staff/owner/dashboard", async (req, res) => res.json(await ownerCenter.dashboard(await requireOwnerModule(req, "dashboard"), { days: Number(req.query.days) || 30 })));
   router.get("/staff/owner/activity/catalog", async (req, res) => res.json(await ownerCenter.catalog(requireUser(req))));
   router.get("/staff/owner/activity/summary", async (req, res) => res.json(await ownerCenter.summary(requireUser(req), { days: Number(req.query.days) || 7 })));
+  router.get("/staff/owner/activity/connections", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.connections(requireUser(req), { days: Number(req.query.days) || 30 })); });
   router.get("/staff/owner/activity/trace", async (req, res) => res.json(await ownerCenter.trace(requireUser(req), { type: clean(req.query.type, 10), id: clean(req.query.id, 80), before: clean(req.query.before, 40), limit: req.query.limit })));
   router.get("/staff/owner/activity/export.csv", async (req, res) => {
     const userId = requireUser(req);
