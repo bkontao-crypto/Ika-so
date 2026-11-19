@@ -63,7 +63,7 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
             kind: "ADVERTISER_APPLICATION",
             title: `Nouvelle demande annonceur : ${who}`,
             body: type === "AGENCE" ? "Demande d'agence immobilière à examiner." : "Demande de particulier à examiner.",
-            link: "/owner",
+            link: "/owner#/requests",
           }).catch(() => undefined)));
         } catch { /* confort : la demande est déjà enregistrée */ }
       }
