@@ -20,12 +20,14 @@
 
 ## Ce que nous ne recueillons pas
 - **Aucune adresse IP n'est enregistrée** par l'application : elle sert seulement, en mémoire, à freiner les abus, et n'est ni stockée ni écrite dans les journaux. ⛔ L'hébergeur, lui, peut en conserver : à vérifier dans ses conditions.
-- Aucun traceur publicitaire, aucune ressource tierce chargée par le site (pas de CDN, pas d'analytique tierce).
+- Aucun traceur publicitaire, pas de CDN, pas d'analytique tierce. Le seul service tiers chargé par le navigateur est le fond de carte Mapbox, **uniquement si vous l'acceptez** (« Cartes et services externes »). Voir `registre-cookies-et-prestataires.md`.
 - Numéro de carte : jamais (le paiement passe par le fournisseur de paiement choisi ⛔).
 
 ## Cookies et stockage dans votre appareil
-- Un cookie de **session** (`ika_session`, HttpOnly, 30 jours) pour vous garder connecté.
-- Dans votre appareil : brouillon d'annonce en cours, copie des dernières annonces vues pour la lecture hors connexion. Rien de privé (messages, compte) n'y est gardé.
+- Un cookie de **session** (`ika_session`, HttpOnly, 30 jours) pour vous garder connecté ; un cookie court (`ika_oauth`, 10 minutes) seulement pendant une connexion par Google. Ils sont nécessaires et ne demandent pas d'accord.
+- Dans votre appareil : votre choix de confidentialité (6 mois), le brouillon d'annonce de votre compte, votre thème clair ou sombre, et une copie des dernières annonces publiques pour la lecture hors connexion. Rien de privé (messages, compte) n'y est gardé.
+- Vos choix : « Gérer mes choix » dans le pied de page. Tout service facultatif est refusé tant que vous n'avez rien accepté : **Statistiques** (comptage des pages vues, sans identifiant ni cookie) et **Cartes et services externes** (fond de carte Mapbox, société américaine, qui reçoit alors votre adresse IP).
+- Liste complète, durées et prestataires : `registre-cookies-et-prestataires.md`.
 
 ## Transferts hors du Mali (art. 11)
 Les serveurs, la base de données et l'envoi de SMS peuvent être situés **hors du Mali**. ⛔ Formalité auprès de l'APDP et pays concernés : à compléter avant l'ouverture au public (point bloquant identifié dans la note juridique).

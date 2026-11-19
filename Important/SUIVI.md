@@ -1,7 +1,17 @@
 # Ika So — Suivi du projet
 
-Mis à jour le 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
+Mis à jour le 19 novembre 2026 (cookies, lot C : registre des cookies et prestataires) — auparavant : 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
+
+## Confidentialité, cookies et traceurs — lot C (19 novembre 2026)
+**À réaliser** : documenter les cookies, le stockage local et les prestataires. Branche `feat/confidentialite-lot-c`. Documentation seule, aucun code modifié.
+**Réalisé** :
+- `docs/juridique/registre-cookies-et-prestataires.md` (nouveau) : 2 cookies (`ika_session`, `ika_oauth`), 7 types de stockage local, mesure d'audience, 9 prestataires (Mapbox, Google, WhatsApp, SMS, paiement, e-mail, webhook d'erreurs, Render), points ouverts. Établi par lecture du code.
+- `docs/juridique/projet-confidentialite.md` : phrase devenue fausse (« aucune ressource tierce ») corrigée ; section « Cookies et stockage » complétée (choix, Statistiques, Mapbox).
+**Vérifié** : `npm test` : 310 réussis, 0 échec, 14 ignorés (inchangé). Contenu relu contre le code (noms, durées et attributs des cookies).
+**Non vérifié** : quels prestataires sont réellement activés sur Render (variables non consultables ici) ; le registre le dit et ne l'affirme pas. Texte non relu par un juriste.
+**À faire** : validation des lots A, B et C par le propriétaire ; relecture juridique (`LEGAL_VALIDATED` reste `false`) ; lot D (preuve serveur) seulement si exigée.
+**Risques** : aucun sur la production (documentation). Retour arrière : `git revert -m 1 <commit de fusion>`.
 
 ## Confidentialité, cookies et traceurs — lot B (18 novembre 2026)
 **À réaliser** : la mesure de page vue (`POST /api/e`) ne part plus sans l'accord « Statistiques ». Branche `feat/confidentialite-lot-b`.
