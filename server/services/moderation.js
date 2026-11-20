@@ -203,11 +203,18 @@ export function createModeration(ctx, accounts, engagement) {
       }));
     },
 
-    async setAccountStatus(userId, targetId, status, rawReason) {
+    async setAccountStatus(userId, targetId, status, rawReason, rawUntil = null) {
       const actor = await accounts.requirePermission(userId, "moderation.restrict");
       const reason = String(rawReason ?? "").trim().slice(0, 500);
       if (targetId === userId) throw forbidden("Vous ne pouvez pas modifier votre propre compte.");
       asBadRequest(() => assertSanction(status, reason));
+      // Durée déterminée : date de fin future (10 ans au plus). Sans date = jusqu'à levée manuelle (à vie pour un blocage).
+      let until = null;
+      if (status !== "ACTIVE" && rawUntil) {
+        until = new Date(rawUntil);
+        if (Number.isNaN(until.getTime()) || until.getTime() <= Date.now() + 60_000) throw badRequest("La date de fin de sanction doit être dans le futur.");
+        if (until.getTime() > Date.now() + 3660 * 86_400_000) throw badRequest("Durée maximale : 10 ans. Sans date, la sanction dure jusqu'à sa levée.");
+      }
       const target = await db.query("select staff_role from ika_profiles where user_id = $1", [targetId]);
       if (!target[0]) throw notFound("Compte introuvable.");
       try {
@@ -218,8 +225,8 @@ export function createModeration(ctx, accounts, engagement) {
       // Sanction, retrait des annonces, fermeture des sessions et trace d'audit : tout ou rien.
       await db.transaction(async (tx) => {
         await tx.query(
-          "update ika_profiles set account_status = $2, status_reason = $3 where user_id = $1",
-          [targetId, status, status === "ACTIVE" ? null : reason],
+          "update ika_profiles set account_status = $2, status_reason = $3, status_until = $4 where user_id = $1",
+          [targetId, status, status === "ACTIVE" ? null : reason, status === "ACTIVE" ? null : until],
         );
         if (status === "BANNED") {
           // Annonces retirées : masquées, plus à la une, visibilité d'origine mémorisée ; sessions fermées.
@@ -238,7 +245,7 @@ export function createModeration(ctx, accounts, engagement) {
             [targetId],
           );
         }
-        await accounts.audit(userId, "SANCTION", null, `${status} ${targetId} ${reason}`, tx);
+        await accounts.audit(userId, "SANCTION", null, `${status} ${targetId} ${reason}${until ? ` jusqu'au ${until.toISOString().slice(0, 10)}` : status === "ACTIVE" ? "" : " (sans date de fin)"}`, tx);
       });
       return { ok: true };
     },

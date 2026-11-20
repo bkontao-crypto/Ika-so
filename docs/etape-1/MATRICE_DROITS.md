@@ -72,7 +72,7 @@ Un admin n'accède à un module « delegable » que si le Superadmin le lui a at
 | `security-log` | Journal de sécurité | **Superadmin seul** | Contient des traces de sécurité sensibles. |
 | `countries` | Pays | **Superadmin seul** | Active un pays entier de la plateforme. |
 
-**31 modules délégables, 12 réservés au Superadmin** (total 43 = tous les segments de `/staff/owner/*` du code ; vérifié par test).
+**32 modules délégables, 12 réservés au Superadmin** (total 44 = tous les segments de `/staff/owner/*` du code ; vérifié par test).
 
 ## 3. Tests exigés à l'étape 3
 Pour chaque route `/staff/*` et `/staff/owner/*` : refus (403) pour un utilisateur ordinaire, un modérateur (Owner Center), et un admin sans attribution ; accès accepté pour le rôle prévu ; action journalisée.

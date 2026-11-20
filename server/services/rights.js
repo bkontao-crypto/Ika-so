@@ -106,7 +106,7 @@ export function createRights({ db }, accounts) {
         for (const id of fileIds) await tx.query("delete from stored_files where id = $1::uuid", [id]);
 
         // Données d'usage.
-        for (const [table, col] of [["ika_sessions", "user_id"], ["ika_otp", "user_id"], ["ika_favorites", "user_id"], ["ika_saved_searches", "user_id"],
+        for (const [table, col] of [["ika_sessions", "user_id"], ["ika_login_history", "user_id"], ["ika_otp", "user_id"], ["ika_favorites", "user_id"], ["ika_saved_searches", "user_id"],
           ["ika_notifications", "user_id"], ["ika_comments", "user_id"], ["ika_threads", "owner_id"], ["ika_threads", "visitor_id"],
           ["ika_visit_requests", "requester_id"], ["ika_visit_requests", "owner_id"], ["ika_listing_drafts", "user_id"], ["ika_alert_prefs", "user_id"], ["ika_notify_prefs", "user_id"],
           ["ika_alert_pending", "user_id"], ["ika_user_blocks", "blocker_id"], ["ika_user_blocks", "blocked_id"], ["ika_profile_contact_events", "user_id"], ["ika_analytics_events", "user_id"], ["ika_analytics_consent", "user_id"], ["ika_visit_sessions", "user_id"], ["ika_profile_contact_events", "advertiser_id"],
