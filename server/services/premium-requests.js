@@ -5,13 +5,20 @@ import { DEFAULT_POLICY, POLICY_KEY, normalizePolicy } from "../lib/payment-poli
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 export const ACCOUNT_TYPES = ["AGENCY", "INDIVIDUAL", "OTHER"];
+/** Les 3 étapes d'étude d'un dossier Premium : indépendantes, validables en même temps, toutes requises pour approuver. */
+export const STEPS = Object.freeze({ 1: "Étude", 2: "Vérification", 3: "Confirmation" });
+const stepNo = (v) => { const n = Math.floor(Number(v)); if (!STEPS[n]) throw badRequest("Étape inconnue (1 étude, 2 vérification, 3 confirmation)."); return n; };
 const cleanPhone = (v) => String(v ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 
 export function createPremiumRequests({ requestsHub, db, accounts, notify, superadminSettings, moderationAudit, payments }) {
   async function policy() {
     return normalizePolicy((await superadminSettings?.get(POLICY_KEY)) ?? DEFAULT_POLICY);
   }
-  const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email, accountType: r.account_type, phone: r.phone, message: r.message, acceptedTermsAt: iso(r.accepted_terms_at), cancelledAt: iso(r.cancelled_at), certified: r.certified === undefined ? undefined : Boolean(r.certified) });
+  const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email, accountType: r.account_type, phone: r.phone, message: r.message, acceptedTermsAt: iso(r.accepted_terms_at), cancelledAt: iso(r.cancelled_at), certified: r.certified === undefined ? undefined : Boolean(r.certified), paid: Boolean(r.paid), reviewDueAt: iso(r.review_due_at) });
+  /** Vue annonceur : l'avancement seulement (jamais le nom des personnes qui étudient le dossier). */
+  const userView = (r, steps = []) => ({ ...view(r), progress: [1, 2, 3].map((n) => steps.some((s) => s.step === n)) });
+  const stepsOf = (q, ids) => (ids.length ? q.query("select s.request_id, s.step, s.done_by, s.done_at, s.note, p.full_name as done_name from ika_premium_request_steps s left join ika_profiles p on p.user_id = s.done_by where s.request_id = any($1::text[]) order by s.step", [ids]) : Promise.resolve([]));
+  const stepView = (s) => ({ step: s.step, label: STEPS[s.step], doneBy: s.done_by, doneByName: s.done_name || s.done_by, doneAt: iso(s.done_at), note: s.note });
 
   /** Profil certifié = agence vérifiée ou titre foncier contrôlé sur une annonce en ligne (même règle que le centre de contrôle). */
   async function isCertified(userId, q = db) {
@@ -30,8 +37,15 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
       await accounts.requireActive(userId);
       await accounts.requireVerifiedPhone(userId);
       const p = await policy();
-      if (await payments.onlineOpen()) throw forbidden("Le paiement en ligne est ouvert : choisissez une formule et payez directement.");
-      const m = Math.floor(Number(months));
+      // Paiement en ligne ouvert : on paie d'abord, le dossier est étudié ensuite. Fermé : dossier d'abord, activation à la main après les 3 étapes.
+      const online = await payments.onlineOpen();
+      let paid = false;
+      if (online) {
+        const prem = (await db.query("select premium_until from ika_profiles where user_id = $1", [userId]))[0];
+        if (!(prem?.premium_until && new Date(prem.premium_until) > new Date())) throw forbidden("Le paiement Premium est activé : payez d'abord, votre dossier sera étudié après le paiement.");
+        paid = true;
+      }
+      const m = paid ? 1 : Math.floor(Number(months));
       if (!Number.isFinite(m) || m < 1 || m > p.manualPremiumMaxMonths) throw badRequest(`Durée invalide (1 à ${p.manualPremiumMaxMonths} mois).`);
       const type = String(accountType ?? "");
       if (!ACCOUNT_TYPES.includes(type)) throw badRequest("Indiquez votre type de compte (agence, particulier ou autre).");
@@ -42,9 +56,9 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
       const pending = await db.query("select id from ika_premium_requests where user_id = $1 and status = 'PENDING'", [userId]);
       if (pending[0]) throw conflict("Une demande Premium est déjà en attente.");
       const id = `pr_${randomUUID()}`;
-      await db.query("insert into ika_premium_requests (id, user_id, months, account_type, phone, message, accepted_terms_at) values ($1, $2, $3, $4, $5, $6, now())", [id, userId, m, type, tel, note]);
+      await db.query("insert into ika_premium_requests (id, user_id, months, account_type, phone, message, accepted_terms_at, paid, review_due_at) values ($1, $2, $3, $4, $5, $6, now(), $7, now() + ($8 || ' days')::interval)", [id, userId, m, type, tel, note, paid, String(p.reviewDelayDays)]);
       await requestsHub?.notifyStaff({ kind: "PREMIUM_REQUEST", title: "Nouvelle demande Premium", body: `${type === "AGENCY" ? "Agence" : type === "INDIVIDUAL" ? "Particulier" : "Professionnel"} · ${m} mois demandés.`, link: "/owner#/requests", exceptUserId: userId, module: "payments" });
-      return { ok: true, id };
+      return { ok: true, id, reviewDelayDays: p.reviewDelayDays };
     },
 
     /** L'annonceur retire sa demande tant qu'elle est en attente. */
@@ -57,7 +71,9 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
     /** Dernière demande de l'annonceur, son historique (10 dernières) et la politique à afficher. */
     async mine(userId) {
       const rows = await db.query("select * from ika_premium_requests where user_id = $1 order by created_at desc limit 10", [userId]);
-      return { request: rows[0] ? view(rows[0]) : null, history: rows.map(view), policy: await policy() };
+      const steps = await stepsOf(db, rows.map((r) => r.id));
+      const mineView = (r) => userView(r, steps.filter((s) => s.request_id === r.id));
+      return { request: rows[0] ? mineView(rows[0]) : null, history: rows.map(mineView), policy: await policy() };
     },
 
     /** File des demandes pour l'équipe (en attente d'abord). */
@@ -68,7 +84,43 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
            from ika_premium_requests r
            join ika_users u on u.id = r.user_id left join ika_profiles p on p.user_id = r.user_id
           order by (r.status = 'PENDING') desc, r.created_at desc limit 200`);
-      return { requests: rows.map(view), policy: await policy() };
+      const steps = await stepsOf(db, rows.map((r) => r.id));
+      return { requests: rows.map((r) => ({ ...view(r), steps: steps.filter((s) => s.request_id === r.id).map(stepView) })), steps: Object.entries(STEPS).map(([n, label]) => ({ step: Number(n), label })), policy: await policy() };
+    },
+
+    /** Valide une étape (1 étude, 2 vérification, 3 confirmation). Les étapes sont indépendantes ; chaque validation est tracée à la personne. */
+    async completeStep(staffId, requestId, step, { note } = {}) {
+      const n = stepNo(step);
+      const why = String(note ?? "").trim().slice(0, 300);
+      return db.transaction(async (tx) => {
+        const r = (await tx.query("select * from ika_premium_requests where id = $1 for update", [String(requestId ?? "").slice(0, 80)]))[0];
+        if (!r) throw notFound("Demande introuvable.");
+        if (r.status !== "PENDING") throw conflict("Cette demande a déjà été traitée.");
+        const inserted = await tx.query("insert into ika_premium_request_steps (request_id, step, done_by, note) values ($1, $2, $3, $4) on conflict (request_id, step) do nothing returning step", [r.id, n, staffId, why]);
+        if (!inserted[0]) {
+          const who = (await tx.query("select p.full_name from ika_premium_request_steps s left join ika_profiles p on p.user_id = s.done_by where s.request_id = $1 and s.step = $2", [r.id, n]))[0];
+          throw conflict(`L'étape « ${STEPS[n]} » est déjà validée${who?.full_name ? ` par ${who.full_name}` : ""}.`);
+        }
+        await moderationAudit?.log(staffId, { action: "PREMIUM_STEP_DONE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, step: n, label: STEPS[n], note: why } }).catch(() => {});
+        const done = Number((await tx.query("select count(*)::int as n from ika_premium_request_steps where request_id = $1", [r.id]))[0]?.n ?? 0);
+        return { ok: true, step: n, done, complete: done === 3 };
+      });
+    },
+
+    /** Retire la validation d'une étape (erreur de saisie, élément nouveau) : motif obligatoire, tracé. */
+    async undoStep(staffId, requestId, step, { note } = {}) {
+      const n = stepNo(step);
+      const why = String(note ?? "").trim().slice(0, 300);
+      if (why.length < 3) throw badRequest("Indiquez pourquoi vous retirez cette validation (3 caractères au moins).");
+      return db.transaction(async (tx) => {
+        const r = (await tx.query("select * from ika_premium_requests where id = $1 for update", [String(requestId ?? "").slice(0, 80)]))[0];
+        if (!r) throw notFound("Demande introuvable.");
+        if (r.status !== "PENDING") throw conflict("Cette demande a déjà été traitée.");
+        const gone = await tx.query("delete from ika_premium_request_steps where request_id = $1 and step = $2 returning done_by", [r.id, n]);
+        if (!gone[0]) throw conflict(`L'étape « ${STEPS[n]} » n'était pas validée.`);
+        await moderationAudit?.log(staffId, { action: "PREMIUM_STEP_UNDONE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, step: n, label: STEPS[n], previousBy: gone[0].done_by, note: why } }).catch(() => {});
+        return { ok: true, step: n };
+      });
     },
 
     /** Approuve (1 à maxMois mois, ajoutés au Premium en cours) ou refuse. */
@@ -88,6 +140,16 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
           return { ok: true, status: "REJECTED" };
         }
         if (action !== "APPROVE") throw badRequest("Action inconnue.");
+        const doneSteps = await tx.query("select step, done_by from ika_premium_request_steps where request_id = $1 order by step", [r.id]);
+        const missing = [1, 2, 3].filter((n) => !doneSteps.some((s) => s.step === n));
+        if (missing.length) throw conflict(`Validez d'abord toutes les étapes avant d'approuver (manquantes : ${missing.map((n) => STEPS[n]).join(", ")}).`);
+        if (r.paid) {
+          // Dossier étudié après paiement : le Premium payé est déjà actif, rien à accorder ; l'approbation certifie le compte.
+          await tx.query("update ika_premium_requests set status = 'APPROVED', decided_by = $2, decided_at = now(), decided_note = $3 where id = $1", [r.id, staffId, why]);
+          await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, paid: true, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })) } }).catch(() => {});
+          if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Votre compte Premium est certifié", body: "Votre dossier a été étudié et approuvé par l'équipe Ika So.", link: "#/centre" }).catch(() => {});
+          return { ok: true, status: "APPROVED", paid: true };
+        }
         const granted = Math.floor(Number(months));
         if (!Number.isFinite(granted) || granted < 1 || granted > p.manualPremiumMaxMonths) throw badRequest(`Durée accordée : 1 à ${p.manualPremiumMaxMonths} mois.`);
         const days = granted * 30;
@@ -95,7 +157,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         if (!prof[0]) throw notFound("Profil introuvable.");
         await tx.query("update ika_premium_requests set status = 'APPROVED', granted_months = $2, decided_by = $3, decided_at = now(), decided_note = $4 where id = $1", [r.id, granted, staffId, why]);
         await tx.query("insert into ika_premium_grants (id, user_id, granted_by, days, reason) values ($1, $2, $3, $4, $5)", [`pg_${randomUUID()}`, r.user_id, staffId, days, `Approbation manuelle Premium (${granted} mois)`]);
-        await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted } }).catch(() => {});
+        await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })) } }).catch(() => {});
         const certified = await isCertified(r.user_id, tx); // information seulement (badge de confiance)
         const phoneOk = (await tx.query("select phone_verified_at, phone_channel from ika_profiles where user_id = $1", [r.user_id]).catch(() => []))[0];
         const smsOk = Boolean(phoneOk?.phone_verified_at);

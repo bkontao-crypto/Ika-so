@@ -957,6 +957,8 @@ router.get("/listings/:id", async (req, res) => {
   router.post("/premium/requests/:id/cancel", async (req, res) => res.json(await premiumRequests.cancel(requireUser(req), id(req))));
   router.get("/staff/requests-hub", async (req, res) => { res.setHeader("Cache-Control", "no-store"); const userId = requireUser(req); await services.accounts.requireStaff(userId, "MODERATOR"); res.json(await services.requestsHub.summary(userId)); });
   router.get("/staff/premium-requests", async (req, res) => res.json(await premiumRequests.listForStaff(await requireOwnerGate(req, "payments"))));
+  router.post("/staff/premium-requests/:id/steps/:step", async (req, res) => res.json(await premiumRequests.completeStep(await requireOwnerGate(req, "payments"), id(req), req.params.step, { note: clean(req.body?.note, 300) })));
+  router.post("/staff/premium-requests/:id/steps/:step/undo", async (req, res) => res.json(await premiumRequests.undoStep(await requireOwnerGate(req, "payments"), id(req), req.params.step, { note: clean(req.body?.note, 300) })));
   router.post("/staff/premium-requests/:id/decision", async (req, res) => res.json(await premiumRequests.decide(await requireOwnerGate(req, "payments"), id(req), { action: clean(req.body?.action, 10), months: req.body?.months, note: clean(req.body?.note, 300) })));
   router.post("/payments/checkout", async (req, res) => {
     const userId = requireUser(req);

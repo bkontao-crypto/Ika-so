@@ -49,10 +49,10 @@ export function createRequestsHub({ db, ownerDelegations, notify }) {
       }
       if (okPayments) {
         const rows = await safe(db.query(
-          `select r.id, r.months, r.account_type, r.created_at, p.full_name from ika_premium_requests r left join ika_profiles p on p.user_id = r.user_id where r.status = 'PENDING' order by r.created_at asc limit 8`));
+          `select r.id, r.months, r.account_type, r.created_at, r.paid, r.review_due_at, (select count(*)::int from ika_premium_request_steps s where s.request_id = r.id) as steps_done, p.full_name from ika_premium_requests r left join ika_profiles p on p.user_id = r.user_id where r.status = 'PENDING' order by r.created_at asc limit 8`));
         const n = await safe(db.query("select count(*)::int as n from ika_premium_requests where status = 'PENDING'"));
         sections.push({ key: "premium", title: "Demandes Premium", module: "payments", total: n?.[0]?.n ?? null,
-          items: (rows ?? []).map((r) => ({ id: r.id, title: r.full_name || "Annonceur", detail: `${r.months} mois demandés · ${({ AGENCY: "agence", INDIVIDUAL: "particulier", OTHER: "autre" })[r.account_type] ?? ""}`, createdAt: iso(r.created_at), late: late(r.created_at) })) });
+          items: (rows ?? []).map((r) => ({ id: r.id, title: r.full_name || "Annonceur", detail: `${r.paid ? "Payé, dossier à étudier" : `${r.months} mois demandés`} · ${({ AGENCY: "agence", INDIVIDUAL: "particulier", OTHER: "autre" })[r.account_type] ?? ""} · étapes ${r.steps_done ?? 0}/3`, createdAt: iso(r.created_at), late: r.review_due_at ? new Date(r.review_due_at).getTime() < Date.now() : late(r.created_at) })) });
       }
       const pending = sections.reduce((s, x) => s + (x.total ?? 0), 0);
       return { sections, pending, lateAfterHours: LATE_HOURS };
