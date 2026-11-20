@@ -175,7 +175,8 @@ body { background: var(--page); color: var(--ink); font-family: var(--font); }
 .icon-btn svg.ic { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .header-actions { margin-left: 4px; }
 .header-publish { white-space: nowrap; }
-.profile { display: grid; place-items: center; text-decoration: none; }
+.profile { display: grid; place-items: center; text-decoration: none; overflow: hidden; }
+.profile-photo { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; display: block; }
 
 /* Bannière : photo et couleurs réglables depuis l'administration (--hero-*) */
 .hero { padding: 38px 0 24px; }

@@ -1,7 +1,7 @@
 {
   "version": "0.2",
   "date": "2026-11-11",
-  "statut": "Proposition à confirmer (DEC-003)",
+  "statut": "DEC-003 tranchée le 19 novembre 2026 : la liste de modules délégables du code (DELEGABLE_MODULES, 28 modules) est conservée ; cette matrice reste un inventaire des routes, non une liste de droits",
   "regle": "Un admin n'accède à un module « delegable » que si le Superadmin le lui a attribué. Les modules « superadmin » ne sont jamais délégables. Modérateurs et utilisateurs : aucun accès à l'Owner Center. Refus par défaut, contrôlé côté serveur.",
   "modules": [
     {

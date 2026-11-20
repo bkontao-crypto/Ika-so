@@ -115,7 +115,9 @@ export function renderChrome() {
     : null;
   const account = S.user
     ? h("details", { class: "profile-menu" },
-        h("summary", { class: "profile", "aria-label": "Mon compte", title: "Mon compte" }, (S.user.name || S.user.fullName || "U").slice(0, 1).toUpperCase()),
+        h("summary", { class: "profile", "aria-label": "Mon compte", title: "Mon compte" }, S.meta?.avatarUrl
+          ? h("img", { class: "profile-photo", src: S.meta.avatarUrl, alt: "", width: 43, height: 43, decoding: "async" })
+          : (S.user.name || S.user.fullName || "U").slice(0, 1).toUpperCase()),
         h("div", { class: "profile-dropdown" },
           h("a", { href: "#/profil" }, "Mon profil"),
           h("a", { href: "#/centre" }, "Mon espace"),

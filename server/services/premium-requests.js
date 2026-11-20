@@ -11,7 +11,16 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
   async function policy() {
     return normalizePolicy((await superadminSettings?.get(POLICY_KEY)) ?? DEFAULT_POLICY);
   }
-  const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email, accountType: r.account_type, phone: r.phone, message: r.message, acceptedTermsAt: iso(r.accepted_terms_at), cancelledAt: iso(r.cancelled_at) });
+  const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email, accountType: r.account_type, phone: r.phone, message: r.message, acceptedTermsAt: iso(r.accepted_terms_at), cancelledAt: iso(r.cancelled_at), certified: r.certified === undefined ? undefined : Boolean(r.certified) });
+
+  /** Profil certifié = agence vérifiée ou titre foncier contrôlé sur une annonce en ligne (même règle que le centre de contrôle). */
+  async function isCertified(userId, q = db) {
+      const r = (await q.query(
+        `select p.agency_verified_at is not null as agency,
+                (select count(*)::int from ika_listings l where l.owner_id = p.user_id and l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN' and (l.expires_at is null or l.expires_at > now()) and l.document_verified_at is not null) as titles
+           from ika_profiles p where p.user_id = $1`, [userId]))[0];
+      return Boolean(r && (r.agency || Number(r.titles) > 0));
+  }
 
   return {
     policy,
@@ -53,7 +62,9 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
     /** File des demandes pour l'équipe (en attente d'abord). */
     async listForStaff() {
       const rows = await db.query(
-        `select r.*, p.full_name as name, u.email from ika_premium_requests r
+        `select r.*, p.full_name as name, u.email,
+                (p.agency_verified_at is not null or exists (select 1 from ika_listings l where l.owner_id = r.user_id and l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN' and (l.expires_at is null or l.expires_at > now()) and l.document_verified_at is not null)) as certified
+           from ika_premium_requests r
            join ika_users u on u.id = r.user_id left join ika_profiles p on p.user_id = r.user_id
           order by (r.status = 'PENDING') desc, r.created_at desc limit 200`);
       return { requests: rows.map(view), policy: await policy() };
@@ -84,8 +95,9 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         await tx.query("update ika_premium_requests set status = 'APPROVED', granted_months = $2, decided_by = $3, decided_at = now(), decided_note = $4 where id = $1", [r.id, granted, staffId, why]);
         await tx.query("insert into ika_premium_grants (id, user_id, granted_by, days, reason) values ($1, $2, $3, $4, $5)", [`pg_${randomUUID()}`, r.user_id, staffId, days, `Approbation manuelle Premium (${granted} mois)`]);
         await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted } }).catch(() => {});
-        if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Premium activé", body: `Votre Premium est activé pour ${granted} mois.`, link: "#/devenir-premium" }).catch(() => undefined);
-        return { ok: true, status: "APPROVED", premiumUntil: iso(prof[0].premium_until) };
+        const certified = await isCertified(r.user_id, tx);
+        if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Premium activé", body: certified ? `Votre Premium est activé pour ${granted} mois. Votre centre de contrôle est ouvert : « Mon espace ».` : `Votre Premium est activé pour ${granted} mois. Dernière étape : faire certifier votre profil (agence : registre de commerce ; particulier : titre foncier d'une annonce). Le centre de contrôle s'ouvrira ensuite.`, link: certified ? "#/centre" : "#/devenir-premium" }).catch(() => undefined);
+        return { ok: true, status: "APPROVED", premiumUntil: iso(prof[0].premium_until), certified };
       });
     },
   };

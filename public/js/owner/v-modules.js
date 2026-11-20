@@ -1,5 +1,6 @@
 // Modules du Owner Control Center. Chaque vue lit les endpoints existants (/staff/owner/*, /staff/*) : le contrôle des droits reste côté serveur.
 import { api, h, ico, panel, empty, skeletons, errorBox, table, bars, pill, statusPill, nf, fcfa, dateTime, dateOnly, ago, initials, openDrawer, closeDrawer, formDialog, confirmDialog, act, fail, toast, CAT_COLORS } from "./ui.js";
+import { previewDocument } from "./proof-viewer.js";
 
 /** Gabarit : en-tête + chargement asynchrone + reprise sur erreur. build(data, reload) → nœuds. */
 function page(ctx, { eyebrow, title, desc, load, build, actions }) {
@@ -127,13 +128,56 @@ export const permissionsView = (ctx) => page(ctx, {
   },
 });
 
+// ---------- Délégations de modules (DEC-003) ----------
+// Le Superadmin confie des modules du centre de contrôle à un administrateur. Chaque case coche/décoche aussitôt ; le serveur reste la barrière réelle.
+const DELEG_GROUPS = [
+  ["Pilotage", [["dashboard", "Tableau de bord"], ["overview", "Vue générale"], ["activity", "Mouvements du site"], ["charts", "Graphiques"], ["trends", "Tendances"], ["regions", "Régions"], ["report", "Rapports"], ["report.pdf", "Rapport complet PDF"], ["premium-funnel", "Entonnoir Premium"], ["subscriptions", "Abonnements"]]],
+  ["Surveillance", [["monitoring", "Surveillance"], ["health", "État du système"], ["incidents", "Incidents"]]],
+  ["Clients et croissance", [["agencies", "Agences et annonceurs"], ["crm", "CRM"], ["pipeline", "Pipeline"], ["visits", "Visites"], ["marketing", "Marketing"], ["campaigns", "Campagnes"], ["partners", "Partenaires"]]],
+  ["Contenu et confiance", [["moderation", "Annonces et modération"], ["reviews", "Avis"], ["trust", "Confiance et vérifications"], ["complaints", "Réclamations"], ["imports", "Imports"], ["duplicates", "Doublons"]]],
+  ["Comptes et finances", [["users", "Utilisateurs et comptes"], ["payments", "Paiements"]]],
+];
+export const delegationsView = (ctx) => page(ctx, {
+  eyebrow: "SYSTÈME", title: "Délégations de modules",
+  desc: "Confiez à un administrateur l'accès à certains modules du centre de contrôle. Seul le Superadmin peut le faire ; sans délégation, un administrateur n'a accès à aucun module.",
+  load: async () => { const [rows, accounts] = await Promise.all([api("/staff/owner/delegations"), api("/staff/accounts")]); return { rows, accounts }; },
+  build({ rows, accounts }, reload) {
+    const admins = accounts.filter((a) => a.staffRole === "ADMIN");
+    const byUser = new Map();
+    for (const r of rows) { if (!byUser.has(r.user_id)) byUser.set(r.user_id, new Set()); byUser.get(r.user_id).add(r.module); }
+    const total = DELEG_GROUPS.reduce((n, [, m]) => n + m.length, 0);
+    if (!admins.length) return empty("Aucun administrateur parmi les derniers comptes. Nommez-en un depuis « Utilisateurs & comptes » pour pouvoir lui déléguer des modules.", "users");
+    return [
+      minis(mini("Administrateurs", nf(admins.length)), mini("Avec au moins un module", nf(admins.filter((a) => byUser.get(a.userId)?.size).length)), mini("Modules délégables", nf(total))),
+      ...admins.map((a) => {
+        const have = byUser.get(a.userId) ?? new Set();
+        const toggle = (module, on, box) => { box.disabled = true; act(() => api(on ? "/staff/owner/delegations" : "/staff/owner/delegations/revoke", { method: "POST", body: { userId: a.userId, module } }), on ? "Module délégué." : "Délégation retirée.", reload); };
+        const setAll = async (on) => {
+          const todo = DELEG_GROUPS.flatMap(([, m]) => m.map(([k]) => k)).filter((k) => have.has(k) !== on);
+          if (!todo.length) return;
+          if (!(await confirmDialog(on ? "Tout déléguer ?" : "Tout retirer ?", `${a.fullName} ${on ? "recevra" : "perdra"} ${todo.length} module(s).`, on ? "Tout déléguer" : "Tout retirer"))) return;
+          act(async () => { for (const k of todo) await api(on ? "/staff/owner/delegations" : "/staff/owner/delegations/revoke", { method: "POST", body: { userId: a.userId, module: k } }); }, on ? "Modules délégués." : "Délégations retirées.", reload);
+        };
+        const groups = DELEG_GROUPS.map(([name, mods]) => h("div", { class: "stack", style: "gap:6px;min-width:210px;flex:1" },
+          h("b", { class: "small" }, `${name} · ${mods.filter(([k]) => have.has(k)).length}/${mods.length}`),
+          ...mods.map(([k, label]) => { const box = h("input", { type: "checkbox", style: "accent-color:#087448;width:17px;height:17px" }); box.checked = have.has(k); box.addEventListener("change", () => toggle(k, box.checked, box));
+            return h("label", { class: "row", style: "gap:8px;align-items:center;cursor:pointer" }, box, h("span", null, label)); })));
+        return panel(`${a.fullName}`, have.size ? `${have.size} module(s) délégué(s) sur ${total}` : "Aucun module délégué : cet administrateur n'a accès à aucun module du centre de contrôle.",
+          h("div", { class: "stack" },
+            h("div", { class: "row", style: "flex-wrap:wrap;gap:20px;align-items:flex-start" }, ...groups),
+            h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onClick: () => setAll(true) }, "Tout déléguer"), h("button", { class: "btn sm", type: "button", onClick: () => setAll(false) }, "Tout retirer"))));
+      }),
+      panel("Modules réservés au Superadmin", "Jamais délégables : sauvegardes et restaurations, offres, réglages, logo, mentions légales, SEO, assistance IA, journal de sécurité, pays, délégations.", null),
+    ];
+  },
+});
+
 // Demandes annonceurs (repris de l'ancien centre) : approuver, demander des informations, refuser ; pièces consultables.
 const APP_DOC = (l) => (l === "PIECE_IDENTITE" ? "pièce d'identité" : l === "RCCM" ? "RCCM" : "justificatif");
 async function openAppDoc(appId, doc) {
   try {
     const { fileData } = await api(`/staff/advertiser-applications/${encodeURIComponent(appId)}/documents/${encodeURIComponent(doc.id)}`);
-    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
-    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+    await previewDocument(fileData, APP_DOC(doc.label));
   } catch (error) { fail(error); }
 }
 const applicationsPanel = (reload) => {
@@ -172,11 +216,10 @@ export const agenciesView = (ctx) => page(ctx, {
 });
 
 // Pièces justificatives (repris de l'ancien centre) : consultation, acceptation avec contrôle noté, refus motivé.
-const openProof = async (id) => {
+const openProof = async (id, title) => {
   try {
     const { fileData } = await api(`/staff/proofs/${encodeURIComponent(id)}/file`);
-    const bytes = Uint8Array.from(atob(fileData.split(",")[1]), (c) => c.charCodeAt(0));
-    window.open(URL.createObjectURL(new Blob([bytes], { type: fileData.slice(5, fileData.indexOf(";")) })), "_blank", "noopener");
+    await previewDocument(fileData, title || "Pièce justificative");
   } catch (error) { fail(error); }
 };
 const proofsPanel = (proofs, reload) => {
@@ -186,14 +229,14 @@ const proofsPanel = (proofs, reload) => {
       h("p", { class: "muted small" }, `${p.ownerName}${p.declaredDocument ? ` · document déclaré : ${p.declaredDocument}` : ""} · ${dateOnly(p.createdAt ?? p.created_at)}`),
       h("p", { class: "muted small" }, "Un badge n'est donné qu'après un vrai contrôle (cadastre, greffe, mairie…).")),
     h("div", { class: "row" },
-      h("button", { class: "btn sm", type: "button", onClick: () => openProof(p.id) }, ico("external"), "Voir la pièce"),
+      h("button", { class: "btn sm", type: "button", onClick: () => openProof(p.id, p.listingTitle ?? `Agence de ${p.ownerName}`) }, ico("eye"), "Voir la pièce"),
       h("button", { class: "btn primary sm", type: "button", onClick: async () => {
-        const fields = [{ name: "note", label: "Qu'avez-vous contrôlé ? (organisme, numéro)", type: "textarea", required: true, max: 300 }];
-        if (p.kind === "AGENCE") fields.push({ name: "agencyName", label: "Nom de l'agence", required: true, max: 120 });
+        const fields = [{ name: "note", label: "Qu'avez-vous contrôlé ?", type: "textarea", required: true, min: 3, max: 300, hint: "Exemple : titre foncier n° 1234, vérifié au cadastre de Bamako le 19/11." }];
+        if (p.kind === "AGENCE") fields.push({ name: "agencyName", label: "Nom de l'agence", required: true, min: 2, max: 120 });
         const v = await formDialog("Pièce contrôlée", fields, { submit: "Accepter" });
         if (v) decide(p.id, { action: "ACCEPT", note: v.note, agencyName: v.agencyName ?? "" }, "Pièce acceptée, badge donné.");
       } }, ico("check"), "Contrôlée : accepter"),
-      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la pièce", [{ name: "note", label: "Motif du refus", type: "textarea", required: true, max: 300 }], { submit: "Refuser" }); if (v) decide(p.id, { action: "REFUSE", note: v.note }, "Pièce refusée."); } }, "Refuser")));
+      h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Refuser la pièce", [{ name: "note", label: "Motif du refus (transmis au propriétaire)", type: "textarea", required: true, min: 3, max: 300, hint: "Exemple : document illisible, numéro introuvable au cadastre." }], { submit: "Refuser" }); if (v) decide(p.id, { action: "REFUSE", note: v.note }, "Pièce refusée."); } }, "Refuser")));
   return panel(`Pièces à contrôler (${proofs.length})`, null, proofs.length ? h("div", { class: "stack" }, proofs.map(card)) : empty("Aucune pièce en attente.", "check"));
 };
 // Liste noire (repris de l'ancien centre) : téléphones et e-mails bloqués ; les comptes concernés sont bloqués.
@@ -313,7 +356,7 @@ function premiumDecisionControls(r, max, reload) {
 export function premiumRequestsPanel(data, reload) {
   const max = data.policy?.manualPremiumMaxMonths ?? 3;
   return panel("Demandes Premium", `${(data.requests ?? []).filter((r) => r.status === "PENDING").length} en attente · approbation à la main, 1 à ${max} mois`, table([
-    { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || ""), h("small", null, `${PREMIUM_ACCOUNT[r.accountType] ?? "—"}${r.phone ? ` · ${r.phone}` : ""}`), r.message ? h("small", null, `« ${r.message} »`) : null) },
+    { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || ""), r.certified === undefined ? null : h("div", null, r.certified ? pill("ok", "Profil certifié") : pill("warn", "Profil non certifié : centre fermé")), h("small", null, `${PREMIUM_ACCOUNT[r.accountType] ?? "—"}${r.phone ? ` · ${r.phone}` : ""}`), r.message ? h("small", null, `« ${r.message} »`) : null) },
     { label: "Demandé", render: (r) => `${r.months} mois · ${dateTime(r.createdAt)}`, num: true },
     { label: "Statut", render: (r) => pill(r.status === "APPROVED" ? "ok" : "neutral", PREMIUM_STATUS[r.status] ?? r.status) },
     { label: "", render: (r) => (r.status === "PENDING" ? premiumDecisionControls(r, max, reload) : h("div", { class: "item" }, h("small", { class: "muted" }, r.decidedAt ? `${dateTime(r.decidedAt)}${r.status === "APPROVED" ? ` · ${r.grantedMonths} mois` : ""}` : (r.cancelledAt ? dateTime(r.cancelledAt) : "")), r.decidedNote ? h("small", null, r.decidedNote) : null)) },
