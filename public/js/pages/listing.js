@@ -1,10 +1,12 @@
 import { DOCUMENT_DISCLAIMER, REPORT_REASONS, api, fail, formatPrice, h, mount, toast } from "/js/dom.js";
 import { S, app } from "/js/core/state.js";
+import { watchDwell } from "/js/core/analytics.js";
 import { needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
+  watchDwell(item.id ?? id); // durée de visionnage, envoyée à la sortie de la fiche
   const ownerSummary = h("div", { class: "card", style: "margin-top:16px" },
     h("h3", { style: "margin:0 0 8px" }, "Annonceur"),
     h("p", { class: "muted small" }, "Chargement…")

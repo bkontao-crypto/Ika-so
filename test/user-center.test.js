@@ -55,3 +55,28 @@ test("inscription : le choix de données est enregistré (all → accepté, sino
   await assert.rejects(acc.register({ name: "Awa", email: "d@b.ml", password: "motdepasse1", acceptTerms: false, dataConsent: "all" }), /conditions/i);
   assert.equal(getConfig({}).analytics?.enabled ?? getConfig().analytics.enabled, true);
 });
+
+test("durée de visionnage : type autorisé, secondes bornées, liste identique à la contrainte de la migration 074", async () => {
+  const { buildEvent, EVENT_TYPES } = await import("../server/lib/analytics-events.js");
+  const fs = await import("node:fs");
+  const ev = (seconds) => buildEvent("listing_dwell", { listingId: "l1", metadata: { seconds, autre: "x" } }, { eventId: "e1" });
+  assert.deepEqual(ev(47).metadata, { seconds: 47 });
+  assert.deepEqual(ev(0).metadata, {});
+  assert.deepEqual(ev(99999).metadata, {});
+  const sql = fs.readFileSync(new URL("../migrations/074_duree_visionnage.sql", import.meta.url), "utf8");
+  const listed = [...sql.match(/check \(event_type in \(([\s\S]*?)\)\);/)[1].matchAll(/'([a-z_]+)'/g)].map((m) => m[1]);
+  assert.deepEqual([...listed].sort(), [...EVENT_TYPES].sort());
+});
+
+test("services du profil : plafond de 20, doublons refusés, titre obligatoire", async () => {
+  const { createReviews, MAX_SERVICES } = await import("../server/services/reviews.js");
+  let rows = [];
+  const db = { query: async (sql, args = []) => { if (/select lower\(title\)/.test(sql)) return rows; if (/insert into ika_services/.test(sql)) { rows.push({ title: args[2].toLowerCase() }); return []; } return []; } };
+  const r = createReviews({ db, config: {} }, { requireActive: async () => ({}) });
+  assert.equal(MAX_SERVICES, 20);
+  await assert.rejects(r.addService("u1", { title: "x" }), /Titre/);
+  await r.addService("u1", { title: "Gestion locative" });
+  await assert.rejects(r.addService("u1", { title: "gestion LOCATIVE" }), /déjà/);
+  for (let i = 0; i < 19; i += 1) await r.addService("u1", { title: `Service ${i}` });
+  await assert.rejects(r.addService("u1", { title: "Un de trop" }), /20 services/);
+});

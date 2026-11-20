@@ -110,3 +110,5 @@
 
 /* Mobile : le contenu de l'onglet passe avant la colonne « Présentation » */
 @media (max-width:800px){.pa-layout>.pa-main{order:-1}}
+
+.pa-svc{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.pa-svc>div:first-child{flex:1;min-width:0;display:flex;gap:10px;align-items:flex-start}
