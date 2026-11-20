@@ -51,7 +51,7 @@ export async function standardCentre(acc) {
   }
   const first = (d.access.name || S.user?.name || "").split(/\s+/)[0] || "";
   const needsPhone = d.access.premium && d.access.phoneVerified === false; // Premium actif mais numéro non confirmé par SMS : passe avant la certification
-  const needsCert = d.access.premium && !needsPhone && !d.access.certified; // Premium payé mais profil non certifié
+  const needsCert = false; // la certification agence / titre n'est plus une condition : c'est le numéro confirmé qui ouvre le centre
   const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const nav = (label, ic, { id, href, badge, on } = {}) => h(href ? "a" : "button", { class: `esp-nav${on ? " on" : ""}`, type: href ? null : "button", href, onClick: id ? () => go(id) : null }, icon(ic), h("span", null, label), badge ? h("em", null, String(badge)) : null);
@@ -72,7 +72,7 @@ export async function standardCentre(acc) {
     nav("Mes paiements", "card", { href: "#/paiements" }),
     nav("Paramètres", "settings", { href: "#/profil" }),
     locked("Statistiques"), locked("Carte"), locked("Alertes"), locked("Échéances"),
-    h("div", { class: "esp-prem" }, h("strong", null, "Compte standard"), h("small", null, needsPhone ? "Votre Premium attend la confirmation de votre numéro par SMS." : needsCert ? "Votre Premium attend la certification de votre profil." : "Passez Premium pour débloquer le centre de contrôle."),
+    h("div", { class: "esp-prem" }, h("strong", null, "Compte standard"), h("small", null, needsPhone ? "Votre Premium attend la confirmation de votre numéro." : needsCert ? "Votre Premium attend la certification de votre profil." : "Passez Premium pour débloquer le centre de contrôle."),
       h("a", { class: "btn btn-gold btn-small", href: needsPhone ? "#/devenir-premium" : needsCert ? "#/profil" : up("espace-sidebar") }, needsPhone ? "Confirmer mon numéro" : needsCert ? "Faire certifier mon profil" : "Voir les avantages")));
 
   const burger = h("button", { class: "esp-burger", type: "button", "aria-label": "Menu", onClick: () => {
@@ -119,5 +119,6 @@ export async function standardCentre(acc) {
     d.notifications.length ? d.notifications.map((n) => item(n.title, n.body ? `${n.body} · ${ago(n.createdAt)}` : ago(n.createdAt), n.read ? null : h("i", { class: "esp-dot" }), n.link?.startsWith("#/") ? n.link : "#/boite")) : empty("Aucune notification."));
   const cta = h("section", { class: "card pad esp-cta" }, icon("plus"), h("div", { class: "grow" }, h("strong", null, "Publier une annonce"), h("small", { class: "muted" }, "Touchez plus de monde et trouvez le bon client plus vite.")), h("a", { class: "btn btn-primary btn-small", href: "#/publier" }, "Créer"));
 
-  mount(host, burger, side, h("div", { class: "esp-main" }, h("div", { class: "esp-left" }, hero, teaser, kpis, ann, prof, more), h("div", { class: "esp-right" }, premiumCard({ premium: false }, "espace-card"), msgs, notes, cta)));
+  mount(host, burger, side, h("div", { class: "esp-main" }, h("div", { class: "esp-left" }, hero, teaser, kpis, ann, prof, more), h("div", { class: "esp-right" }, premiumCard({ premium: false }, "espace-card"), msgs, notes, cta),
+    needsPhone ? h("section", { class: "card pad esp-cta", role: "status", style: "grid-column:1/-1" }, icon("lock"), h("div", { class: "grow" }, h("strong", null, "Vérifiez votre numéro pour ouvrir votre Premium"), h("small", { class: "muted" }, "Votre abonnement est actif, mais ses avantages s'ouvrent dès que votre numéro de téléphone est confirmé. C'est une protection pour tous les utilisateurs.")), h("a", { class: "btn btn-primary btn-small", href: "#/devenir-premium" }, "Vérifier mon numéro")) : null));
 }

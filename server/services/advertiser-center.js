@@ -1,6 +1,5 @@
 // Annuaire des annonceurs (public) et centre de contrôle des annonceurs Premium certifiés (privé).
 // Aucune donnée de contact n'est jamais renvoyée par l'annuaire. Le centre ne lit que les données de SON titulaire.
-import { isSmsVerified } from "../lib/rules.js";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { compareDirectory, filterDirectory, premiumAccess, scoreAdvertiser } from "../lib/advertiser-ranking.js";
@@ -21,7 +20,7 @@ export function createAdvertiserCenter({ db, accounts }) {
     const p = rows[0];
     if (!p) throw notFound("Profil introuvable.");
     if (p.account_status === "RESTRICTED") throw Object.assign(forbidden("Compte restreint : le centre de contrôle est indisponible."), { code: "RESTRICTED" });
-    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at) && isSmsVerified(p.phone_channel) }), name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
+    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at) }), name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
   }
 
   async function series(userId, days, shift) {

@@ -78,21 +78,21 @@ export async function devenirPremiumPage() {
 
   // Conditions : chacune affiche son état réel et l'action qui la fait avancer.
   const conditions = [
-    { ok: phoneOk, title: "Numéro de téléphone confirmé par SMS", text: phoneOk ? "Votre numéro est confirmé." : "Obligatoire avant toute demande ou paiement : cela protège les utilisateurs et donne confiance à votre profil. Sans lui, aucun avantage Premium." },
-    { ok: certified, title: "Profil certifié", text: "Agence : registre de commerce vérifié. Particulier : titre foncier contrôlé sur une annonce.",
+    { ok: phoneOk, title: "Numéro de téléphone confirmé", text: phoneOk ? "Votre numéro est confirmé." : "Obligatoire avant toute demande ou paiement : cela protège les utilisateurs et donne confiance à votre profil. Sans lui, aucun avantage Premium." },
+    { ok: certified, title: "Badge de confiance (facultatif)", text: "Agence : registre de commerce vérifié. Particulier : titre foncier contrôlé sur une annonce. Il renforce la confiance mais n'est pas nécessaire pour ouvrir votre centre.",
       cta: certified ? null : h("a", { class: "btn btn-small", href: "#/profil" }, "Envoyer mes justificatifs") },
     { ok: premium, title: "Abonnement Premium actif",
-      text: premium ? (certified ? "Abonnement actif : tous les avantages Premium sont ouverts." : "Abonnement actif. Il manque encore la certification du profil pour ouvrir les avantages.") : online ? "Choisissez une formule ci-dessous et payez par mobile money." : `Demandez le Premium ci-dessous : l'équipe l'approuve pour 1 à ${maxMonths} mois.`,
+      text: premium ? (phoneOk ? "Abonnement actif : tous les avantages Premium sont ouverts." : "Abonnement actif. Il manque la confirmation de votre numéro pour ouvrir les avantages.") : online ? "Choisissez une formule ci-dessous et payez par mobile money." : `Demandez le Premium ci-dessous : l'équipe l'approuve pour 1 à ${maxMonths} mois.`,
       cta: !premium && online ? h("a", { class: "btn btn-small btn-gold", href: "#dp-formules" }, "Voir les formules") : null },
-    { ok: eligible, title: "Centre de contrôle ouvert", text: "Il s'ouvre dès que le numéro est confirmé, le profil certifié et l'abonnement actif.",
+    { ok: eligible, title: "Centre de contrôle ouvert", text: "Il s'ouvre dès que le numéro est confirmé et l'abonnement actif.",
       cta: eligible ? h("a", { class: "btn btn-small btn-primary", href: "#/centre" }, "Ouvrir mon centre") : null },
   ];
 
-  const lockedFormules = h("section", { class: "card pad stack dp-block", id: "dp-formules" }, h("h2", null, "Demande et paiement bloqués"), h("p", { class: "small dp-warn" }, "Confirmez d'abord votre numéro de téléphone par SMS (étape ci-dessus). Sans cela, vous ne pouvez ni demander ni payer le Premium, et les avantages restent fermés."));
+  const lockedFormules = h("section", { class: "card pad stack dp-block", id: "dp-formules" }, h("h2", null, "Demande et paiement bloqués"), h("p", { class: "small dp-warn" }, "Confirmez d'abord votre numéro de téléphone (étape ci-dessus). Sans cela, vous ne pouvez ni demander ni payer le Premium, et les avantages restent fermés."));
   const formules = online
     ? h("section", { class: "card pad stack dp-block", id: "dp-formules" },
         h("h2", null, premium ? "Renouveler le Premium" : "Choisir ma formule"),
-        !certified ? h("p", { class: "small dp-warn" }, "Vous pouvez payer dès maintenant. Le centre de contrôle s'ouvrira après certification de votre profil ; les jours payés commencent à courir tout de suite.") : null,
+        null,
         premium && access?.premiumUntil ? h("p", { class: "small muted" }, `Votre Premium court jusqu'au ${day(access.premiumUntil)} ; les nouveaux jours s'ajoutent à la suite.`) : null,
         h("ul", { class: "dp-offers" }, offers.map((o) => h("li", { class: "dp-offer" },
           h("div", null, h("strong", null, o.label), h("p", { class: "small muted" }, `${o.days} jours`)),
@@ -121,7 +121,6 @@ export async function devenirPremiumPage() {
     return h("form", { class: "stack dp-form", onSubmit: (e) => { e.preventDefault(); askManual({ months: Number(months.value), accountType: type.value, phone: phone.value, message: msg.value, acceptTerms: terms.checked }, send); } },
       last?.status === "REJECTED" ? h("p", { class: "small dp-warn" }, `${REQUEST_STATUS.REJECTED}${last.decidedNote ? ` Motif : ${last.decidedNote}` : ""}`) : null,
       last?.status === "APPROVED" ? h("p", { class: "small muted" }, `${REQUEST_STATUS.APPROVED} ${last.grantedMonths} mois accordés le ${day(last.decidedAt)}.`) : null,
-      !certified ? h("p", { class: "small dp-warn" }, "Votre profil n'est pas encore certifié : vous pouvez demander le Premium, mais le centre de contrôle ne s'ouvrira qu'après certification.") : null,
       h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-type" }, "Type de compte"), type),
       h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-phone" }, "Téléphone de contact"), phone),
       h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-months" }, "Durée souhaitée"), months),
@@ -135,18 +134,13 @@ export async function devenirPremiumPage() {
       h("header", { class: "dp-hero" },
         h("p", { class: "eyebrow" }, "Premium certifié"),
         h("h1", null, premium ? "Votre Premium" : "Devenir Premium"),
-        h("p", { class: "dp-lead" }, "Un centre de contrôle complet pour les annonceurs certifiés. Vérifiez les conditions, puis activez votre abonnement."),
-        h("p", { class: "dp-status" }, status, " · ", certified ? "Profil certifié" : "Profil non certifié")),
+        h("p", { class: "dp-lead" }, "Un centre de contrôle complet pour les annonceurs dont le numéro est confirmé. Vérifiez les conditions, puis activez votre abonnement."),
+        h("p", { class: "dp-status" }, status, " · ", phoneOk ? "Numéro confirmé" : "Numéro à confirmer")),
       !phoneOk ? h("section", { class: "card pad stack dp-block", role: "status", id: "dp-phone" },
         h("h2", null, "Étape 1 : confirmez votre numéro de téléphone"),
-        h("p", null, premium ? "Votre Premium est actif, mais ses avantages restent fermés tant que votre numéro n'est pas confirmé par SMS." : "Avant de demander ou payer le Premium, votre numéro doit être confirmé par un code reçu par SMS."),
+        h("p", null, premium ? "Votre Premium est actif, mais ses avantages restent fermés tant que votre numéro n'est pas confirmé." : "Avant de demander ou payer le Premium, votre numéro doit être confirmé par un code."),
         h("p", { class: "small muted" }, "Pourquoi ? Pour protéger les utilisateurs et donner confiance à votre profil : un annonceur Premium est un annonceur joignable et identifiable."),
         phoneStep(() => devenirPremiumPage())) : null,
-      phoneOk && premium && !certified ? h("section", { class: "card pad stack dp-block", role: "status" },
-        h("h2", null, "Dernière étape : faire certifier votre profil"),
-        h("p", null, "Votre abonnement Premium est bien actif, mais le centre de contrôle (statistiques, carte, alertes) ne s'ouvre qu'après la certification de votre profil."),
-        h("ul", { class: "small" }, h("li", null, "Agence : envoyez votre registre de commerce depuis « Mon profil » ; l'équipe le vérifie."), h("li", null, "Particulier : joignez le titre foncier à l'une de vos annonces ; l'équipe le contrôle.")),
-        h("a", { class: "btn btn-primary", href: "#/profil" }, "Envoyer mes justificatifs")) : null,
       eligible ? h("section", { class: "card pad stack dp-block", role: "status" }, h("h2", null, "Votre centre de contrôle est ouvert"), h("a", { class: "btn btn-primary", href: "#/centre" }, "Ouvrir mon centre")) : null,
 
       h("section", { class: "card pad stack dp-block" },
