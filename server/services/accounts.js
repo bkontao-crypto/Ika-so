@@ -194,10 +194,21 @@ export function createAccounts(ctx) {
     return { fullName: name };
   }
 
+  /** Premium : numéro confirmé par un vrai SMS obligatoire (protège les utilisateurs, donne confiance au profil). */
+  async function requireSmsPhone(userId) {
+    const profile = await ensureProfile(userId);
+    assertCanPublish(profile);
+    if (!profile.phone_verified_at || !isSmsVerified(profile.phone_channel)) {
+      throw Object.assign(forbidden("Confirmez d'abord votre numéro de téléphone par SMS pour passer Premium : cela protège les utilisateurs et donne confiance à votre profil. Sans cela, les avantages Premium restent fermés."), { code: "PHONE_REQUIRED" });
+    }
+    return profile;
+  }
+
   return {
     ensureProfile,
     updateName,
     assertCanPublish,
+    requireSmsPhone,
     assertCanPublishListing,
     requireActive,
     requireStaff,

@@ -1,5 +1,6 @@
 // Annuaire des annonceurs (public) et centre de contrôle des annonceurs Premium certifiés (privé).
 // Aucune donnée de contact n'est jamais renvoyée par l'annuaire. Le centre ne lit que les données de SON titulaire.
+import { isSmsVerified } from "../lib/rules.js";
 import { badRequest, forbidden, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { compareDirectory, filterDirectory, premiumAccess, scoreAdvertiser } from "../lib/advertiser-ranking.js";
@@ -14,13 +15,13 @@ const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) 
 export function createAdvertiserCenter({ db, accounts }) {
   async function access(userId) {
     const rows = await db.query(
-      `select p.premium_until, p.agency_verified_at, p.agency_name, p.full_name, p.display_role, p.account_status,
+      `select p.premium_until, p.phone_verified_at, p.phone_channel, p.agency_verified_at, p.agency_name, p.full_name, p.display_role, p.account_status,
               (select count(*)::int from ika_listings l where l.owner_id = p.user_id and ${LIVE} and l.document_verified_at is not null) as title_checked
        from ika_profiles p where p.user_id = $1`, [userId]);
     const p = rows[0];
     if (!p) throw notFound("Profil introuvable.");
     if (p.account_status === "RESTRICTED") throw Object.assign(forbidden("Compte restreint : le centre de contrôle est indisponible."), { code: "RESTRICTED" });
-    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked }), name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
+    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at) && isSmsVerified(p.phone_channel) }), name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
   }
 
   async function series(userId, days, shift) {
@@ -197,7 +198,7 @@ export function createAdvertiserCenter({ db, accounts }) {
         { key: "certified", label: "Profil certifié (agence vérifiée ou titre foncier contrôlé)", done: acc.certified, href: "#/profil" },
       ];
       return {
-        access: { name: acc.name, role: acc.role, premium: acc.premium, certified: acc.certified, eligible: acc.eligible },
+        access: { name: acc.name, role: acc.role, premium: acc.premium, certified: acc.certified, phoneVerified: acc.phoneVerified, eligible: acc.eligible },
         kpis: { listings: k.total, live: k.live, pending: k.pending, favorites: k.favorites, unread: k.unread, visits: k.visits },
         contacts7: k.contacts7,
         listings: listings.map((l) => ({ id: l.id, title: l.title, price: Number(l.price), transactionType: l.transaction_type, neighborhood: l.neighborhood, imageUrl: l.image_url, status: l.status, contacts: l.contacts })),

@@ -20,7 +20,7 @@ export function formToBody(f, role, fullName) {
 }
 
 /** Étape « numéro » : code reçu par SMS. Sans service SMS configuré, le code est un code de démonstration sans badge. */
-function phoneStep(onVerified) {
+export function phoneStep(onVerified) {
   const st = { phone: "", code: "", hint: "", note: "", role: S.meta?.displayRole ?? OWNER_ROLES[0] };
   const box = h("div", { class: "stack" });
   const draw = () => mount(box,

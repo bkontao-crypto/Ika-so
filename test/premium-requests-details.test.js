@@ -5,7 +5,7 @@ import { createPremiumRequests } from "../server/services/premium-requests.js";
 function build(rows = []) {
   const calls = [];
   const db = { async query(sql, params) { calls.push({ sql, params }); if (/select id from ika_premium_requests/.test(sql)) return []; if (/returning id/.test(sql)) return rows; return []; } };
-  const svc = createPremiumRequests({ db, accounts: { requireActive: async () => {} }, notify: null, superadminSettings: null, moderationAudit: null, payments: { onlineOpen: async () => false } });
+  const svc = createPremiumRequests({ db, accounts: { requireActive: async () => {}, requireSmsPhone: async () => {} }, notify: null, superadminSettings: null, moderationAudit: null, payments: { onlineOpen: async () => false } });
   return { svc, calls };
 }
 const ok = { months: 1, accountType: "AGENCY", phone: "76 00 00 00", message: " Bonjour ", acceptTerms: true };

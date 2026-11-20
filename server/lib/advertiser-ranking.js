@@ -47,9 +47,11 @@ export function filterDirectory(rows, { q = "", kind = "" } = {}) {
 }
 
 /** Accès au centre de contrôle : Premium en cours ET annonceur certifié. */
-export function premiumAccess({ premiumUntil, agencyVerified, titleChecked }, now = Date.now()) {
+export function premiumAccess({ premiumUntil, agencyVerified, titleChecked, phoneVerified }, now = Date.now()) {
   const until = premiumUntil ? new Date(premiumUntil).getTime() : 0;
   const premium = until > now;
   const certified = Boolean(agencyVerified) || Number(titleChecked) > 0;
-  return { premium, certified, eligible: premium && certified, premiumUntil: until ? new Date(until).toISOString() : null, daysLeft: premium ? Math.ceil((until - now) / 86_400_000) : 0 };
+  // Numéro de téléphone confirmé par un vrai SMS : protège les utilisateurs (confiance sur le profil). Sans lui, aucun avantage Premium.
+  const phone = phoneVerified === true;
+  return { premium, certified, phoneVerified: phone, eligible: premium && certified && phone, premiumUntil: until ? new Date(until).toISOString() : null, daysLeft: premium ? Math.ceil((until - now) / 86_400_000) : 0 };
 }
