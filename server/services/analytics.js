@@ -1,6 +1,6 @@
 /**
- * Émission des événements analytiques. Interrupteur éteint par défaut : il faut ANALYTICS_ENABLED=true (environnement)
- * ET le réglage analytics_enabled = 'true' (base). Éteint : aucune écriture, aucune requête supplémentaire (l'environnement est lu en mémoire).
+ * Émission des événements analytiques. Interrupteur ALLUMÉ par défaut (décision du propriétaire) : on l'arrête avec ANALYTICS_ENABLED=false (environnement)
+ * ou le réglage analytics_enabled = 'false' (base). Éteint : aucune écriture, aucune requête supplémentaire (l'environnement est lu en mémoire).
  * La collecte ne doit jamais casser une action : tout échec est avalé et compté. Voir ARCHITECTURE_ANALYTICS.md.
  */
 import { buildEvent, shouldTrack } from "../lib/analytics-events.js";
@@ -19,7 +19,7 @@ export function createAnalytics({ db, config, logger = null, clock = () => new D
   function settingOn() {
     const t = clock().getTime();
     if (!cache || t - cache.at >= SETTING_TTL_MS) {
-      const pending = db.query("select value from ika_settings where key = 'analytics_enabled'").then((rows) => rows[0]?.value === "true");
+      const pending = db.query("select value from ika_settings where key = 'analytics_enabled'").then((rows) => rows[0]?.value !== "false");
       cache = { at: t, pending };
       pending.catch(() => { if (cache?.pending === pending) cache = null; }); // un échec n'est pas mis en mémoire
     }
@@ -84,7 +84,7 @@ export function createAnalytics({ db, config, logger = null, clock = () => new D
     /** État des deux interrupteurs (lecture directe du réglage, sans cache) : pour le centre de contrôle. */
     async status() {
       const rows = await db.query("select value from ika_settings where key = 'analytics_enabled'");
-      return { environment: Boolean(config?.analytics?.enabled), setting: rows[0]?.value === "true" };
+      return { environment: Boolean(config?.analytics?.enabled), setting: rows[0]?.value !== "false" };
     },
     /** Compteurs de contrôle (jamais de contenu d'événement). */
     stats: () => ({ ...stats, enabledByEnvironment: Boolean(config?.analytics?.enabled) }),

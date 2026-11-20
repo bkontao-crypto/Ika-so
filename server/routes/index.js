@@ -114,10 +114,10 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
       res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: "/profil", t: 0, l: 1, a: 0 }), config));
       return res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
     }
-    if (req.query.terms !== "1") return res.redirect(302, googleBack("/connexion?google=conditions"));
+    if (!["1", "all"].includes(req.query.terms)) return res.redirect(302, googleBack("/connexion?google=conditions"));
     const state = newState();
     // a = 1 : connexion lancée depuis l'application Android (retour par ticket, voir /auth/app-handoff).
-    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
+    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: req.query.terms === "all" ? 2 : 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
     res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
   });
 
@@ -151,7 +151,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
       }
       if (saved.a === 1) {
         // Application : aucune session dans le navigateur ; un ticket à usage unique ramène l'application à la session.
-        const { user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1, session: false });
+        const { user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t >= 1, dataConsent: saved.t === 2 ? "all" : "essential", session: false });
         track(req, "user_login", { userId: user.id });
         ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
         const ticket = await accounts.issueLoginTicket(user.id);
@@ -161,7 +161,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
         res.setHeader("Cache-Control", "no-store");
         return res.send(appReturnPage(ticket));
       }
-      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1 });
+      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t >= 1, dataConsent: saved.t === 2 ? "all" : "essential" });
       track(req, "user_login", { userId: user.id });
       ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
       setSession(res, token);
@@ -187,7 +187,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     if (req.body?.terms !== true) return res.status(400).json({ error: "Acceptez les conditions pour continuer.", code: "conditions" });
     try {
       const profile = await verifyIdToken(idToken, config.google.clientId);
-      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: true });
+      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: true, dataConsent: req.body?.dataConsent === "all" ? "all" : "essential" });
       track(req, "user_login", { userId: user.id });
       ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
       setSession(res, token);

@@ -149,7 +149,7 @@ export function userCenterView(ctx, userId) {
       { label: "", render: (l) => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/listing/${encodeURIComponent(l.id)}`) }, "Retracer") }], a.listings, { emptyText: "Aucune annonce déposée." }));
 
     const an = a.analytics;
-    const usage = panel("Comportement sur le site", an.collecting ? `${nf(an.eventsLast30d)} événement(s) · 30 jours` : "Collecte d'usage désactivée",
+    const usage = panel("Comportement sur le site", (an.collecting ? `${nf(an.eventsLast30d)} événement(s) · 30 jours` : "Collecte d'usage désactivée") + (an.consent ? ` · accord ${an.consent.accepted ? "donné" : "refusé"} le ${dateOnly(an.consent.decidedAt)}` : " · aucun choix enregistré"),
       h("div", { class: "stack" }, an.byType.length ? bars(an.byType.map((t) => ({ label: t.type, value: t.n }))) : h("p", { class: "muted" }, "Aucun événement d'usage rattaché à ce compte."),
         h("p", { class: "note" }, `Non collecté : ${an.notCollected.join(" ; ")}.`)));
 

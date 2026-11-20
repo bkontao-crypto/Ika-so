@@ -151,7 +151,7 @@ export function createUserCenter(ctx, accounts) {
       const base = (await db.query(`select * from (${BASE}) t where user_id = $1`, [id]))[0];
       if (!base) throw notFound("Compte introuvable.");
       const user = row(base);
-      const [auth, loginDays, loginRecent, loginMethods, listingRows, received, receivedDays, made, profileClicks, engagement, analytics, sanctionLog, audits] = await Promise.all([
+      const [auth, loginDays, loginRecent, loginMethods, listingRows, received, receivedDays, made, profileClicks, engagement, analytics, consentRow, sanctionLog, audits] = await Promise.all([
         safe(db.query("select has_password, (google_sub is not null) as google from ika_users where id = $1", [id]), [{}]),
         safe(db.query(`select to_char(d::date, 'YYYY-MM-DD') as day, coalesce(c.n, 0)::int as n
                        from generate_series(current_date - 29, current_date, '1 day') d
@@ -194,6 +194,7 @@ export function createUserCenter(ctx, accounts) {
         safe(db.query(
           `select event_type, count(*)::int as n, max(occurred_at) as last_at from ika_analytics_events
            where user_id = $1 and occurred_at > now() - interval '30 days' group by event_type order by n desc`, [id]), []),
+        safe(db.query("select accepted, decided_at from ika_analytics_consent where user_id = $1", [id]), []),
         safe(db.query(
           `select action, note, actor_id, created_at from ika_audit
            where action in ('SANCTION', 'SANCTION_EXPIRED') and note like $2 order by created_at desc limit 20`, [id, `% ${id} %`]), []),
@@ -231,8 +232,8 @@ export function createUserCenter(ctx, accounts) {
         contactsMade: { calls: made[0]?.calls ?? 0, whatsapp: made[0]?.whatsapp ?? 0 },
         engagement: { favorites: en.favorites ?? 0, threads: en.threads ?? 0, visits: en.visits ?? 0, reviewsReceived: en.reviews_received ?? 0, reportsOnListings: en.reports_on_listings ?? 0, reportsMade: en.reports_made ?? 0, userReportsAgainst: en.user_reports_against ?? 0, payments: en.payments ?? 0, paidXof: Number(en.paid_xof ?? 0) },
         analytics: {
-          collecting: analyticsOn, eventsLast30d: analyticsTotal, byType: analytics.map((r) => ({ type: r.event_type, n: r.n, lastAt: iso(r.last_at) })),
-          notCollected: ["Durée de visionnage d'une annonce", "Pages vues par compte", ...(analyticsOn ? [] : ["Événements d'usage (collecte désactivée, consentement requis)"])],
+          collecting: analyticsOn, consent: consentRow[0] ? { accepted: consentRow[0].accepted === true, decidedAt: iso(consentRow[0].decided_at) } : null, eventsLast30d: analyticsTotal, byType: analytics.map((r) => ({ type: r.event_type, n: r.n, lastAt: iso(r.last_at) })),
+          notCollected: ["Durée de visionnage d'une annonce", ...(analyticsOn ? [] : ["Événements d'usage (collecte désactivée par l'interrupteur)"]), ...(consentRow[0]?.accepted === true ? [] : ["Événements rattachés à ce compte (accord non donné)"])],
         },
         sanctions: { current: user.accountStatus === "ACTIVE" ? null : { status: user.accountStatus, reason: user.statusReason, until: user.statusUntil }, history: sanctionLog.map((s) => ({ action: s.action, note: s.note, actorId: s.actor_id, at: iso(s.created_at) })) },
         signals,

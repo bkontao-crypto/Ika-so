@@ -22,6 +22,7 @@ import { smsConfigured } from "../config.js";
 import { assertNotBlacklisted } from "../lib/blacklist.js";
 import { iso } from "./cards.js";
 import { LEGAL_VERSION } from "../lib/legal.js";
+import { CONSENT_TEXT_VERSION } from "./analytics.js";
 import { ROLE_PERMISSIONS, ALL_PERMISSIONS, can } from "../lib/permissions.js";
 
 const SESSION_DAYS = 30;
@@ -61,6 +62,14 @@ export function createAccounts(ctx) {
     if (created[0]) return created[0];
     const again = await db.query("select * from ika_profiles where user_id = $1", [userId]);
     return again[0];
+  }
+
+  /** Choix fait à l'inscription : « all » = données d'usage rattachées au compte, « essential » = seulement l'indispensable. Preuve : date et version du texte. */
+  async function recordSignupConsent(userId, dataConsent) {
+    await db.query(
+      `insert into ika_analytics_consent (user_id, accepted, text_version) values ($1, $2, $3)
+       on conflict (user_id) do update set accepted = $2, text_version = $3, decided_at = now()`,
+      [userId, dataConsent === "all", CONSENT_TEXT_VERSION]);
   }
 
   /** Sanction à durée déterminée arrivée à échéance : le compte redevient actif et ses annonces retrouvent leur visibilité (comme une levée manuelle). */
@@ -195,7 +204,7 @@ export function createAccounts(ctx) {
     requirePermission,
     audit,
 
-    async register({ name, email, password, acceptTerms }) {
+    async register({ name, email, password, acceptTerms, dataConsent }) {
       if (acceptTerms !== true) throw badRequest("Vous devez accepter les conditions d'utilisation et la politique de confidentialité.");
       const cleanName = String(name ?? "").trim().slice(0, 120);
       const cleanEmail = String(email ?? "").trim().toLowerCase();
@@ -214,6 +223,7 @@ export function createAccounts(ctx) {
       );
       if (!rows[0]) throw conflict("Un compte existe déjà avec cet e-mail.");
       await ensureProfile(id);
+      await recordSignupConsent(id, dataConsent);
       return { token: await createSession(id, "REGISTER"), user: { id, email: cleanEmail, name: cleanName } };
     },
 
@@ -269,7 +279,7 @@ export function createAccounts(ctx) {
      * Connexion ou inscription avec Google. Le lien se fait par l'identifiant Google (sub), jamais seulement par l'e-mail :
      * un compte créé par mot de passe avec la même adresse n'est PAS relié automatiquement (il pourrait avoir été créé par un tiers).
      */
-    async loginWithGoogle({ sub, email, name }, { acceptTerms, session = true } = {}) {
+    async loginWithGoogle({ sub, email, name }, { acceptTerms, dataConsent, session = true } = {}) {
       const cleanEmail = String(email ?? "").trim().toLowerCase();
       await assertNotBlacklisted(db, "EMAIL", cleanEmail);
       let user = (await db.query("select id, email, name from ika_users where google_sub = $1", [sub]))[0];
@@ -288,6 +298,7 @@ export function createAccounts(ctx) {
         );
         if (!rows[0]) throw taken;
         await ensureProfile(id);
+        await recordSignupConsent(id, dataConsent);
         user = rows[0];
       }
       const profile = await ensureProfile(user.id);
