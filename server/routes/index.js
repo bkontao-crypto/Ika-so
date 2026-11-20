@@ -1320,6 +1320,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     const [proofs, alerts, commentReports, userReports, reviewReports] = await Promise.all([trust.proofQueue(staffId), trust.alertsOpen(staffId), trust.commentReportsOpen(staffId), engagement.userReportsOpen(staffId), reviews.reportsOpen(staffId)]);
     res.json({ proofs, alerts, commentReports, userReports, reviewReports });
   });
+  router.get("/staff/proofs/history", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await trust.proofHistory(await requireOwnerGate(req, "trust"), { status: clean(req.query.status, 10) })); });
   router.get("/staff/proofs/:id/file", async (req, res) => res.json(await trust.viewProof(await requireOwnerGate(req, "trust"), id(req))));
   router.post("/staff/proofs/:id/decision", async (req, res) => {
     const staffId = await requireOwnerGate(req, "trust");

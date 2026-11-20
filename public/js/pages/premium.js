@@ -18,19 +18,21 @@ const ROWS = [
   ["Messagerie, demandes de visite, avis clients", "Réponses aux messages, aux visites et aux avis", true, true],
   ["Profil public et badges de confiance", "Agence vérifiée ou titre foncier contrôlé, selon vos justificatifs", true, true],
   ["Centre de contrôle dédié", "Vue d'ensemble de votre activité en un écran", false, true],
-  ["Vues, favoris et contacts par annonce", "Chiffres par annonce sur la période choisie", false, true],
+  ["Vues, favoris et contacts par annonce", "Chiffres par annonce sur la période choisie", "basic", true],
   ["Courbe vues / contacts et comparaison", "7, 14, 30 ou 90 jours, variation vs période précédente", false, true],
   ["Carte de toutes vos annonces", "Chargée à la demande, jamais en arrière-plan", false, true],
   ["Alertes importantes", "Signalements reçus, annonces qui expirent, paiements confirmés", false, true],
   ["Échéances", "Renouvellement Premium, mises à la une, expirations", false, true],
-  ["Messages récents et visites en un coup d'œil", "Sans quitter le tableau de bord", false, true],
+  ["Messages récents et visites en un coup d'œil", "Sans quitter le tableau de bord", "basic", true],
 ];
 const FAQ = [
   ["Le Premium me place-t-il en tête de l'annuaire des annonceurs ?", "Non. En tête de l'annuaire, on trouve les annonceurs dont une annonce est « mise à la une ». C'est une option payante distincte, qui s'ajoute au Premium ou s'utilise seule."],
-  ["Pourquoi faut-il être certifié ?", "Le centre de contrôle est réservé aux annonceurs dont l'identité professionnelle a été contrôlée : agence vérifiée (registre de commerce) ou annonce avec titre foncier contrôlé par l'équipe."],
+  ["Pourquoi faut-il être certifié ?", "La certification consiste à confirmer votre numéro de téléphone par un code : le centre de contrôle est réservé aux annonceurs joignables et identifiables, ce qui protège les utilisateurs. Le badge agence vérifiée ou titre foncier contrôlé reste facultatif et renforce la confiance."],
   ["Combien coûte le Premium et comment le payer ?", "Les formules et leurs prix s'affichent sur cette page. Le paiement se fait par mobile money sur la page sécurisée du fournisseur ; le Premium s'active automatiquement dès que le paiement est confirmé, et une facture est émise. Si le paiement en ligne n'est pas encore ouvert, vous pouvez demander le Premium à la main sur la page « Devenir Premium » : l'équipe l'approuve pour une durée de 1 à 3 mois."],
 ];
-const mark = (ok, label) => h("span", { class: `pm-mark ${ok ? "yes" : "no"}`, role: "img", "aria-label": `${label} : ${ok ? "inclus" : "non inclus"}` }, ok ? icon("check") : "—");
+const mark = (ok, label) => (ok === "basic"
+  ? h("span", { class: "pm-mark basic", role: "img", "aria-label": `${label} : version basique`, style: "font-size:.8rem;font-weight:600;opacity:.85" }, "Basique")
+  : h("span", { class: `pm-mark ${ok ? "yes" : "no"}`, role: "img", "aria-label": `${label} : ${ok ? "inclus" : "non inclus"}` }, ok ? icon("check") : "—"));
 
 export async function premiumPage() {
   loadCss();
@@ -38,7 +40,7 @@ export async function premiumPage() {
   const from = currentRoute().params.get("from") || "";
   if (from && from !== "page-premium") api("/premium/click", { method: "POST", body: { from } }).catch(() => {});
   const access = S.user ? await api("/me/center/access").catch(() => null) : null;
-  const certified = Boolean(access?.certified); const premium = Boolean(access?.premium);
+  const phoneOk = Boolean(access?.phoneVerified); const premium = Boolean(access?.premium);
   // Formules Premium payables en ligne (vide si les paiements ne sont pas ouverts ou si aucun prix n'est fixé).
   const offers = S.user ? ((await api("/offers").catch(() => ({ offers: [] }))).offers ?? []).filter((o) => o.kind === "PREMIUM") : [];
   const fcfa = (n) => `${Number(n).toLocaleString("fr-FR")} FCFA`;
@@ -67,11 +69,11 @@ export async function premiumPage() {
         access?.eligible ? h("a", { class: "pc-btn", href: "#/centre" }, "Ouvrir mon centre de contrôle", h("span", { "aria-hidden": "true" }, "→"))
           : h("a", { class: "pc-btn", href: ctaHref }, ctaLabel, h("span", { "aria-hidden": "true" }, "→")),
         h("a", { class: "pm-ghost", href: "#pm-compare", onClick: (e) => { e.preventDefault(); document.getElementById("pm-compare")?.scrollIntoView({ behavior: "smooth" }); } }, "Comparer les comptes")),
-      access ? h("p", { class: "pm-status" }, premium ? `Premium actif${access.premiumUntil ? ` jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}` : ""}` : "Premium : non activé", " · ", certified ? "Profil certifié" : "Profil non certifié") : null),
+      access ? h("p", { class: "pm-status" }, premium ? `Premium actif${access.premiumUntil ? ` jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}` : ""}` : "Premium : non activé", " · ", phoneOk ? "Numéro confirmé" : "Numéro à confirmer") : null),
 
     offers.length ? h("section", { class: "card pad stack pm-buy", id: "pm-buy" },
       h("h2", null, premium ? "Renouveler le Premium" : "Choisir ma formule Premium"),
-      S.user && !certified ? h("p", { class: "small pm-warn" }, "Votre profil n'est pas encore certifié : le centre de contrôle s'ouvrira dès que vos justificatifs seront validés (étape 1). Les jours Premium payés commencent à courir tout de suite.") : null,
+      S.user && !phoneOk ? h("p", { class: "small pm-warn" }, "Votre numéro n'est pas encore confirmé : confirmez-le avant de payer (étape 1). Le centre de contrôle s'ouvre dès que le numéro est confirmé et l'abonnement actif.") : null,
       premium && access?.premiumUntil ? h("p", { class: "small muted" }, `Votre Premium actuel court jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")} ; les nouveaux jours s'ajoutent à la suite.`) : null,
       h("ul", { class: "pm-offers" }, offers.map((o) => h("li", { class: "pm-offer" },
         h("div", null, h("strong", null, o.label), h("p", { class: "small muted" }, `${o.days} jours · ${fcfa(o.priceXof)}`)),
@@ -85,13 +87,14 @@ export async function premiumPage() {
       h("div", { class: "table-wrap" }, h("table", { class: "pm-table" },
         h("thead", null, h("tr", null, h("th", { scope: "col" }, "Fonctionnalité"), h("th", { scope: "col" }, "Standard"), h("th", { scope: "col", class: "pm-prem" }, icon("star"), "Premium certifié"))),
         h("tbody", null, ROWS.map(([label, detail, free, prem]) => h("tr", null, h("th", { scope: "row" }, h("strong", null, label), h("small", { class: "muted" }, detail)), h("td", null, mark(free, `${label}, Standard`)), h("td", { class: "pm-prem" }, mark(prem, `${label}, Premium`))))))),
+      h("p", { class: "small muted" }, "Basique : compteurs simples du compte Standard, sans période, sans courbe et sans comparaison (favoris et contacts cumulés par annonce, 3 derniers messages)."),
       h("p", { class: "small muted" }, "La mise à la une d'une annonce (tête de liste, rubrique « annonces sponsorisées », tête de l'annuaire des annonceurs) est une option payante à part, disponible avec ou sans Premium.")),
 
     h("section", { class: "card pad stack" }, h("h2", null, "Comment l'obtenir"),
       h("ol", { class: "pm-steps" },
-        step(1, certified, "Faire certifier votre profil", "Agence : envoyez votre registre de commerce. Particulier : joignez le titre foncier d'une annonce.", certified ? null : h("a", { class: "btn btn-small", href: "#/profil" }, "Envoyer mes justificatifs")),
+        step(1, phoneOk, "Faire certifier votre numéro", "Un code de vérification confirme que le numéro vous appartient. Le badge agence ou titre foncier reste facultatif.", phoneOk ? null : h("a", { class: "btn btn-small", href: "#/devenir-premium" }, "Confirmer mon numéro")),
         step(2, premium, "Devenir Premium", "Vérifiez vos conditions sur la page dédiée ; le paiement en ligne s'ouvre dès que les formules sont activées.", premium ? null : h("a", { class: "btn btn-small btn-gold", href: ctaHref }, "Devenir Premium")),
-        step(3, access?.eligible, "Ouvrir votre centre de contrôle", "Il apparaît dans votre profil dès que les deux conditions sont réunies.", access?.eligible ? h("a", { class: "btn btn-small btn-primary", href: "#/centre" }, "Ouvrir") : null))),
+        step(3, access?.eligible, "Ouvrir votre centre de contrôle", "Il apparaît dans votre profil dès que le numéro est confirmé et l'abonnement actif.", access?.eligible ? h("a", { class: "btn btn-small btn-primary", href: "#/centre" }, "Ouvrir") : null))),
 
     h("section", { class: "stack" }, h("h2", null, "Questions fréquentes"), FAQ.map(([q, a]) => h("details", { class: "card pad pm-faq" }, h("summary", null, q), h("p", { class: "small" }, a)))),
     premiumCard(access, "page-premium"));
