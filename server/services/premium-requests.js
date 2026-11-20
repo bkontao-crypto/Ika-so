@@ -28,7 +28,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
     /** L'annonceur demande le Premium pour 1 à maxMois mois. Refusé si le paiement en ligne est ouvert (il doit payer). */
     async create(userId, { months, accountType, phone, message, acceptTerms } = {}) {
       await accounts.requireActive(userId);
-      await accounts.requireSmsPhone(userId);
+      await accounts.requireVerifiedPhone(userId);
       const p = await policy();
       if (await payments.onlineOpen()) throw forbidden("Le paiement en ligne est ouvert : choisissez une formule et payez directement.");
       const m = Math.floor(Number(months));
@@ -96,10 +96,10 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         await tx.query("update ika_premium_requests set status = 'APPROVED', granted_months = $2, decided_by = $3, decided_at = now(), decided_note = $4 where id = $1", [r.id, granted, staffId, why]);
         await tx.query("insert into ika_premium_grants (id, user_id, granted_by, days, reason) values ($1, $2, $3, $4, $5)", [`pg_${randomUUID()}`, r.user_id, staffId, days, `Approbation manuelle Premium (${granted} mois)`]);
         await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted } }).catch(() => {});
-        const certified = await isCertified(r.user_id, tx);
+        const certified = await isCertified(r.user_id, tx); // information seulement (badge de confiance)
         const phoneOk = (await tx.query("select phone_verified_at, phone_channel from ika_profiles where user_id = $1", [r.user_id]).catch(() => []))[0];
-        const smsOk = Boolean(phoneOk?.phone_verified_at) && phoneOk?.phone_channel === "SMS";
-        if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Premium activé", body: !smsOk ? `Votre Premium est activé pour ${granted} mois, mais ses avantages restent fermés tant que votre numéro de téléphone n'est pas confirmé par SMS. C'est une protection pour tous les utilisateurs. Confirmez-le depuis la page Devenir Premium.` : certified ? `Votre Premium est activé pour ${granted} mois. Votre centre de contrôle est ouvert : « Mon espace ».` : `Votre Premium est activé pour ${granted} mois. Dernière étape : faire certifier votre profil (agence : registre de commerce ; particulier : titre foncier d'une annonce). Le centre de contrôle s'ouvrira ensuite.`, link: smsOk && certified ? "#/centre" : "#/devenir-premium" }).catch(() => undefined);
+        const smsOk = Boolean(phoneOk?.phone_verified_at);
+        if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Premium activé", body: !smsOk ? `Votre Premium est activé pour ${granted} mois, mais ses avantages restent fermés tant que votre numéro de téléphone n'est pas confirmé. C'est une protection pour tous les utilisateurs. Confirmez-le depuis la page Devenir Premium.` : `Votre Premium est activé pour ${granted} mois. Votre centre de contrôle est ouvert : « Mon espace ».`, link: smsOk ? "#/centre" : "#/devenir-premium" }).catch(() => undefined);
         return { ok: true, status: "APPROVED", premiumUntil: iso(prof[0].premium_until), certified };
       });
     },

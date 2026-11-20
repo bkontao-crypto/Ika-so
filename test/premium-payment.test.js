@@ -23,7 +23,7 @@ function setup() {
     return [];
   };
   const db = { query, transaction: (fn) => fn({ query }) };
-  const accounts = { requireActive: async () => {}, requireSmsPhone: async () => {}, audit: async () => {} };
+  const accounts = { requireActive: async () => {}, requireVerifiedPhone: async () => {}, audit: async () => {} };
   return { log, pay, payments: createPayments({ db }, accounts, createFakeProvider({ secret: "s" })) };
 }
 
