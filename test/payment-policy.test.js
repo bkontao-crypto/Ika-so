@@ -5,7 +5,7 @@ import { DEFAULT_POLICY, normalizePolicy } from "../server/lib/payment-policy.js
 
 test("sans réglage : paiement en ligne fermé, approbation manuelle jusqu'à 3 mois", () => {
   assert.deepEqual(normalizePolicy(null), DEFAULT_POLICY);
-  assert.deepEqual(normalizePolicy({}), { onlineEnabled: false, manualPremiumMaxMonths: 3, manualFeaturedMaxMonths: 1 });
+  assert.deepEqual(normalizePolicy({}), { onlineEnabled: false, manualPremiumMaxMonths: 3, manualFeaturedMaxMonths: 1, reviewDelayDays: 3, payButtonLabel: "Activer mon Premium", payButtonNote: "" });
 });
 
 test("la durée maximale est bornée à 1, 2 ou 3 mois", () => {

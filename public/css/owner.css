@@ -318,3 +318,8 @@ body.pv-open{overflow:hidden}
 dialog .field .err{color:#b42318;font-size:13px;margin-top:4px}
 dialog .field.bad .input{border-color:#b42318}
 dialog .field .hint{color:var(--muted,#5b6b63);font-size:12px;margin-top:4px}
+
+/* Dossier Premium : 3 étapes */
+.pstep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.pstep{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
+.pstep.done{background:color-mix(in srgb,var(--card) 90%,#087448)}

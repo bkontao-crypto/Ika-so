@@ -348,21 +348,50 @@ export const paymentsView = (ctx) => { ctx0 = ctx; return page(ctx, {
 // ---------- Demandes Premium à la main (paiement en ligne fermé) ----------
 const PREMIUM_STATUS = { PENDING: "En attente", APPROVED: "Approuvée", REJECTED: "Refusée", CANCELLED: "Retirée" };
 const PREMIUM_ACCOUNT = { AGENCY: "Agence", INDIVIDUAL: "Particulier", OTHER: "Autre" };
+/** Les 3 étapes d'étude : indépendantes, validables en même temps ; chaque validation est tracée à la personne. */
+const STEP_HINT = { 1: "Lire le dossier et la demande", 2: "Contrôler l'identité, le numéro, les annonces", 3: "Confirmer la décision avec les éléments réunis" };
+function premiumSteps(r, reload) {
+  const byStep = new Map((r.steps ?? []).map((x) => [x.step, x]));
+  const open = r.status === "PENDING";
+  return h("div", { class: "pstep-grid" }, [1, 2, 3].map((n) => {
+    const done = byStep.get(n);
+    const label = ["Étude", "Vérification", "Confirmation"][n - 1];
+    return h("div", { class: `pstep ${done ? "done" : ""}` },
+      h("div", { class: "row" }, pill(done ? "ok" : "neutral", done ? "✓ Validée" : `Étape ${n}`), h("b", null, label)),
+      h("small", null, done ? `Par ${done.doneByName} · ${dateTime(done.doneAt)}${done.note ? ` · « ${done.note} »` : ""}` : STEP_HINT[n]),
+      open && !done ? h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const v = await formDialog(`Valider l'étape ${n} : ${label}`, [{ name: "note", label: "Observation (facultatif)", type: "textarea", max: 300 }], { intro: "Votre nom sera enregistré dans l'historique du site avec cette validation.", submit: "Valider l'étape" });
+        if (v) act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/steps/${n}`, { method: "POST", body: { note: v.note } }), `Étape ${n} validée.`, reload);
+      } }, "Valider cette étape") : null,
+      open && done ? h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const v = await formDialog(`Retirer la validation de l'étape ${n}`, [{ name: "note", label: "Motif (obligatoire)", type: "textarea", max: 300 }], { submit: "Retirer" });
+        if (v) act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/steps/${n}/undo`, { method: "POST", body: { note: v.note } }), "Validation retirée.", reload);
+      } }, "Retirer") : null);
+  }));
+}
 function premiumDecisionControls(r, max, reload) {
+  const complete = (r.steps ?? []).length === 3;
   const sel = h("select", { "aria-label": "Durée accordée" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`)));
   sel.value = String(Math.min(r.months, max));
-  return h("div", { class: "row" }, sel,
-    h("button", { class: "btn sm primary", type: "button", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "APPROVE", months: Number(sel.value) } }), "Premium approuvé.", reload) }, "Approuver"),
-    h("button", { class: "btn sm", type: "button", onClick: () => { const note = window.prompt("Motif du refus (transmis à l'annonceur) :"); if (note === null) return; if (note.trim().length < 3) { toast("Le motif est obligatoire (3 caractères au moins)."); return; } act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT", note: note.trim() } }), "Demande refusée.", reload); } }, "Refuser"));
+  const approve = h("button", { class: "btn sm primary", type: "button", disabled: !complete, title: complete ? "" : "Validez d'abord les 3 étapes", onClick: () => act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "APPROVE", months: Number(sel.value) } }), r.paid ? "Compte certifié." : "Premium approuvé.", reload) }, r.paid ? "Finaliser (certifier)" : "Approuver et activer");
+  return h("div", { class: "stack" },
+    r.paid ? h("small", null, "Dossier payé : le Premium payé est déjà actif.") : h("div", { class: "row" }, h("small", null, "Durée accordée"), sel),
+    h("div", { class: "row" }, approve,
+      h("button", { class: "btn sm", type: "button", onClick: () => { const note = window.prompt(r.paid ? "Motif du refus (transmis à l'annonceur ; le remboursement est à traiter à part) :" : "Motif du refus (transmis à l'annonceur) :"); if (note === null) return; if (note.trim().length < 3) { toast("Le motif est obligatoire (3 caractères au moins)."); return; } act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT", note: note.trim() } }), "Demande refusée.", reload); } }, "Refuser")));
 }
 export function premiumRequestsPanel(data, reload) {
   const max = data.policy?.manualPremiumMaxMonths ?? 3;
-  return panel("Demandes Premium", `${(data.requests ?? []).filter((r) => r.status === "PENDING").length} en attente · approbation à la main, 1 à ${max} mois`, table([
+  const list = panel("Demandes Premium", `${(data.requests ?? []).filter((r) => r.status === "PENDING").length} en attente · 3 étapes à valider avant approbation · délai annoncé : ${data.policy?.reviewDelayDays ?? 3} jours`, table([
     { label: "Annonceur", render: (r) => h("div", { class: "item" }, h("b", null, r.name || "—"), h("small", null, r.email || ""), r.certified === undefined ? null : h("div", null, r.certified ? pill("ok", "Badge agence / titre") : pill("neutral", "Sans badge agence / titre")), h("small", null, `${PREMIUM_ACCOUNT[r.accountType] ?? "—"}${r.phone ? ` · ${r.phone}` : ""}`), r.message ? h("small", null, `« ${r.message} »`) : null) },
-    { label: "Demandé", render: (r) => `${r.months} mois · ${dateTime(r.createdAt)}`, num: true },
+    { label: "Demandé", render: (r) => `${r.paid ? "Payé" : `${r.months} mois`} · ${dateTime(r.createdAt)}${r.reviewDueAt && r.status === "PENDING" ? ` · réponse avant le ${dateOnly(r.reviewDueAt)}` : ""}`, num: true },
+    { label: "Étapes", render: (r) => ((r.steps ?? []).length || r.status === "PENDING" ? pill((r.steps ?? []).length === 3 ? "ok" : "neutral", `${(r.steps ?? []).length}/3`) : h("small", { class: "muted" }, "—")) },
     { label: "Statut", render: (r) => pill(r.status === "APPROVED" ? "ok" : "neutral", PREMIUM_STATUS[r.status] ?? r.status) },
-    { label: "", render: (r) => (r.status === "PENDING" ? premiumDecisionControls(r, max, reload) : h("div", { class: "item" }, h("small", { class: "muted" }, r.decidedAt ? `${dateTime(r.decidedAt)}${r.status === "APPROVED" ? ` · ${r.grantedMonths} mois` : ""}` : (r.cancelledAt ? dateTime(r.cancelledAt) : "")), r.decidedNote ? h("small", null, r.decidedNote) : null)) },
+    { label: "", render: (r) => (r.status === "PENDING" ? h("small", { class: "muted" }, "Dossier ci-dessous") : h("div", { class: "item" }, h("small", { class: "muted" }, r.decidedAt ? `${dateTime(r.decidedAt)}${r.status === "APPROVED" ? ` · ${r.grantedMonths} mois` : ""}` : (r.cancelledAt ? dateTime(r.cancelledAt) : "")), r.decidedNote ? h("small", null, r.decidedNote) : null)) },
   ], data.requests ?? [], { emptyText: "Aucune demande Premium." }));
+  const cards = (data.requests ?? []).filter((r) => r.status === "PENDING").map((r) => panel(`Dossier de ${r.name || "l'annonceur"}`,
+    `${r.paid ? "Payé : dossier à étudier" : `${r.months} mois demandés`} · reçu le ${dateTime(r.createdAt)}${r.reviewDueAt ? ` · réponse avant le ${dateOnly(r.reviewDueAt)}` : ""}${r.message ? ` · « ${r.message} »` : ""}`,
+    h("div", { class: "stack" }, premiumSteps(r, reload), premiumDecisionControls(r, max, reload))));
+  return h("div", { class: "stack" }, list, ...cards);
 }
 
 // ---------- Demandes & validations : toutes les demandes en attente, au même endroit ----------
@@ -406,6 +435,9 @@ export const paymentSettingsView = (ctx) => page(ctx, {
     const maxFeatured = [1, 2, 3].includes(saved?.manualFeaturedMaxMonths) ? saved.manualFeaturedMaxMonths : 1;
     const selFeatured = h("select", { id: "pp-featured" }, ...[1, 2, 3].map((m) => h("option", { value: String(m) }, `${m} mois`)));
     selFeatured.value = String(maxFeatured);
+    const payLabel = h("input", { class: "input", type: "text", maxlength: "40", value: saved?.payButtonLabel ?? "Activer mon Premium", "aria-label": "Texte du bouton" });
+    const payNote = h("input", { class: "input", type: "text", maxlength: "200", value: saved?.payButtonNote ?? "", placeholder: "Ex. Paiement par mobile money, dossier étudié sous 72 h", "aria-label": "Note" });
+    const delay = h("input", { class: "input", type: "number", min: "1", max: "30", value: String(saved?.reviewDelayDays ?? 3), "aria-label": "Délai en jours" });
     const hint = h("p", { class: "small muted" }, online
       ? "Ouvert : les annonceurs payent par mobile money, pour les formules actives uniquement."
       : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe.");
@@ -414,8 +446,15 @@ export const paymentSettingsView = (ctx) => page(ctx, {
       : "Fermé : aucun paiement en ligne. Les demandes Premium sont approuvées à la main par l'équipe."; });
     return [
       panel("Paiement en ligne", null, h("div", { class: "stack" },
-        h("label", { class: "row", for: "pp-online" }, box, h("strong", null, "Paiement en ligne ouvert aux annonceurs")),
+        h("label", { class: "row", for: "pp-online" }, box, h("strong", null, "Paiement en ligne ouvert aux annonceurs (bouton « Activer le paiement Premium »)")),
         hint)),
+      panel("Bouton de paiement Premium", "Texte affiché aux annonceurs", h("div", { class: "stack" },
+        h("label", { class: "field" }, "Texte du bouton", payLabel),
+        h("label", { class: "field" }, "Note sous le bouton (facultatif)", payNote),
+        h("p", { class: "small muted" }, "Paiement ouvert : l'annonceur paie d'abord, puis son dossier est étudié en 3 étapes (étude, vérification, confirmation). Paiement fermé : le dossier est étudié d'abord ; l'activation se fait à la main après les 3 étapes."))),
+      panel("Délai d'étude du dossier", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, "Délai de réponse annoncé à l'annonceur (jours)", delay),
+        h("p", { class: "small muted" }, "Affiché à l'annonceur après l'envoi de son dossier. Un dossier non traité dans ce délai est signalé « en retard » dans Demandes & validations."))),
       panel("Approbation manuelle", null, h("div", { class: "stack" },
         h("label", { class: "row", for: "pp-months" }, h("span", null, "Durée maximale accordée par l'équipe")), sel,
         h("p", { class: "small muted" }, "Pendant cette durée, l'annonceur bénéficie de tous les avantages Premium (aucun paiement demandé)."),
@@ -423,7 +462,7 @@ export const paymentSettingsView = (ctx) => page(ctx, {
       panel("Mise à la une à la main", null, h("div", { class: "stack" },
         h("label", { class: "row", for: "pp-featured" }, h("span", null, "Durée maximale de mise à la une accordée par l'équipe")), selFeatured,
         h("p", { class: "small muted" }, "L'équipe choisit la durée à l'acceptation d'une demande de mise à la une (1 à cette limite). Les formules payantes gardent leur durée propre."))),
-      h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/superadmin-settings/payments_policy", { method: "PUT", body: { value: { onlineEnabled: box.checked, manualPremiumMaxMonths: Number(sel.value), manualFeaturedMaxMonths: Number(selFeatured.value) } } }), "Réglages enregistrés.", reload) }, "Enregistrer")),
+      h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/superadmin-settings/payments_policy", { method: "PUT", body: { value: { onlineEnabled: box.checked, manualPremiumMaxMonths: Number(sel.value), manualFeaturedMaxMonths: Number(selFeatured.value), reviewDelayDays: Number(delay.value), payButtonLabel: payLabel.value, payButtonNote: payNote.value } } }), "Réglages enregistrés.", reload) }, "Enregistrer")),
       h("p", { class: "small muted" }, "Les formules se gèrent dans « Abonnements & formules ». Elles ne s'affichent au public que si le paiement en ligne est ouvert."),
     ];
   },

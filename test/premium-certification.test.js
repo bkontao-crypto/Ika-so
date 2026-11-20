@@ -6,6 +6,7 @@ function build({ certified, sms = true }) {
   const notes = [];
   const q = async (sql) => {
     if (/select \* from ika_premium_requests where id/.test(sql)) return [{ id: "r1", user_id: "u1", status: "PENDING" }];
+    if (/from ika_premium_request_steps where request_id/.test(sql)) return [{ step: 1, done_by: "a1" }, { step: 2, done_by: "a2" }, { step: 3, done_by: "a1" }];
     if (/update ika_profiles set premium_until/.test(sql)) return [{ premium_until: new Date(Date.now() + 86400000 * 30) }];
     if (/agency_verified_at is not null as agency/.test(sql)) return [{ agency: certified, titles: 0 }];
     if (/select phone_verified_at, phone_channel/.test(sql)) return [{ phone_verified_at: sms ? new Date() : null, phone_channel: sms ? "SMS" : null }];
