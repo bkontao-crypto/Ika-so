@@ -117,7 +117,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     if (!["1", "all"].includes(req.query.terms)) return res.redirect(302, googleBack("/connexion?google=conditions"));
     const state = newState();
     // a = 1 : connexion lancée depuis l'application Android (retour par ticket, voir /auth/app-handoff).
-    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: req.query.terms === "all" ? 2 : 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
+    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: req.query.terms === "all" || req.query.consent === "all" ? 2 : 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
     res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
   });
 
@@ -326,6 +326,13 @@ router.get("/listings/:id", async (req, res) => {
     const listing = await listings.getPublic(id(req));
     track(req, "listing_view", { listingId: listing?.id ?? id(req), userId: req.user?.id });
     res.json(listing);
+  });
+  // Durée de visionnage d'une fiche (secondes d'affichage réel, envoyées à la sortie de la page). Anonyme sauf accord du compte.
+  router.post("/listings/:id/dwell", (req, res) => {
+    limiter.hit(`dwell:${req.ip}`, 60, 60_000);
+    const seconds = Math.round(Number(req.body?.seconds));
+    if (Number.isFinite(seconds) && seconds >= 2 && seconds <= 1800) track(req, "listing_dwell", { listingId: id(req), userId: req.user?.id, metadata: { seconds } });
+    res.status(204).end();
   });
   router.get("/listings/:id/similar", async (req, res) => res.json(await listings.similarPublic(id(req))));
   router.get("/listings/:id/comments", async (req, res) => res.json(await listings.listComments(id(req))));

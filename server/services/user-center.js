@@ -151,7 +151,7 @@ export function createUserCenter(ctx, accounts) {
       const base = (await db.query(`select * from (${BASE}) t where user_id = $1`, [id]))[0];
       if (!base) throw notFound("Compte introuvable.");
       const user = row(base);
-      const [auth, loginDays, loginRecent, loginMethods, listingRows, received, receivedDays, made, profileClicks, engagement, analytics, consentRow, sanctionLog, audits] = await Promise.all([
+      const [auth, loginDays, loginRecent, loginMethods, listingRows, received, receivedDays, made, profileClicks, engagement, analytics, dwellMine, consentRow, sanctionLog, audits] = await Promise.all([
         safe(db.query("select has_password, (google_sub is not null) as google from ika_users where id = $1", [id]), [{}]),
         safe(db.query(`select to_char(d::date, 'YYYY-MM-DD') as day, coalesce(c.n, 0)::int as n
                        from generate_series(current_date - 29, current_date, '1 day') d
@@ -164,7 +164,9 @@ export function createUserCenter(ctx, accounts) {
                   (select count(*)::int from ika_contact_events e where e.listing_id = l.id and e.kind = 'CALL') as calls,
                   (select count(*)::int from ika_contact_events e where e.listing_id = l.id and e.kind = 'WHATSAPP') as whatsapp,
                   (select count(*)::int from ika_favorites f where f.listing_id = l.id) as favorites,
-                  (select count(*)::int from ika_reports r where r.listing_id = l.id) as reports
+                  (select count(*)::int from ika_reports r where r.listing_id = l.id) as reports,
+                  (select count(*)::int from ika_analytics_events e where e.listing_id = l.id and e.event_type = 'listing_view' and not e.is_bot) as views,
+                  (select round(avg((e.metadata->>'seconds')::numeric))::int from ika_analytics_events e where e.listing_id = l.id and e.event_type = 'listing_dwell' and not e.is_bot) as avg_seconds
            from ika_listings l where l.owner_id = $1 order by l.created_at desc limit 25`, [id]), []),
         safe(db.query(
           `select count(*) filter (where e.kind = 'CALL')::int as calls, count(*) filter (where e.kind = 'WHATSAPP')::int as whatsapp,
@@ -194,6 +196,9 @@ export function createUserCenter(ctx, accounts) {
         safe(db.query(
           `select event_type, count(*)::int as n, max(occurred_at) as last_at from ika_analytics_events
            where user_id = $1 and occurred_at > now() - interval '30 days' group by event_type order by n desc`, [id]), []),
+        safe(db.query(
+          `select count(distinct listing_id)::int as listings, count(*)::int as n, round(avg((metadata->>'seconds')::numeric))::int as avg_seconds, coalesce(sum((metadata->>'seconds')::int), 0)::int as total_seconds
+           from ika_analytics_events where user_id = $1 and event_type = 'listing_dwell'`, [id]), [{}]),
         safe(db.query("select accepted, decided_at from ika_analytics_consent where user_id = $1", [id]), []),
         safe(db.query(
           `select action, note, actor_id, created_at from ika_audit
@@ -227,13 +232,13 @@ export function createUserCenter(ctx, accounts) {
         user,
         auth: { hasPassword: auth[0]?.has_password !== false, google: Boolean(auth[0]?.google) },
         logins: { total: user.loginCount, last30: loginDays.reduce((n, d) => n + d.n, 0), days: loginDays, recent: loginRecent.map((r) => ({ method: r.method, at: iso(r.created_at) })), methods: loginMethods },
-        listings: listingRows.map((l) => ({ id: l.id, title: l.title, status: l.status, visibility: l.visibility, createdAt: iso(l.created_at), price: Number(l.price ?? 0), calls: l.calls, whatsapp: l.whatsapp, favorites: l.favorites, reports: l.reports })),
+        listings: listingRows.map((l) => ({ id: l.id, title: l.title, status: l.status, visibility: l.visibility, createdAt: iso(l.created_at), price: Number(l.price ?? 0), calls: l.calls, whatsapp: l.whatsapp, favorites: l.favorites, reports: l.reports, views: l.views, avgSeconds: l.avg_seconds })),
         contactsReceived: { calls: rc.calls ?? 0, whatsapp: rc.whatsapp ?? 0, calls7: rc.calls7 ?? 0, whatsapp7: rc.whatsapp7 ?? 0, calls30: rc.calls30 ?? 0, whatsapp30: rc.whatsapp30 ?? 0, profileCalls: profileClicks[0]?.calls ?? 0, profileWhatsapp: profileClicks[0]?.whatsapp ?? 0, days: receivedDays },
         contactsMade: { calls: made[0]?.calls ?? 0, whatsapp: made[0]?.whatsapp ?? 0 },
         engagement: { favorites: en.favorites ?? 0, threads: en.threads ?? 0, visits: en.visits ?? 0, reviewsReceived: en.reviews_received ?? 0, reportsOnListings: en.reports_on_listings ?? 0, reportsMade: en.reports_made ?? 0, userReportsAgainst: en.user_reports_against ?? 0, payments: en.payments ?? 0, paidXof: Number(en.paid_xof ?? 0) },
         analytics: {
-          collecting: analyticsOn, consent: consentRow[0] ? { accepted: consentRow[0].accepted === true, decidedAt: iso(consentRow[0].decided_at) } : null, eventsLast30d: analyticsTotal, byType: analytics.map((r) => ({ type: r.event_type, n: r.n, lastAt: iso(r.last_at) })),
-          notCollected: ["Durée de visionnage d'une annonce", ...(analyticsOn ? [] : ["Événements d'usage (collecte désactivée par l'interrupteur)"]), ...(consentRow[0]?.accepted === true ? [] : ["Événements rattachés à ce compte (accord non donné)"])],
+          collecting: analyticsOn, watching: { listings: dwellMine[0]?.listings ?? 0, visits: dwellMine[0]?.n ?? 0, avgSeconds: dwellMine[0]?.avg_seconds ?? null, totalSeconds: dwellMine[0]?.total_seconds ?? 0 }, consent: consentRow[0] ? { accepted: consentRow[0].accepted === true, decidedAt: iso(consentRow[0].decided_at) } : null, eventsLast30d: analyticsTotal, byType: analytics.map((r) => ({ type: r.event_type, n: r.n, lastAt: iso(r.last_at) })),
+          notCollected: [...(analyticsOn ? [] : ["Événements d'usage (collecte désactivée par l'interrupteur)"]), ...(consentRow[0]?.accepted === true ? [] : ["Événements rattachés à ce compte (accord non donné)"])],
         },
         sanctions: { current: user.accountStatus === "ACTIVE" ? null : { status: user.accountStatus, reason: user.statusReason, until: user.statusUntil }, history: sanctionLog.map((s) => ({ action: s.action, note: s.note, actorId: s.actor_id, at: iso(s.created_at) })) },
         signals,

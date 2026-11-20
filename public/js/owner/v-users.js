@@ -7,6 +7,7 @@ const ADV = { confirmed: ["ok", "Confirmé"], unconfirmed: ["warn", "Non confirm
 const ST = { ACTIVE: ["ok", "Actif"], RESTRICTED: ["warn", "Restreint"], BANNED: ["bad", "Bloqué"] };
 const METHOD = { PASSWORD: "Mot de passe", GOOGLE: "Google", REGISTER: "Inscription", TICKET: "Application" };
 const SIG = { high: "bad", medium: "warn", low: "info" };
+const dur = (s) => (s < 60 ? `${s} s` : `${Math.floor(s / 60)} min ${String(s % 60).padStart(2, "0")} s`);
 const mini = (l, v, sub) => h("div", { class: "card mini" }, h("small", null, l), h("strong", null, v), sub ? h("small", null, sub) : null);
 const grid = (n, ...m) => { const e = h("div", { class: "mini-stats" }, m); e.style.gridTemplateColumns = `repeat(${n}, minmax(0, 1fr))`; return e; };
 const seg = (v) => pill(...SEG[v] ?? ["neutral", v]);
@@ -144,14 +145,15 @@ export function userCenterView(ctx, userId) {
     const listings = panel("Annonces et performance", "Appels et WhatsApp reçus par annonce", table([
       { label: "Annonce", render: (l) => h("div", { class: "item" }, h("b", null, l.title), h("small", null, `${l.id} · ${dateOnly(l.createdAt)}`)) },
       { label: "Statut", render: (l) => pill(l.status === "PUBLISHED" ? "ok" : l.status === "REJECTED" ? "bad" : "neutral", l.status) },
-      { label: "Prix", num: true, render: (l) => fcfa(l.price) }, { label: "Appels", num: true, render: (l) => nf(l.calls) }, { label: "WhatsApp", num: true, render: (l) => nf(l.whatsapp) },
+      { label: "Vues", num: true, render: (l) => nf(l.views) }, { label: "Durée moy.", num: true, render: (l) => (l.avgSeconds == null ? "—" : dur(l.avgSeconds)) }, { label: "Appels", num: true, render: (l) => nf(l.calls) }, { label: "WhatsApp", num: true, render: (l) => nf(l.whatsapp) },
       { label: "Favoris", num: true, render: (l) => nf(l.favorites) }, { label: "Signal.", num: true, render: (l) => nf(l.reports) },
       { label: "", render: (l) => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/listing/${encodeURIComponent(l.id)}`) }, "Retracer") }], a.listings, { emptyText: "Aucune annonce déposée." }));
 
     const an = a.analytics;
     const usage = panel("Comportement sur le site", (an.collecting ? `${nf(an.eventsLast30d)} événement(s) · 30 jours` : "Collecte d'usage désactivée") + (an.consent ? ` · accord ${an.consent.accepted ? "donné" : "refusé"} le ${dateOnly(an.consent.decidedAt)}` : " · aucun choix enregistré"),
       h("div", { class: "stack" }, an.byType.length ? bars(an.byType.map((t) => ({ label: t.type, value: t.n }))) : h("p", { class: "muted" }, "Aucun événement d'usage rattaché à ce compte."),
-        h("p", { class: "note" }, `Non collecté : ${an.notCollected.join(" ; ")}.`)));
+        an.watching.visits ? h("p", null, `Fiches consultées par ce compte : ${nf(an.watching.listings)} · ${nf(an.watching.visits)} visite(s) mesurée(s) · durée moyenne ${dur(an.watching.avgSeconds)} · temps total ${dur(an.watching.totalSeconds)}.`) : h("p", { class: "muted" }, "Aucune durée de visionnage mesurée pour ce compte."),
+        an.notCollected.length ? h("p", { class: "note" }, `Non collecté : ${an.notCollected.join(" ; ")}.`) : null));
 
     const sanc = panel("Sanctions et décisions", "Historique des mesures prises sur ce compte", a.sanctions.history.length ? table([{ label: "Date", render: (s) => dateTime(s.at) }, { label: "Type", render: (s) => (s.action === "SANCTION" ? "Décision" : "Fin automatique") }, { label: "Détail", render: (s) => s.note }, { label: "Par", render: (s) => s.actorId?.slice(0, 12) }], a.sanctions.history)
       : h("p", { class: "muted" }, "Aucune sanction enregistrée."));

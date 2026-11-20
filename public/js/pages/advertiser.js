@@ -236,7 +236,28 @@ export async function advertiserPage(id) {
       p.team?.length ? h("div", { class: "pa-listinggrid" }, p.team.map((m) => h(m.userId ? "a" : "div", { class: "pa-metric", href: m.userId ? `#/annonceur/${encodeURIComponent(m.userId)}` : null },
         m.avatarUrl ? h("img", { class: "pa-miniava", src: m.avatarUrl, alt: "", loading: "lazy" }) : h("div", { class: "pa-miniava" }, initialsOf(m.name)), h("b", null, m.name), h("small", null, m.role || "Collaborateur")))) : h("p", { class: "pa-muted" }, "Aucune équipe renseignée."),
       teamAction())],
-    services: () => [card(h("h2", null, "Services proposés"), p.services?.length ? h("div", { class: "pa-info" }, p.services.map((s) => infoRow("▣", h("b", null, s.title), s.description ? h("small", { class: "pa-muted" }, h("br"), s.description) : null))) : h("p", { class: "pa-muted" }, "Aucun service listé."))],
+    services: () => {
+      const self = Boolean(p.viewer.self);
+      const list = p.services ?? [];
+      const remove = (s) => run(async () => { await api(`/me/services/${encodeURIComponent(s.id)}/delete`, { method: "POST", body: {} }); p.services = list.filter((x) => x.id !== s.id); draw(); }, "Service retiré.");
+      const rows = list.map((s) => h("div", { class: "pa-svc" }, infoRow("▣", h("b", null, s.title), s.description ? h("small", { class: "pa-muted" }, h("br"), s.description) : null),
+        self ? h("button", { class: "pa-link", type: "button", "aria-label": `Retirer le service ${s.title}`, onClick: () => remove(s) }, "Retirer") : null));
+      let title; let description;
+      const form = self ? (list.length >= 20 ? h("p", { class: "pa-muted" }, "Maximum atteint (20 services). Retirez-en un pour en ajouter.") : h("form", { class: "pa-stack", onSubmit: (e) => {
+        e.preventDefault();
+        run(async () => {
+          const out = await api("/me/services", { method: "POST", body: { title: title.value, description: description.value } });
+          p.services = [...list, { id: out.id, title: title.value.trim(), description: description.value.trim() }]; draw();
+        }, "Service ajouté.");
+      } },
+        h("h3", null, "Ajouter un service"),
+        field("Nom du service", title = h("input", { class: "input", required: true, minlength: "2", maxlength: "120", placeholder: "Ex. Gestion locative, Estimation gratuite" })),
+        field("Description (facultatif)", description = h("textarea", { class: "input", maxlength: "500", rows: "3", placeholder: "Ce que vous proposez, pour qui, dans quelles zones." })),
+        h("div", { class: "pa-row" }, h("button", { class: "btn btn-primary", type: "submit" }, "Ajouter"), h("small", { class: "pa-muted" }, `${list.length} / 20 services`)))) : null;
+      return [card(h("h2", null, "Services proposés"),
+        list.length ? h("div", { class: "pa-info" }, rows) : (self ? h("div", { class: "pa-empty" }, h("b", null, "Aucun service listé"), "Présentez ce que vous proposez : les visiteurs le voient sur votre profil.") : h("p", { class: "pa-muted" }, "Aucun service listé.")),
+        form)];
+    },
     about: () => [card(h("h2", null, agency ? "À propos de l'agence" : "À propos"), pr.bio ? h("p", { class: "pa-about" }, pr.bio) : null,
       h("div", { class: "pa-twocol" }, pr.foundedYear ? fact("Création (déclarée)", pr.foundedYear) : null, zones.length ? fact("Zones d'intervention", zones.join(", ")) : null, pr.address ? fact("Adresse", pr.address) : null, pr.hours ? fact("Horaires", pr.hours) : null,
         fact("Type de compte", agency ? (p.agencyVerified ? "Agence vérifiée" : "Agence") : roleLabel), fact("Sur Ika So depuis", `${duration(p.memberDays)} (${formatDate(p.memberSince)})`)),

@@ -25,7 +25,7 @@ object NativeGoogleSignIn {
     private class Exchange(val error: String?, val cookies: List<String>)
 
     /** null = connecté (session posée dans la WebView) ; CANCELLED = annulé ; sinon message à afficher. */
-    suspend fun signIn(activity: Activity, terms: Boolean): String? {
+    suspend fun signIn(activity: Activity, terms: Boolean, dataConsent: String = "essential"): String? {
         val clientId = BuildConfig.GOOGLE_WEB_CLIENT_ID
         if (clientId.isBlank()) return "Connexion Google non configurée dans cette version de l'application."
         val request = GetCredentialRequest.Builder()
@@ -41,7 +41,7 @@ object NativeGoogleSignIn {
         } catch (e: GoogleIdTokenParsingException) {
             return "La connexion Google a échoué. Réessayez."
         }
-        val result = withContext(Dispatchers.IO) { exchange(idToken, terms) }
+        val result = withContext(Dispatchers.IO) { exchange(idToken, terms, dataConsent) }
         if (result.error == null) {
             // Retour sur le thread principal : c'est là que la session est posée dans la WebView.
             val cookies = CookieManager.getInstance()
@@ -51,7 +51,7 @@ object NativeGoogleSignIn {
         return result.error
     }
 
-    private fun exchange(idToken: String, terms: Boolean): Exchange {
+    private fun exchange(idToken: String, terms: Boolean, dataConsent: String): Exchange {
         val conn = URL(BuildConfig.BASE_URL + "api/auth/google/native").openConnection() as HttpURLConnection
         return try {
             conn.requestMethod = "POST"
@@ -60,7 +60,7 @@ object NativeGoogleSignIn {
             conn.readTimeout = 15_000
             conn.setRequestProperty("Content-Type", "application/json")
             conn.setRequestProperty("Accept", "application/json")
-            val body = JSONObject().put("idToken", idToken).put("terms", terms).toString()
+            val body = JSONObject().put("idToken", idToken).put("terms", terms).put("dataConsent", dataConsent).toString()
             conn.outputStream.use { it.write(body.toByteArray(Charsets.UTF_8)) }
             val status = conn.responseCode
             if (status in 200..299) {

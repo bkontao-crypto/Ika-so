@@ -117,8 +117,10 @@ class MainActivity : AppCompatActivity() {
                 // terms=1 : le site a déjà fait accepter les conditions ; sinon c'est lui qui les affiche.
                 if (u.scheme == "https" && u.host == host && u.path == "/api/auth/google") {
                     if (u.getQueryParameter("terms") != "1") return false
+                    // consent=all : l'utilisateur a accepté les données d'usage dans la fenêtre du site ; sinon seulement l'indispensable.
+                    val dataConsent = if (u.getQueryParameter("consent") == "all") "all" else "essential"
                     this@MainActivity.lifecycleScope.launch {
-                        val error = NativeGoogleSignIn.signIn(this@MainActivity, terms = true)
+                        val error = NativeGoogleSignIn.signIn(this@MainActivity, terms = true, dataConsent = dataConsent)
                         when {
                             error == null -> ui.web.loadUrl(BuildConfig.BASE_URL)
                             error != NativeGoogleSignIn.CANCELLED -> toast(error)

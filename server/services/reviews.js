@@ -47,6 +47,9 @@ export function followerView(r) {
   return { anonymous: false, id: r.id, name: r.name || "Utilisateur", role: r.display_role || null, city: r.city || null, avatarUrl: r.avatar_url && !r.images_hidden ? r.avatar_url : null, since };
 }
 
+/** Nombre maximal de services affichés sur un profil annonceur. */
+export const MAX_SERVICES = 20;
+
 export function createReviews(ctx, accounts, profiles = null, notify = null) {
   const { db } = ctx;
   const clean = (v) => String(v ?? "").slice(0, 80);
@@ -342,7 +345,10 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
     },
     async addService(userId, { title, description }) {
       const t = String(title ?? "").trim().slice(0, 120);
-      if (t.length < 2) throw badRequest("Titre obligatoire.");
+      if (t.length < 2) throw badRequest("Titre obligatoire (2 caractères au moins).");
+      const have = await db.query("select lower(title) as title from ika_services where user_id = $1", [userId]);
+      if (have.length >= MAX_SERVICES) throw badRequest(`Vous pouvez lister ${MAX_SERVICES} services au plus. Retirez-en un pour en ajouter.`);
+      if (have.some((r) => r.title === t.toLowerCase())) throw badRequest("Ce service est déjà dans votre liste.");
       const id = newId("svc");
       await db.query("insert into ika_services (id, user_id, title, description) values ($1, $2, $3, $4)", [id, userId, t, String(description ?? "").slice(0, 500) || null]);
       return { id };
