@@ -14,6 +14,7 @@ export const RETENTION = {
   threadMonths: 24,         // conversations sans message depuis 24 mois
   visitMonths: 24,
   closedListingMonths: 12,  // annonces refusées, expirées ou archivées depuis 12 mois (sans paiement)
+  loginHistoryMonths: 13,   // historique de connexion (centre Utilisateurs)
   auditMonths: 36,          // journal d'actions de l'équipe
   inactiveAccountMonths: 24 // SIGNALÉ seulement : jamais supprimé automatiquement
 };
@@ -25,6 +26,8 @@ const rules = (r = RETENTION) => [
     from: "ika_otp", where: `created_at < now() - interval '${r.otpDays} days'` },
   { key: "sessions", label: `Sessions expirées depuis plus de ${r.sessionGraceDays} jours`,
     from: "ika_sessions", where: `expires_at < now() - interval '${r.sessionGraceDays} days'` },
+  { key: "login_history", label: `Historique de connexion de plus de ${r.loginHistoryMonths} mois`,
+    from: "ika_login_history", where: `created_at < now() - interval '${r.loginHistoryMonths} months'` },
   { key: "notifications", label: `Notifications lues depuis ${r.notificationReadDays} jours, ou de plus de ${r.notificationAnyDays} jours`,
     from: "ika_notifications", where: `(read_at is not null and read_at < now() - interval '${r.notificationReadDays} days') or created_at < now() - interval '${r.notificationAnyDays} days'` },
   { key: "threads", label: `Conversations sans message depuis ${r.threadMonths} mois (messages inclus)`,

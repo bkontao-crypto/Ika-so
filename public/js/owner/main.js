@@ -4,6 +4,7 @@ import { api, h, ico, toast, initials, empty } from "./ui.js";
 import { overviewView } from "./v-overview.js";
 import { activityView, traceView } from "./v-activity.js";
 import * as M from "./v-modules.js";
+import { usersView, userCenterView } from "./v-users.js";
 
 const NAV = [
   ["Pilotage de la plateforme", [
@@ -18,7 +19,7 @@ const NAV = [
 ];
 const FLAT = NAV.flatMap(([, items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, listings: M.listingsView, users: M.usersView, permissions: M.permissionsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView };
 
@@ -143,6 +144,7 @@ function route() {
   paintNav();
   let node; let title;
   if (id === "trace" && ["listing", "user"].includes(parts[1]) && parts[2]) { node = traceView(ctx, parts[1], decodeURIComponent(parts[2])); title = "Dossier de traçage"; }
+  else if (id === "users" && parts[1] && allowed("users")) { node = userCenterView(ctx, decodeURIComponent(parts[1])); title = "Centre d'analyse du compte"; }
   else if (VIEWS[id] && !allowed(id)) { node = h("div", { class: "view" }, empty("Ce module ne vous est pas attribué. Demandez l'accès au propriétaire.", "shield")); title = "Accès réservé"; }
   else if (VIEWS[id]) { node = VIEWS[id](ctx); title = FLAT.find((m) => m.id === id)?.label; }
   else { node = h("div", { class: "view" }, empty("Module introuvable.", "search")); title = "Introuvable"; }
