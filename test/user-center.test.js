@@ -41,3 +41,17 @@ test("analyse : compte inconnu → 404", async () => {
   const db = { query: async () => [] };
   await assert.rejects(createUserCenter({ db, config: {} }, { requireStaff: async () => ({}) }).analysis("a", "zz"), /introuvable/i);
 });
+
+test("inscription : le choix de données est enregistré (all → accepté, sinon refusé) et la collecte est active par défaut", async () => {
+  const { createAccounts } = await import("../server/services/accounts.js");
+  const { getConfig } = await import("../server/config.js");
+  const writes = [];
+  const db = { query: async (sql, args = []) => { if (/ika_analytics_consent/.test(sql)) writes.push(args); if (/insert into ika_users/.test(sql)) return [{ id: args[0] }]; if (/select \* from ika_profiles/.test(sql)) return [{ user_id: "x", account_status: "ACTIVE", staff_role: "USER" }]; if (/select email, name/.test(sql)) return [{ email: "a@b.ml", name: "A" }]; if (/insert into ika_profiles/.test(sql)) return [{ user_id: "x", account_status: "ACTIVE", staff_role: "USER" }]; return []; }, transaction: async (fn) => fn(db) };
+  const acc = createAccounts({ db, config: { bootstrapAdmin: false } });
+  await acc.register({ name: "Awa Traoré", email: "a@b.ml", password: "motdepasse1", acceptTerms: true, dataConsent: "all" });
+  await acc.register({ name: "Awa Traoré", email: "c@b.ml", password: "motdepasse1", acceptTerms: true, dataConsent: "essential" });
+  assert.equal(writes[0][1], true);
+  assert.equal(writes[1][1], false);
+  await assert.rejects(acc.register({ name: "Awa", email: "d@b.ml", password: "motdepasse1", acceptTerms: false, dataConsent: "all" }), /conditions/i);
+  assert.equal(getConfig({}).analytics?.enabled ?? getConfig().analytics.enabled, true);
+});

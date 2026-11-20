@@ -46,8 +46,9 @@ export function getConfig(env = process.env) {
     mapbox: parseMapboxToken(get("MAPBOX_TOKEN")),
     // Sauvegardes automatiques (pg_dump) : BACKUP_DIR = dossier HORS public, idéalement sur un disque persistant ; BACKUP_KEEP = nombre de fichiers gardés.
     backup: { dir: get("BACKUP_DIR", "backups"), keep: Math.max(1, Number(get("BACKUP_KEEP", "14")) || 14), dirConfigured: Boolean(get("BACKUP_DIR")) },
-    // Collecte d'événements d'usage : éteinte par défaut. Ne s'active qu'avec ANALYTICS_ENABLED=true ET le réglage analytics_enabled en base (avis juridique d'abord).
-    analytics: { enabled: get("ANALYTICS_ENABLED") === "true" },
+    // Collecte d'événements d'usage : ACTIVE par défaut (décision du propriétaire, 20 novembre 2026). Interrupteurs d'arrêt : ANALYTICS_ENABLED=false (environnement)
+    // ou réglage analytics_enabled = 'false' (base). Un événement n'est rattaché à un compte que si la personne l'a accepté (inscription ou paramètres).
+    analytics: { enabled: get("ANALYTICS_ENABLED") !== "false" },
     sms: {
       provider: get("SMS_PROVIDER"),
       accountSid: get("TWILIO_ACCOUNT_SID"),
