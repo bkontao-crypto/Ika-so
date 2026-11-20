@@ -138,7 +138,12 @@ const section = (id, ...children) =>
 
 export async function renderHome() {
   let hero = { ...DEFAULT_HERO };
+  // Compte déjà annonceur (demande approuvée) : vérifié en parallèle pour ne pas retarder l'accueil ; en cas d'erreur, la bannière reste affichée.
+  const advertiserCheck = S.user
+    ? api("/me/advertiser-applications").then((apps) => Array.isArray(apps) && apps.some((a) => a.status === "APPROVED")).catch(() => false)
+    : Promise.resolve(false);
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
+  const isAdvertiser = await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
 
   // ---- Héros + recherche avancée (envoie vers #/annonces avec les filtres déjà gérés par la page) ----
@@ -214,7 +219,7 @@ export async function renderHome() {
       ["flag", "Signalement et réclamations", "Signalez une annonce ou déposez une réclamation, suivie par l'équipe."],
     ].map(([ic, t, p]) => h("article", null, icon(ic), h("h3", null, t), h("p", null, p)))));
 
-  const cta = h("section", { class: "rx-cta rx-reveal", id: "vendre" }, h("div", { class: "rx-cta-inner" },
+  const cta = isAdvertiser ? null : h("section", { class: "rx-cta rx-reveal", id: "vendre" }, h("div", { class: "rx-cta-inner" },
     h("div", null, h("span", { class: "rx-kicker" }, "Devenir annonceur"), h("h2", null, "Donnez à votre bien la visibilité qu'il mérite."),
       h("p", null, "Propriétaire, agence ou démarcheur : publiez en quelques minutes, suivez vos demandes et mettez vos annonces en avant."),
       h("div", { class: "row" },
@@ -233,7 +238,7 @@ export async function renderHome() {
   mount(app, heroEl, searchEl, catsEl,
     h("section", { class: "rx-sec" }, hosts.sponsored), h("section", { class: "rx-sec" }, hosts.latest),
     h("section", { class: "rx-sec" }, hosts.lands), h("section", { class: "rx-sec" }, hosts.homes),
-    hoods, h("section", { class: "rx-sec" }, hosts.agencies), how, trust, cta, h("section", { class: "rx-sec" }, 
+    hoods, h("section", { class: "rx-sec" }, hosts.agencies), how, trust, ...(cta ? [cta] : []), h("section", { class: "rx-sec" }, 
 hosts.ads), partners, guides, downloadApp);
 
   reveal(app);

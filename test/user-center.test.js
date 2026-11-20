@@ -80,3 +80,17 @@ test("services du profil : plafond de 20, doublons refusés, titre obligatoire",
   for (let i = 0; i < 19; i += 1) await r.addService("u1", { title: `Service ${i}` });
   await assert.rejects(r.addService("u1", { title: "Un de trop" }), /20 services/);
 });
+
+test("historique des pièces : lecture seule, filtre de statut en liste blanche, réservé au personnel", async () => {
+  const { createTrust } = await import("../server/services/trust.js");
+  const seen = [];
+  const db = { query: async (sql, args = []) => { seen.push({ sql, args }); return []; } };
+  const denied = new Error("interdit");
+  const t = createTrust({ db, config: {} }, { requireStaff: async (id) => { if (id === "visiteur") throw denied; return {}; } });
+  await t.proofHistory("mod", { status: "REFUSED" });
+  await t.proofHistory("mod", { status: "x'; drop table ika_proofs;--" });
+  assert.equal(seen[0].args[0], "REFUSED");
+  assert.equal(seen[1].args[0], null);
+  assert.ok(!/insert|update|delete/i.test(seen[0].sql));
+  await assert.rejects(t.proofHistory("visiteur"), /interdit/);
+});

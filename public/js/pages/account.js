@@ -139,6 +139,9 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
   const m = S.meta;
   const prefs = await api("/me/notify-prefs").catch(() => null);
   const access = await api("/me/center/access").catch(() => null);
+  // Compte déjà annonceur (demande approuvée, même règle que la publication côté serveur) : la carte « Devenir annonceur » disparaît.
+  const apps = await api("/me/advertiser-applications").catch(() => []);
+  const isAdvertiser = Array.isArray(apps) && apps.some((a) => a.status === "APPROVED");
   let premiumBlock = null;
   if (access && !embedded) { const ui = await import("/js/components/espace.js"); ui.loadCss(); premiumBlock = ui.premiumCard(access, "compte"); }
   const stats = await api("/me/analytics-consent").catch(() => null);
@@ -202,7 +205,7 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
       h("label", { class: "row" }, h("input", { type: "checkbox", checked: stats.accepted === true, onChange: (e) => saveStats(e.target.checked) }), h("span", null, stats.accepted === true ? "Autorisées" : "Refusées"))) : null,
     premiumBlock,
     centreCard(access),
-    h("article", { class: "card pad stack" },
+    isAdvertiser ? null : h("article", { class: "card pad stack" },
       h("h2", null, "Devenir annonceur"),
       h("p", { class: "small muted" }, "Demandez gratuitement le statut d'annonceur particulier, ou créez une demande pour une agence immobilière."),
       h("div", { class: "row" },

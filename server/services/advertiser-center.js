@@ -9,7 +9,7 @@ const LIVE = "l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN' and (l.expires
 const PERIODS = [7, 14, 30, 90];
 const iso = (d) => (d instanceof Date ? d.toISOString() : d ? String(d) : null);
 const snippet = (t) => { const s = String(t ?? "").replace(/\s+/g, " ").trim(); return s.length > 90 ? `${s.slice(0, 87)}…` : s; };
-const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) * 100) : now > 0 ? 100 : 0);
+const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) * 100) : now > 0 ? null : 0); // null = « nouveau » : pas de pourcentage possible quand la période précédente vaut 0
 
 export function createAdvertiserCenter({ db, accounts }) {
   async function access(userId) {
@@ -103,8 +103,10 @@ export function createAdvertiserCenter({ db, accounts }) {
            from ika_listings l where l.owner_id = $1 and l.status in ('PUBLISHED', 'PENDING', 'REJECTED', 'EXPIRED')`, [userId]),
         db.query(
           `select l.id, l.title, l.price, l.transaction_type, l.neighborhood, l.image_url, l.status, l.featured_until, l.expires_at,
-                  (select count(*)::int from ika_favorites f where f.listing_id = l.id) as favs,
-                  (select count(*)::int from ika_contact_events c where c.listing_id = l.id) as contacts,
+                  (select count(*)::int from ika_favorites f where f.listing_id = l.id and f.created_at > now() - ($2 || ' days')::interval) as favs,
+                  (select count(*)::int from ika_contact_events c where c.listing_id = l.id and c.created_at > now() - ($2 || ' days')::interval)
+                  + (select count(*)::int from ika_threads t where t.listing_id = l.id and t.created_at > now() - ($2 || ' days')::interval)
+                  + (select count(*)::int from ika_visit_requests v where v.listing_id = l.id and v.created_at > now() - ($2 || ' days')::interval) as contacts,
                   (select count(*)::int from ika_analytics_events e where e.listing_id = l.id and e.event_type = 'listing_view' and not e.is_bot and e.occurred_at > now() - ($2 || ' days')::interval) as views
            from ika_listings l where l.owner_id = $1 and l.status in ('PUBLISHED', 'PENDING', 'REJECTED', 'EXPIRED') order by l.created_at desc limit 6`, [userId, String(n)]),
         db.query(

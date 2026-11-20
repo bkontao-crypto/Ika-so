@@ -10,7 +10,7 @@ const PERIODS = [[7, "7 derniers jours"], [14, "14 jours"], [30, "30 jours"], [9
 const STATUS = { PUBLISHED: ["Active", "pill-green"], PENDING: ["En attente", "pill-gold"], REJECTED: ["Refusée", "pill-warn"], EXPIRED: ["Expirée", "pill-warn"] };
 const VISIT = { PENDING: ["En cours", "pill-gold"], ACCEPTED: ["Confirmée", "pill-green"], DECLINED: ["Refusée", "pill-warn"], CANCELLED: ["Annulée", ""] };
 const nf = (n) => new Intl.NumberFormat("fr-FR").format(n);
-const delta = (n) => h("span", { class: `esp-delta ${n < 0 ? "down" : "up"}` }, `${n < 0 ? "↓" : "↑"} ${n > 0 ? "+" : ""}${n} %`);
+const delta = (n) => (n == null ? h("span", { class: "esp-delta up" }, "↑ Nouveau") : h("span", { class: `esp-delta ${n < 0 ? "down" : "up"}` }, `${n < 0 ? "↓" : "↑"} ${n > 0 ? "+" : ""}${n} %`));
 const sec = (id, title, right, ...kids) => h("section", { class: "card pad stack esp-card", id }, h("div", { class: "row-between" }, h("h2", null, title), right), ...kids);
 const empty = (t) => h("p", { class: "small muted" }, t);
 const ALERT_IC = { warn: ["!", "bad"], info: ["i", "info"], ok: ["✓", "ok"] };

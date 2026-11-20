@@ -70,6 +70,24 @@ export function createTrust(ctx, accounts) {
       return rows.map((r) => ({ id: r.id, kind: r.kind, fileType: r.file_type, createdAt: r.created_at, listingId: r.listing_id, listingTitle: r.title, declaredDocument: r.declared_document, ownerName: r.full_name }));
     },
 
+    /** Historique des pièces déjà traitées (acceptées ou refusées) : motif, personne qui a décidé, date. Lecture seule. */
+    async proofHistory(staffId, { status } = {}) {
+      await accounts.requireStaff(staffId);
+      const only = status === "ACCEPTED" || status === "REFUSED" ? status : null;
+      const rows = await db.query(
+        `select p.id, p.kind, p.status, p.review_note, p.created_at, p.reviewed_at, p.agency_name, p.listing_id, l.title, l.declared_document,
+                pr.full_name as owner_name, rv.full_name as reviewer_name
+         from ika_proofs p
+         join ika_profiles pr on pr.user_id = p.owner_id
+         left join ika_profiles rv on rv.user_id = p.reviewer_id
+         left join ika_listings l on l.id = p.listing_id
+         where p.status in ('ACCEPTED', 'REFUSED') and ($1::text is null or p.status = $1)
+         order by p.reviewed_at desc nulls last, p.created_at desc limit 100`,
+        [only],
+      );
+      return rows.map((r) => ({ id: r.id, kind: r.kind, status: r.status, note: r.review_note, createdAt: r.created_at, reviewedAt: r.reviewed_at, agencyName: r.agency_name, listingId: r.listing_id, listingTitle: r.title, declaredDocument: r.declared_document, ownerName: r.owner_name, reviewerName: r.reviewer_name }));
+    },
+
     /** Ouvrir une pièce est tracé : on sait qui l'a vue et quand. */
     async viewProof(staffId, id) {
       await accounts.requireStaff(staffId);
