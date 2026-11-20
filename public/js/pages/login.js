@@ -2,6 +2,7 @@ import { api, fail, h, mount, toast } from "/js/dom.js";
 import { S, app, refreshSession } from "/js/core/state.js";
 import { currentRoute, go } from "/js/core/router.js";
 import { field, passwordField } from "/js/components/ui.js";
+import { askDataConsent } from "/js/components/data-consent.js";
 
 // Logo « G » officiel de Google (SVG fixe, sans donnée extérieure), construit sans innerHTML.
 const googleLogo = () => new DOMParser().parseFromString(
@@ -10,7 +11,7 @@ const googleLogo = () => new DOMParser().parseFromString(
 
 const GOOGLE_NOTES = {
   indisponible: "La connexion avec Google n'est pas disponible pour le moment.",
-  conditions: "Cochez l'acceptation des conditions pour continuer avec Google.",
+  conditions: "Acceptez les conditions et les données indispensables pour continuer avec Google.",
   refus: "Connexion Google annulée.",
   etat: "La connexion Google a expiré. Réessayez.",
   "compte-existant": "Ce compte se connecte avec son mot de passe. Connectez-vous ainsi, puis liez Google depuis « Mon profil ».",
@@ -24,9 +25,8 @@ export async function loginPage() {
   const next = currentRoute().params.get("next") || "/";
   let mode = "login";
   let googleOn = false;
-  let googleTerms = false;
   const googleNote = GOOGLE_NOTES[currentRoute().params.get("google") ?? ""];
-  const form = { name: "", email: "", password: "", acceptTerms: false };
+  const form = { name: "", email: "", password: "" };
   function page() {
     const reg = mode === "register";
     mount(app, h("div", { class: "card pad stack" },
@@ -38,7 +38,13 @@ export async function loginPage() {
       h("form", { class: "stack", onSubmit: async (e) => {
         e.preventDefault();
         try {
-          await api(reg ? "/auth/register" : "/auth/login", { method: "POST", body: reg ? form : { email: form.email, password: form.password } });
+          let body = { email: form.email, password: form.password };
+          if (reg) {
+            const choice = await askDataConsent();
+            if (!choice) return toast("Inscription annulée : les données indispensables sont nécessaires.", true);
+            body = { ...form, acceptTerms: true, dataConsent: choice };
+          }
+          await api(reg ? "/auth/register" : "/auth/login", { method: "POST", body });
           await refreshSession();
           toast(reg ? "Compte créé." : "Connecté.");
           go(next.startsWith("/") ? next : "/");
@@ -47,20 +53,15 @@ export async function loginPage() {
         reg ? field("Nom affiché", h("input", { class: "input", autocomplete: "name", required: true, value: form.name, onInput: (e) => (form.name = e.target.value) })) : null,
         field("Adresse e-mail", h("input", { class: "input", type: "email", autocomplete: "email", required: true, value: form.email, onInput: (e) => (form.email = e.target.value) })),
         passwordField("Mot de passe (8 caractères au moins)", h("input", { class: "input", type: "password", autocomplete: reg ? "new-password" : "current-password", required: true, minlength: "8", value: form.password, onInput: (e) => (form.password = e.target.value) })),
-        reg ? h("label", { class: "row small" },
-          h("input", { type: "checkbox", required: true, checked: form.acceptTerms, onChange: (e) => (form.acceptTerms = e.target.checked) }),
-          h("span", null, "J'accepte les ", h("a", { href: "/conditions", target: "_blank", rel: "noopener" }, "conditions d'utilisation"), " et la ", h("a", { href: "/confidentialite", target: "_blank", rel: "noopener" }, "politique de confidentialité"), " et je confirme avoir 18 ans ou plus.")) : null,
         h("div", { class: "auth-actions" },
           h("button", { class: "btn btn-primary", type: "submit" }, reg ? "Créer mon compte" : "Me connecter"),
           reg ? null : h("a", { class: "auth-forgot", href: "#/mot-de-passe-oublie" }, "Mot de passe oublié ?"))),
  googleOn ? h("div", { class: "auth-google" },
         h("div", { class: "auth-sep", role: "separator" }, h("span", null, "ou")),
-        h("label", { class: "auth-terms" },
-          h("input", { type: "checkbox", checked: googleTerms, onChange: (e) => { googleTerms = e.target.checked; e.target.closest(".auth-google")?.querySelector(".btn-google")?.classList.toggle("is-off", !googleTerms); } }),
-          h("span", null, "J'accepte les ", h("a", { href: "/conditions", target: "_blank", rel: "noopener" }, "conditions d'utilisation"), " et la ", h("a", { href: "/confidentialite", target: "_blank", rel: "noopener" }, "politique de confidentialité"), " et je confirme avoir 18 ans ou plus.")),
-        h("button", { class: `btn-google${googleTerms ? "" : " is-off"}`, type: "button", onClick: () => {
-          if (!googleTerms) return toast("Cochez d'abord l'acceptation des conditions.", true);
-          location.href = `/api/auth/google?terms=1&next=${encodeURIComponent(next)}`;
+        h("button", { class: "btn-google", type: "button", onClick: async () => {
+          const choice = await askDataConsent();
+          if (!choice) return toast("Connexion annulée : les données indispensables sont nécessaires.", true);
+          location.href = `/api/auth/google?terms=1&consent=${choice}&next=${encodeURIComponent(next)}`;
         } }, googleLogo(), h("span", null, "Continuer avec Google"))) : null,
       h("p", { class: "small muted" }, "Votre numéro de téléphone est vérifié par un code SMS au moment de publier.")));
   }

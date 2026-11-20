@@ -6,12 +6,13 @@ export const EVENT_TYPES = Object.freeze([
   "listing_favorite_added", "listing_favorite_removed", "comment_created", "comment_deleted", "listing_created", "listing_updated", "listing_published", "listing_archived",
   "user_registered", "user_login", "user_logout", "verification_completed", "report_created", "payment_completed",
   "premium_cta_clicked", "premium_checkout_started",
+  "listing_dwell",
 ]);
 /** Emplacements d'invitation Premium suivis (liste fermée : toute autre valeur devient « autre »). */
 export const PREMIUM_ORIGINS = Object.freeze(["espace-hero", "espace-teaser", "espace-card", "espace-sidebar", "espace-lock", "espace-lockline", "espace-perk", "partenaires", "agence", "compte", "centre", "page-premium", "autre"]);
 export const premiumOrigin = (v) => (PREMIUM_ORIGINS.includes(v) ? v : "autre");
 /** Clés de métadonnées permises par type ; toute autre clé est supprimée. */
-const META_KEYS = { report_created: ["target"], phone_clicked: ["from"], whatsapp_clicked: ["from"], message_sent: ["from"], contact_clicked: ["from"], verification_completed: ["from"], premium_cta_clicked: ["from"], premium_checkout_started: ["from"], payment_completed: ["from", "kind"] };
+const META_KEYS = { listing_dwell: ["seconds"], report_created: ["target"], phone_clicked: ["from"], whatsapp_clicked: ["from"], message_sent: ["from"], contact_clicked: ["from"], verification_completed: ["from"], premium_cta_clicked: ["from"], premium_checkout_started: ["from"], payment_completed: ["from", "kind"] };
 const TARGETS = new Set(["listing", "profile", "user"]);
 
 export function shouldTrack(headers = {}) {
@@ -45,7 +46,7 @@ function cleanMetadata(type, metadata) {
   const out = {};
   for (const key of META_KEYS[type] ?? []) {
     const v = metadata?.[key];
-    if (key === "target") { if (TARGETS.has(v)) out.target = v; } else if (typeof v === "string") { const t = text(v, 40); if (t) out[key] = t; }
+    if (key === "seconds") { const n = Math.round(Number(v)); if (Number.isFinite(n) && n >= 1 && n <= 1800) out.seconds = n; } else if (key === "target") { if (TARGETS.has(v)) out.target = v; } else if (typeof v === "string") { const t = text(v, 40); if (t) out[key] = t; }
   }
   return out;
 }

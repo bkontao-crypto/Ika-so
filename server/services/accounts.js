@@ -22,6 +22,7 @@ import { smsConfigured } from "../config.js";
 import { assertNotBlacklisted } from "../lib/blacklist.js";
 import { iso } from "./cards.js";
 import { LEGAL_VERSION } from "../lib/legal.js";
+import { CONSENT_TEXT_VERSION } from "./analytics.js";
 import { ROLE_PERMISSIONS, ALL_PERMISSIONS, can } from "../lib/permissions.js";
 
 const SESSION_DAYS = 30;
@@ -30,11 +31,15 @@ const RESET_PER_HOUR = 3;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 
 export function createAccounts(ctx) {
-  const { db, config } = ctx;
+  const { db, config, logger } = ctx;
 
   async function ensureProfile(userId) {
     const existing = await db.query("select * from ika_profiles where user_id = $1", [userId]);
-    if (existing[0]) return existing[0];
+    if (existing[0]) {
+      const row = existing[0];
+      if (row.account_status !== "ACTIVE" && row.status_until && new Date(row.status_until).getTime() <= Date.now()) return liftExpiredSanction(row);
+      return row;
+    }
     const users = await db.query("select email, name from ika_users where id = $1", [userId]);
     if (!users[0]) throw unauthorized();
     // Premier administrateur : une seule ligne ika_bootstrap peut exister, donc un seul gagnant,
@@ -57,6 +62,31 @@ export function createAccounts(ctx) {
     if (created[0]) return created[0];
     const again = await db.query("select * from ika_profiles where user_id = $1", [userId]);
     return again[0];
+  }
+
+  /** Choix fait à l'inscription : « all » = données d'usage rattachées au compte, « essential » = seulement l'indispensable. Preuve : date et version du texte. */
+  async function recordSignupConsent(userId, dataConsent) {
+    await db.query(
+      `insert into ika_analytics_consent (user_id, accepted, text_version) values ($1, $2, $3)
+       on conflict (user_id) do update set accepted = $2, text_version = $3, decided_at = now()`,
+      [userId, dataConsent === "all", CONSENT_TEXT_VERSION]);
+  }
+
+  /** Sanction à durée déterminée arrivée à échéance : le compte redevient actif et ses annonces retrouvent leur visibilité (comme une levée manuelle). */
+  async function liftExpiredSanction(row) {
+    const done = await db.transaction(async (tx) => {
+      const r = await tx.query(
+        `update ika_profiles set account_status = 'ACTIVE', status_reason = null, status_until = null
+         where user_id = $1 and account_status <> 'ACTIVE' and status_until is not null and status_until <= now() returning *`, [row.user_id]);
+      if (!r[0]) return null;
+      await tx.query(
+        `update ika_listings set visibility = coalesce(visibility_before_ban, 'NORMAL'), visibility_before_ban = null, updated_at = now()
+         where owner_id = $1 and visibility_before_ban is not null`, [row.user_id]);
+      await tx.query("insert into ika_audit (id, actor_id, action, listing_id, note) values ($1, $2, 'SANCTION_EXPIRED', null, $3)",
+        [newId("aud"), row.user_id, `${row.account_status} ${row.user_id} fin de sanction`]);
+      return r[0];
+    });
+    return done ?? (await db.query("select * from ika_profiles where user_id = $1", [row.user_id]))[0];
   }
 
   function assertCanPublish(profile) {
@@ -134,7 +164,7 @@ export function createAccounts(ctx) {
     );
   }
 
-  async function createSession(userId) {
+  async function createSession(userId, method = "PASSWORD") {
     const token = newToken();
     await db.query("delete from ika_sessions where expires_at < now()");
     await db.query(
@@ -142,6 +172,13 @@ export function createAccounts(ctx) {
        values ($1, $2, now() + ($3 || ' days')::interval)`,
       [sha256(token), userId, String(SESSION_DAYS)],
     );
+    // Historique durable (les sessions, elles, disparaissent à la déconnexion). Ne doit jamais empêcher la connexion.
+    try {
+      await db.query("insert into ika_login_history (user_id, method) values ($1, $2)", [userId, method]);
+      await db.query("update ika_profiles set last_login_at = now(), login_count = login_count + 1 where user_id = $1", [userId]);
+    } catch (error) {
+      logger?.warn?.("login_history", { message: String(error?.message ?? error) });
+    }
     return token;
   }
 
@@ -157,17 +194,28 @@ export function createAccounts(ctx) {
     return { fullName: name };
   }
 
+  /** Premium : numéro confirmé par un vrai SMS obligatoire (protège les utilisateurs, donne confiance au profil). */
+  async function requireSmsPhone(userId) {
+    const profile = await ensureProfile(userId);
+    assertCanPublish(profile);
+    if (!profile.phone_verified_at || !isSmsVerified(profile.phone_channel)) {
+      throw Object.assign(forbidden("Confirmez d'abord votre numéro de téléphone par SMS pour passer Premium : cela protège les utilisateurs et donne confiance à votre profil. Sans cela, les avantages Premium restent fermés."), { code: "PHONE_REQUIRED" });
+    }
+    return profile;
+  }
+
   return {
     ensureProfile,
     updateName,
     assertCanPublish,
+    requireSmsPhone,
     assertCanPublishListing,
     requireActive,
     requireStaff,
     requirePermission,
     audit,
 
-    async register({ name, email, password, acceptTerms }) {
+    async register({ name, email, password, acceptTerms, dataConsent }) {
       if (acceptTerms !== true) throw badRequest("Vous devez accepter les conditions d'utilisation et la politique de confidentialité.");
       const cleanName = String(name ?? "").trim().slice(0, 120);
       const cleanEmail = String(email ?? "").trim().toLowerCase();
@@ -186,7 +234,8 @@ export function createAccounts(ctx) {
       );
       if (!rows[0]) throw conflict("Un compte existe déjà avec cet e-mail.");
       await ensureProfile(id);
-      return { token: await createSession(id), user: { id, email: cleanEmail, name: cleanName } };
+      await recordSignupConsent(id, dataConsent);
+      return { token: await createSession(id, "REGISTER"), user: { id, email: cleanEmail, name: cleanName } };
     },
 
     async login({ email, password }) {
@@ -241,7 +290,7 @@ export function createAccounts(ctx) {
      * Connexion ou inscription avec Google. Le lien se fait par l'identifiant Google (sub), jamais seulement par l'e-mail :
      * un compte créé par mot de passe avec la même adresse n'est PAS relié automatiquement (il pourrait avoir été créé par un tiers).
      */
-    async loginWithGoogle({ sub, email, name }, { acceptTerms, session = true } = {}) {
+    async loginWithGoogle({ sub, email, name }, { acceptTerms, dataConsent, session = true } = {}) {
       const cleanEmail = String(email ?? "").trim().toLowerCase();
       await assertNotBlacklisted(db, "EMAIL", cleanEmail);
       let user = (await db.query("select id, email, name from ika_users where google_sub = $1", [sub]))[0];
@@ -260,13 +309,14 @@ export function createAccounts(ctx) {
         );
         if (!rows[0]) throw taken;
         await ensureProfile(id);
+        await recordSignupConsent(id, dataConsent);
         user = rows[0];
       }
       const profile = await ensureProfile(user.id);
       if (profile.account_status === "BANNED") {
         throw forbidden(`Ce compte est bloqué.${profile.status_reason ? ` Motif : ${profile.status_reason}` : ""}`);
       }
-      return { token: session ? await createSession(user.id) : null, user: { id: user.id, email: user.email, name: user.name } };
+      return { token: session ? await createSession(user.id, "GOOGLE") : null, user: { id: user.id, email: user.email, name: user.name } };
     },
 
     /** Ticket de connexion pour l'application : 60 secondes, un seul usage, seul son hachage est en base. */
@@ -289,7 +339,7 @@ export function createAccounts(ctx) {
       if (!user) throw unauthorized("Ce lien de connexion a expiré. Recommencez depuis l'application.");
       const profile = await ensureProfile(userId);
       if (profile.account_status === "BANNED") throw forbidden("Ce compte est bloqué.");
-      return { token: await createSession(userId), user: { id: user.id, email: user.email, name: user.name } };
+      return { token: await createSession(userId, "TICKET"), user: { id: user.id, email: user.email, name: user.name } };
     },
 
     /**

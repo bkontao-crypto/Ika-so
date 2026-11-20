@@ -40,6 +40,12 @@ Ika So s'efforce de modérer mais ne peut garantir l'exactitude des annonces ni 
 ## 9. Données personnelles
 Voir la politique de confidentialité.
 
+## 9 bis. Données nécessaires et données d'usage
+À l'inscription, Ika So vous demande d'accepter les données nécessaires à son fonctionnement et, séparément, la collecte de vos données d'usage.
+- **Données indispensables** (identité de compte, connexion et sécurité, annonces et messages que vous publiez, paiements, traces de modération) : sans elles, la plateforme ne peut pas être utilisée. Si vous les refusez, l'inscription n'est pas possible.
+- **Données d'usage rattachées à votre compte** (pages consultées, annonces vues, appels et contacts WhatsApp lancés, fréquence de connexion) : elles servent à améliorer le service, protéger la plateforme et fournir des statistiques aux annonceurs. Si vous les refusez, vous utilisez Ika So normalement, sans que ces données soient liées à votre compte.
+- Vous pouvez changer ce choix à tout moment dans « Mon profil » > Paramètres. Un retrait détache vos données d'usage passées de votre compte.
+
 ## 10. Fin, litiges, loi applicable
 Vous pouvez fermer votre compte (⬜ fonction à développer). Nous pouvons suspendre un compte qui enfreint ces conditions, avec motif. ⛔ Loi applicable, tribunal compétent, médiation : à fixer.
 

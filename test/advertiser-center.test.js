@@ -49,15 +49,19 @@ test("filtres : recherche sans accents, types, certifiés, boostés", () => {
   assert.equal(filterDirectory(rows, {}).length, 3);
 });
 
-test("accès Premium : abonnement en cours ET certification, sinon refus", () => {
+test("accès Premium : abonnement en cours ET certification ET numéro vérifié par SMS, sinon refus", () => {
   const now = Date.parse("2026-11-09T00:00:00Z");
   const future = "2026-12-15T00:00:00Z";
-  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true }, now).eligible, true);
-  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: false, titleChecked: 1 }, now).eligible, true);
-  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: false, titleChecked: 0 }, now).eligible, false);
-  assert.equal(premiumAccess({ premiumUntil: "2026-10-01T00:00:00Z", agencyVerified: true }, now).eligible, false);
-  assert.equal(premiumAccess({ premiumUntil: null, agencyVerified: true }, now).premium, false);
-  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true }, now).daysLeft, 36);
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true, phoneVerified: true }, now).eligible, true);
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: false, titleChecked: 1, phoneVerified: true }, now).eligible, true);
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: false, titleChecked: 0, phoneVerified: true }, now).eligible, false);
+  assert.equal(premiumAccess({ premiumUntil: "2026-10-01T00:00:00Z", agencyVerified: true, phoneVerified: true }, now).eligible, false);
+  assert.equal(premiumAccess({ premiumUntil: null, agencyVerified: true, phoneVerified: true }, now).premium, false);
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true, phoneVerified: true }, now).daysLeft, 36);
+  // Sans numéro vérifié par SMS : jamais d'accès, même Premium et certifié.
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true }, now).eligible, false);
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true, phoneVerified: false }, now).eligible, false);
+  assert.equal(premiumAccess({ premiumUntil: future, agencyVerified: true, phoneVerified: true }, now).phoneVerified, true);
 });
 
 function fakeDb(handlers = []) {

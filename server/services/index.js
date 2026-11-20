@@ -15,6 +15,7 @@ import { createListings } from "./listings.js";
 import { createProperties } from "./properties.js";
 import { selectProvider } from "../payments/providers.js";
 import { createModeration } from "./moderation.js";
+import { createUserCenter } from "./user-center.js";
 import { createModerationAudit } from "./moderation-audit.js";
 import { createCrm } from "./crm.js";
 import { createWhatsApp } from "./whatsapp.js";
@@ -68,11 +69,12 @@ const superadminSettings = createSuperadminSettings(ctx);
   const partners = createPartners({ db, accounts });
   const places = createPlaces({ db, accounts });
   const ownerCenter = createOwnerCenter({ db, accounts, logger });
+  const userCenter = createUserCenter(ctx, accounts);
   const permissionGrants = createPermissionGrants({ db, accounts });
   const advertiserCenter = createAdvertiserCenter({ db, accounts });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

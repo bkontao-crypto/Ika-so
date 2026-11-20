@@ -89,6 +89,12 @@
       "why": "Lecture de chiffres ; aucune action sensible."
     },
     {
+      "segment": "users",
+      "label": "Utilisateurs",
+      "access": "delegable",
+      "why": "Annuaire et analyse des comptes ; la consultation d'un compte et chaque export sont journalisés, les sanctions passent par la modération."
+    },
+    {
       "segment": "crm",
       "label": "CRM",
       "access": "delegable",

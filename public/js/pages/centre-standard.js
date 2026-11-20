@@ -50,7 +50,8 @@ export async function standardCentre(acc) {
     return;
   }
   const first = (d.access.name || S.user?.name || "").split(/\s+/)[0] || "";
-  const needsCert = d.access.premium && !d.access.certified; // Premium payé mais profil non certifié
+  const needsPhone = d.access.premium && d.access.phoneVerified === false; // Premium actif mais numéro non confirmé par SMS : passe avant la certification
+  const needsCert = d.access.premium && !needsPhone && !d.access.certified; // Premium payé mais profil non certifié
   const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const nav = (label, ic, { id, href, badge, on } = {}) => h(href ? "a" : "button", { class: `esp-nav${on ? " on" : ""}`, type: href ? null : "button", href, onClick: id ? () => go(id) : null }, icon(ic), h("span", null, label), badge ? h("em", null, String(badge)) : null);
@@ -61,7 +62,7 @@ export async function standardCentre(acc) {
       avatar(d.access.name || S.user?.name || "", null, "sm"),
       h("div", { class: "esp-profile-info" },
         h("strong", null, d.access.name || S.user?.name || "Mon compte"),
-        h("small", null, needsCert ? "Premium en attente" : "Compte standard"))),
+        h("small", null, needsPhone || needsCert ? "Premium en attente" : "Compte standard"))),
     nav("Vue d'ensemble", "home", { id: "esp-top", on: true }),
     nav("Mes annonces", "list", { href: "#/mes-annonces", badge: d.kpis.live || null }),
     nav("Mes messages", "message", { href: "#/boite?onglet=messages", badge: d.kpis.unread || null }),
@@ -71,8 +72,8 @@ export async function standardCentre(acc) {
     nav("Mes paiements", "card", { href: "#/paiements" }),
     nav("Paramètres", "settings", { href: "#/profil" }),
     locked("Statistiques"), locked("Carte"), locked("Alertes"), locked("Échéances"),
-    h("div", { class: "esp-prem" }, h("strong", null, "Compte standard"), h("small", null, needsCert ? "Votre Premium attend la certification de votre profil." : "Passez Premium pour débloquer le centre de contrôle."),
-      h("a", { class: "btn btn-gold btn-small", href: needsCert ? "#/profil" : up("espace-sidebar") }, needsCert ? "Faire certifier mon profil" : "Voir les avantages")));
+    h("div", { class: "esp-prem" }, h("strong", null, "Compte standard"), h("small", null, needsPhone ? "Votre Premium attend la confirmation de votre numéro par SMS." : needsCert ? "Votre Premium attend la certification de votre profil." : "Passez Premium pour débloquer le centre de contrôle."),
+      h("a", { class: "btn btn-gold btn-small", href: needsPhone ? "#/devenir-premium" : needsCert ? "#/profil" : up("espace-sidebar") }, needsPhone ? "Confirmer mon numéro" : needsCert ? "Faire certifier mon profil" : "Voir les avantages")));
 
   const burger = h("button", { class: "esp-burger", type: "button", "aria-label": "Menu", onClick: () => {
     side.classList.toggle("open");
@@ -80,12 +81,12 @@ export async function standardCentre(acc) {
 
   const hero = h("section", { class: "esp-hero", id: "esp-top" }, h("h1", null, first ? `Bonjour ${first}` : "Bonjour"),
     h("p", null, "Bienvenue dans votre espace annonceur. Publiez, suivez vos messages et développez votre activité."),
-    h("div", { class: "row" }, h("a", { class: "btn btn-gold", href: "#/publier" }, icon("plus"), "Publier une annonce"), h("a", { class: "btn esp-ghost", href: needsCert ? "#/profil" : up("espace-hero") }, needsCert ? "Certifier mon profil" : "Passer Premium")));
+    h("div", { class: "row" }, h("a", { class: "btn btn-gold", href: "#/publier" }, icon("plus"), "Publier une annonce"), h("a", { class: "btn esp-ghost", href: needsPhone ? "#/devenir-premium" : needsCert ? "#/profil" : up("espace-hero") }, needsPhone ? "Confirmer mon numéro" : needsCert ? "Certifier mon profil" : "Passer Premium")));
 
   const teaser = h("section", { class: "std-teaser", "aria-label": "Invitation Premium" }, h("span", { class: "std-star", "aria-hidden": "true" }, icon("star")),
     h("div", { class: "grow" }, h("strong", null, d.contacts7 > 0 ? `${nf(d.contacts7)} contact${d.contacts7 > 1 ? "s" : ""} reçu${d.contacts7 > 1 ? "s" : ""} ces 7 derniers jours.` : "Vos contacts des 7 derniers jours."),
       h("small", null, "Avec Premium, voyez combien de personnes les consultent, comparez avec la période précédente et repérez vos meilleures annonces.")),
-    h("a", { class: "pc-btn", href: needsCert ? "#/profil" : up("espace-teaser") }, needsCert ? "Certifier mon profil" : "Découvrir Premium", h("span", { "aria-hidden": "true" }, "→")));
+    h("a", { class: "pc-btn", href: needsPhone ? "#/devenir-premium" : needsCert ? "#/profil" : up("espace-teaser") }, needsPhone ? "Confirmer mon numéro" : needsCert ? "Certifier mon profil" : "Découvrir Premium", h("span", { "aria-hidden": "true" }, "→")));
 
   const kpi = (ic, label, value, link, href) => h("a", { class: "esp-kpi", href }, h("span", { class: "esp-kic" }, icon(ic)), h("small", null, label), h("strong", null, nf(value)), h("em", null, link));
   const kpis = h("div", { class: "esp-kpis" },

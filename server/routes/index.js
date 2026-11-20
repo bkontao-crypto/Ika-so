@@ -27,7 +27,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { userCenter, featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -114,10 +114,10 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
       res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: "/profil", t: 0, l: 1, a: 0 }), config));
       return res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
     }
-    if (req.query.terms !== "1") return res.redirect(302, googleBack("/connexion?google=conditions"));
+    if (!["1", "all"].includes(req.query.terms)) return res.redirect(302, googleBack("/connexion?google=conditions"));
     const state = newState();
     // a = 1 : connexion lancée depuis l'application Android (retour par ticket, voir /auth/app-handoff).
-    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
+    res.setHeader("Set-Cookie", stateCookie(packState({ s: state, n: safeNext(req.query.next), t: req.query.terms === "all" || req.query.consent === "all" ? 2 : 1, l: 0, a: req.query.app === "1" ? 1 : 0 }), config));
     res.redirect(302, authorizationUrl({ clientId: config.google.clientId, redirectUri: config.google.redirectUri, state }));
   });
 
@@ -151,7 +151,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
       }
       if (saved.a === 1) {
         // Application : aucune session dans le navigateur ; un ticket à usage unique ramène l'application à la session.
-        const { user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1, session: false });
+        const { user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t >= 1, dataConsent: saved.t === 2 ? "all" : "essential", session: false });
         track(req, "user_login", { userId: user.id });
         ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
         const ticket = await accounts.issueLoginTicket(user.id);
@@ -161,7 +161,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
         res.setHeader("Cache-Control", "no-store");
         return res.send(appReturnPage(ticket));
       }
-      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t === 1 });
+      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: saved.t >= 1, dataConsent: saved.t === 2 ? "all" : "essential" });
       track(req, "user_login", { userId: user.id });
       ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
       setSession(res, token);
@@ -187,7 +187,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     if (req.body?.terms !== true) return res.status(400).json({ error: "Acceptez les conditions pour continuer.", code: "conditions" });
     try {
       const profile = await verifyIdToken(idToken, config.google.clientId);
-      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: true });
+      const { token, user } = await accounts.loginWithGoogle(profile, { acceptTerms: true, dataConsent: req.body?.dataConsent === "all" ? "all" : "essential" });
       track(req, "user_login", { userId: user.id });
       ownerCenter?.recordSecurity("LOGIN", { userId: user.id }, req);
       setSession(res, token);
@@ -326,6 +326,13 @@ router.get("/listings/:id", async (req, res) => {
     const listing = await listings.getPublic(id(req));
     track(req, "listing_view", { listingId: listing?.id ?? id(req), userId: req.user?.id });
     res.json(listing);
+  });
+  // Durée de visionnage d'une fiche (secondes d'affichage réel, envoyées à la sortie de la page). Anonyme sauf accord du compte.
+  router.post("/listings/:id/dwell", (req, res) => {
+    limiter.hit(`dwell:${req.ip}`, 60, 60_000);
+    const seconds = Math.round(Number(req.body?.seconds));
+    if (Number.isFinite(seconds) && seconds >= 2 && seconds <= 1800) track(req, "listing_dwell", { listingId: id(req), userId: req.user?.id, metadata: { seconds } });
+    res.status(204).end();
   });
   router.get("/listings/:id/similar", async (req, res) => res.json(await listings.similarPublic(id(req))));
   router.get("/listings/:id/comments", async (req, res) => res.json(await listings.listComments(id(req))));
@@ -1093,6 +1100,20 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   // ---------- Owner Control Center v2 : tableau de bord, journal des mouvements, traçage (SUPERADMIN, contrôlé dans le service) ----------
   const feedQuery = (q) => ({ sources: clean(q.sources, 400), categories: clean(q.categories, 200), q: clean(q.q, 80), actor: clean(q.actor, 80), from: clean(q.from, 40), to: clean(q.to, 40), before: clean(q.before, 40), limit: q.limit });
   router.get("/staff/owner/dashboard", async (req, res) => res.json(await ownerCenter.dashboard(await requireOwnerModule(req, "dashboard"), { days: Number(req.query.days) || 30 })));
+  // Centre « Utilisateurs » : annuaire filtrable, agrégats, export, analyse d'un compte.
+  const userFilters = (q) => ({ q: clean(q.q, 80), segment: clean(q.segment, 12), status: clean(q.status, 12), role: clean(q.role, 12), advertiser: clean(q.advertiser, 12), listings: clean(q.listings, 8), premium: clean(q.premium, 4), verified: clean(q.verified, 4), dateField: clean(q.dateField, 8), from: clean(q.from, 10), to: clean(q.to, 10), sort: clean(q.sort, 10), dir: clean(q.dir, 4), page: q.page, pageSize: q.pageSize });
+  router.get("/staff/owner/users", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await userCenter.directory(await requireOwnerModule(req, "users"), userFilters(req.query))); });
+  router.get("/staff/owner/users/aggregates", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await userCenter.aggregates(await requireOwnerModule(req, "users"))); });
+  router.get("/staff/owner/users/export.csv", async (req, res) => {
+    const userId = await requireOwnerModule(req, "users");
+    limiter.hit(`users-export:${userId}`, 10, 60 * 60_000);
+    const body = await userCenter.exportCsv(userId, userFilters(req.query));
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", "attachment; filename=utilisateurs.csv");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(body);
+  });
+  router.get("/staff/owner/users/:id/analysis", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await userCenter.analysis(await requireOwnerModule(req, "users"), id(req))); });
   router.get("/staff/owner/activity/catalog", async (req, res) => res.json(await ownerCenter.catalog(requireUser(req))));
   router.get("/staff/owner/activity/summary", async (req, res) => res.json(await ownerCenter.summary(requireUser(req), { days: Number(req.query.days) || 7 })));
   router.get("/staff/owner/activity/connections", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.connections(requireUser(req), { days: Number(req.query.days) || 30 })); });
@@ -1282,8 +1303,8 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     const staffId = await requireOwnerModule(req, "users");
     const status = clean(req.body?.status);
     const reason = clean(req.body?.reason, 500);
-    const out = await moderation.setAccountStatus(staffId, id(req), status, reason);
-    await moderationAudit.log(staffId, { action: "account_status", targetType: "user", targetId: id(req), details: { status, reason } }).catch(() => {});
+    const out = await moderation.setAccountStatus(staffId, id(req), status, reason, req.body?.until ?? null);
+    await moderationAudit.log(staffId, { action: "account_status", targetType: "user", targetId: id(req), details: { status, reason, until: req.body?.until ?? null } }).catch(() => {});
     res.json(out);
   });
   router.post("/staff/accounts/:id/role", async (req, res) => {
