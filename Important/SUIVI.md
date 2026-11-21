@@ -1706,8 +1706,8 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
 
 ### Cadre du profil dans la carte « Annonceur » de la fiche annonce (21 novembre 2026) — branche feat/fiche-annonceur-photo
 - **À réaliser (demande du propriétaire) :** afficher le cadre du profil (couverture et photo) dans la carte profil annonceur de la fiche d'une annonce.
-- **Réalisé :** `public/js/pages/listing.js` + `public/css/components.css` : la carte « Annonceur » reprend le cadre du profil public (couverture, photo ou initiales à défaut, nom, rôle, puis avis, niveau de confiance et « Voir le profil »). Aucune modification du serveur : l'API `/advertisers/:id` fournit déjà `profile.coverUrl` et `profile.avatarUrl`, et ne les renvoie pas si l'annonceur ou la modération a masqué ses images. Version du cache hors connexion régénérée.
-- **Vérifié :** tests complets sans échec ; navigateur (API simulée) : carte avec photo et couverture, sans image (dégradé et initiales), thème sombre, mobile ; aucune erreur JavaScript.
+- **Réalisé :** `public/js/pages/listing.js` + `public/css/components.css` : la carte « Annonceur » affiche la **photo de profil** (ronde, initiales à défaut) à côté du nom et du rôle, puis avis, niveau de confiance et « Voir le profil ». **Précision du propriétaire (21 novembre, plus tard) : photo de profil seulement, sans la couverture** (une première version avec couverture a été corrigée). Aucune modification du serveur : l'API `/advertisers/:id` fournit déjà `profile.avatarUrl`, et ne le renvoie pas si l'annonceur ou la modération a masqué ses images. Version du cache hors connexion régénérée.
+- **Vérifié :** tests complets sans échec ; navigateur (API simulée) : carte avec photo, sans photo (initiales), thème sombre, mobile ; aucune erreur JavaScript.
 - **Non vérifié :** rendu avec de vraies photos de profil sur le site déployé ; affichage ordinateur de la fiche.
-- **À faire :** vérification réelle par le propriétaire. Interprétation retenue de la demande : « cadre du profil » = couverture + photo de profil ; à corriger si le propriétaire attendait autre chose.
+- **À faire :** vérification réelle par le propriétaire. Demande précisée : photo de profil seulement.
 - **Risques :** faibles (affichage seulement). Retour arrière : `git revert -m 1 <fusion>`, aucune migration.

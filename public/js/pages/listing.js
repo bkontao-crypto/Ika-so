@@ -18,11 +18,10 @@ export async function listingPage(id) {
     if (p.trust?.label) pills.push(h("span", { class: "pill pill-green" }, p.trust.label));
     if (p.agencyVerified) pills.push(h("span", { class: "pill" }, "Agence vérifiée"));
     // filter(Boolean) : replaceChildren écrit « null » à la place d'un élément absent.
-    // Même « cadre » que sur le profil public : couverture, photo (ou initiales), nom. Les images masquées par l'annonceur ou la modération n'arrivent pas.
+    // Photo de profil (ou initiales) à côté du nom. Une photo masquée par l'annonceur ou la modération n'arrive pas de l'API.
     const name = p.name || "Annonceur";
-    const cover = p.profile?.coverUrl ? h("img", { class: "owner-cover", src: p.profile.coverUrl, alt: "", loading: "lazy" }) : h("div", { class: "owner-cover", "aria-hidden": "true" });
     const avatar = p.profile?.avatarUrl ? h("img", { class: "owner-avatar", src: p.profile.avatarUrl, alt: `Photo de ${name}`, loading: "lazy" }) : h("div", { class: "owner-avatar", "aria-hidden": "true" }, initials(name));
-    ownerSummary.replaceChildren(cover, h("div", { class: "owner-body" }, ...[
+    ownerSummary.replaceChildren(h("div", { class: "owner-body" }, ...[
       h("div", { class: "owner-id" }, avatar, h("div", { class: "owner-who" }, h("h3", { style: "margin:0" }, name), p.displayRole ? h("small", { class: "muted" }, p.displayRole) : null)),
       pills.length ? h("div", { class: "row wrap gap-sm", style: "margin-top:10px" }, ...pills) : null,
       p.trust?.detail ? h("p", { class: "small muted" }, p.trust.detail) : null,
