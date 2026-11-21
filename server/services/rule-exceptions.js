@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { badRequest, conflict, notFound } from "../lib/errors.js";
 import { EXCEPTION_RULES, RULES_KEY, normalizeRules, stepRule } from "../lib/account-rules.js";
+import { normalizeGroups } from "../lib/certification-criteria.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 
@@ -25,6 +26,7 @@ export function createRuleExceptions({ db, superadminSettings, accounts, moderat
     /** Le superadmin décide des conditions officielles. Avant/après tracés. */
     async saveOfficial(actorId, value) {
       await accounts.requireStaff(actorId, "SUPERADMIN");
+      if (value && typeof value === "object" && value.certificationGroups !== undefined) value = { ...value, certificationGroups: normalizeGroups(value.certificationGroups) }; // 400 si critère inconnu ou vide
       const before = await official();
       const next = normalizeRules({ ...before, ...(value && typeof value === "object" ? value : {}) });
       await superadminSettings.set(actorId, RULES_KEY, next);

@@ -47,11 +47,13 @@ export function filterDirectory(rows, { q = "", kind = "" } = {}) {
 }
 
 /** Accès au centre de contrôle : Premium en cours ET numéro de téléphone confirmé (décision du 20/11/2026 : le numéro est la certification du Premium ; agence vérifiée / titre contrôlé restent un badge de confiance, plus une condition). */
-export function premiumAccess({ premiumUntil, agencyVerified, titleChecked, phoneVerified }, now = Date.now()) {
+export function premiumAccess({ premiumUntil, agencyVerified, titleChecked, phoneVerified, certificationOk }, now = Date.now()) {
   const until = premiumUntil ? new Date(premiumUntil).getTime() : 0;
   const premium = until > now;
   const certified = Boolean(agencyVerified) || Number(titleChecked) > 0;
   // Numéro confirmé par code (SMS, ou démonstration tant que le SMS n'est pas configuré) : protège les utilisateurs. Sans lui, aucun avantage Premium.
   const phone = phoneVerified === true;
-  return { premium, certified, phoneVerified: phone, eligible: premium && phone, premiumUntil: until ? new Date(until).toISOString() : null, daysLeft: premium ? Math.ceil((until - now) / 86_400_000) : 0 };
+  // certificationOk : verdict des conditions officielles configurables (conditions remplies OU exception tracée). Absent : règle historique, numéro confirmé.
+  const certificationPassed = certificationOk === undefined ? phone : certificationOk === true;
+  return { premium, certified, phoneVerified: phone, certificationOk: certificationPassed, eligible: premium && certificationPassed, premiumUntil: until ? new Date(until).toISOString() : null, daysLeft: premium ? Math.ceil((until - now) / 86_400_000) : 0 };
 }

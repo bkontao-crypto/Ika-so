@@ -9,7 +9,7 @@ function page(ctx, { eyebrow, title, desc, load, build, actions }) {
   const head = (extra) => h("div", { class: "welcome" }, h("div", null, h("div", { class: "eyebrow" }, eyebrow), h("h1", null, title), desc ? h("p", null, desc) : null), h("div", { class: "actions" }, extra ?? null));
   async function reload() {
     root.replaceChildren(head(), skeletons(2, 120));
-    try { const data = await load(); root.replaceChildren(head(actions?.(data, reload)), ...[].concat(build(data, reload))); } catch (e) { if (!e.stale) root.replaceChildren(head(), errorBox(e.message || "Chargement impossible.", reload)); }
+    try { const data = await load(); root.replaceChildren(head(actions?.(data, reload)), ...[].concat(build(data, reload)).filter((n) => n != null && n !== false)); } catch (e) { if (!e.stale) root.replaceChildren(head(), errorBox(e.message || "Chargement impossible.", reload)); }
   }
   reload();
   return root;
@@ -523,8 +523,11 @@ export const rulesView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Conditions & exceptions",
   desc: "Les conditions officielles du site, et qui peut y déroger. Chaque exception est accordée sur la fiche d'un compte, avec un motif, et reste tracée.",
   load: () => api("/staff/rules"),
-  build({ rules }, reload) {
+  build({ rules, criteria = [] }, reload) {
     const canEdit = ctx.isSuperadmin();
+    // Critères de certification du centre de contrôle : ET entre les conditions, OU entre les critères d'une même condition.
+    const certGroups = Array.from({ length: 3 }, (_, i) => (rules.certificationGroups ?? [])[i] ?? []).map((g) => criteria.map((c) => { const b = h("input", { type: "checkbox", disabled: !canEdit }); b.checked = g.includes(c.code); return [c, b]; }));
+    const certValue = () => certGroups.map((g) => g.filter(([, b]) => b.checked).map(([c]) => c.code)).filter((g) => g.length);
     const phone = h("input", { type: "checkbox", id: "rl-phone", disabled: !canEdit });
     phone.checked = rules.phoneConfirmedForPremium !== false;
     const stepBoxes = [1, 2, 3].map((n) => { const b = h("input", { type: "checkbox", id: `rl-step${n}`, disabled: !canEdit }); b.checked = rules.requiredSteps.includes(n); return [n, b]; });
@@ -534,13 +537,17 @@ export const rulesView = (ctx) => page(ctx, {
     const dPhone = h("input", { type: "checkbox", id: "rl-d-phone", disabled: !canEdit }); dPhone.checked = rules.discoverRequirePhone === true;
     const dPhotos = h("input", { class: "input", type: "number", min: "0", max: "6", id: "rl-d-photos", disabled: !canEdit, value: String(rules.discoverMaxPhotos ?? 4) });
     const dDay = h("input", { class: "input", type: "number", min: "1", max: "50", id: "rl-d-day", disabled: !canEdit, value: String(rules.discoverPostsPerDay ?? 5) });
-    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
+    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, certificationGroups: certValue(), requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
       discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
     return [
       canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
       panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
         h("label", { class: "row", for: "rl-phone" }, phone, h("strong", null, "Exiger un numéro confirmé (code reçu) pour demander ou payer le Premium")),
         h("p", { class: "small muted" }, "Décoché : plus personne n'a besoin de confirmer son numéro pour passer Premium. Pour un seul compte, accordez plutôt une exception sur sa fiche."))),
+      panel("Centre de contrôle : critères de certification", null, h("div", { class: "stack" },
+        ...certGroups.map((g, i) => h("fieldset", { class: "stack" }, h("legend", null, `Condition ${i + 1} (au moins un critère coché)`),
+          ...g.map(([c, b]) => h("label", { class: "row" }, b, h("span", null, c.label))))),
+        h("p", { class: "small muted" }, "Toutes les conditions utilisées doivent être remplies ; dans une condition, un seul critère suffit. Exemple : condition 1 = « Agence vérifiée » ou « Titre foncier contrôlé ». Laissez une condition vide pour ne pas l'utiliser ; au moins une est obligatoire. Un cas particulier se règle par une exception tracée sur la fiche du compte, jamais en modifiant le code."))),
       panel("Dossier Premium : étapes à valider avant d'approuver", null, h("div", { class: "stack" },
         ...stepBoxes.map(([n, b]) => h("label", { class: "row", for: `rl-step${n}` }, b, h("span", null, `Étape ${n} : ${STEP_LABELS[n]}`))),
         h("p", { class: "small muted" }, "Seules les étapes cochées sont exigées pour approuver. Les autres restent possibles et tracées si l'équipe les valide."))),

@@ -77,7 +77,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const ownerCenter = createOwnerCenter({ db, accounts, logger });
   const userCenter = createUserCenter(ctx, accounts);
   const permissionGrants = createPermissionGrants({ db, accounts });
-  const advertiserCenter = createAdvertiserCenter({ db, accounts });
+  const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
   return { discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };

@@ -1,3 +1,4 @@
+import { CRITERIA } from "../lib/certification-criteria.js";
 import { premiumOrigin } from "../lib/analytics-events.js";
 import { leadsToPdf, moderationAuditToPdf } from "../lib/table-pdfs.js";
 import { POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
@@ -1153,7 +1154,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.post("/staff/owner/users/:id/rule-exceptions", async (req, res) => res.status(201).json(await services.ruleExceptions.grant(await requireOwnerGate(req, "users"), id(req), { rule: clean(req.body?.rule, 40), reason: clean(req.body?.reason, 500), days: req.body?.days })));
   router.post("/staff/rule-exceptions/:id/revoke", async (req, res) => res.json(await services.ruleExceptions.revoke(await requireOwnerGate(req, "users"), id(req), { reason: clean(req.body?.reason, 300) })));
   // Conditions officielles : lecture pour l'équipe, décision du superadmin seul (contrôle dans le service).
-  router.get("/staff/rules", async (req, res) => { await accounts.requireStaff(requireUser(req), "ADMIN"); res.setHeader("Cache-Control", "no-store"); res.json({ rules: await services.ruleExceptions.official(), catalogue: services.ruleExceptions.catalogue }); });
+  router.get("/staff/rules", async (req, res) => { await accounts.requireStaff(requireUser(req), "ADMIN"); res.setHeader("Cache-Control", "no-store"); res.json({ rules: await services.ruleExceptions.official(), criteria: Object.entries(CRITERIA).map(([code, label]) => ({ code, label })), catalogue: services.ruleExceptions.catalogue }); });
   router.put("/staff/rules", async (req, res) => res.json(await services.ruleExceptions.saveOfficial(requireUser(req), req.body?.value ?? req.body)));
   router.get("/staff/owner/activity/catalog", async (req, res) => res.json(await ownerCenter.catalog(requireUser(req))));
   router.get("/staff/owner/activity/summary", async (req, res) => res.json(await ownerCenter.summary(requireUser(req), { days: Number(req.query.days) || 7 })));
