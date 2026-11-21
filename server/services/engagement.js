@@ -37,7 +37,8 @@ export function createEngagement(ctx, accounts) {
 
   async function threadFor(userId, threadId) {
     const rows = await db.query(
-      `select t.*, l.title from ika_threads t join ika_listings l on l.id = t.listing_id
+      `select t.*, coalesce(l.title, left(pb.content, 60), 'Publication') as title from ika_threads t
+         left join ika_listings l on l.id = t.listing_id left join ika_publications pb on pb.id = t.publication_id
        where t.id = $1 and (t.owner_id = $2 or t.visitor_id = $2)`,
       [String(threadId).slice(0, 80), userId],
     );
@@ -213,6 +214,22 @@ export function createEngagement(ctx, accounts) {
       return this.post(userId, null, text, l);
     },
 
+    /** Écrit à l'auteur d'une publication « Découvrir » : même messagerie que pour une annonce. */
+    async sendToPublication(userId, publicationId, body) {
+      const profile = await accounts.ensureProfile(userId);
+      accounts.assertCanPublish(profile);
+      const text = String(body ?? "").trim().slice(0, 1000);
+      if (text.length < 2) throw badRequest("Le message est trop court.");
+      const rows = await db.query(
+        `select pb.id, pb.user_id as owner_id, left(pb.content, 60) as title from ika_publications pb
+           join ika_users u on u.id = pb.user_id and u.deleted_at is null join ika_profiles pr on pr.user_id = pb.user_id and pr.account_status <> 'BANNED'
+          where pb.id = $1 and pb.status = 'PUBLISHED'`, [String(publicationId ?? "").slice(0, 80)]);
+      const pub = rows[0];
+      if (!pub) throw notFound("Publication introuvable.");
+      if (pub.owner_id === userId) throw badRequest("C'est votre propre publication.");
+      return this.post(userId, null, text, { id: null, publicationId: pub.id, owner_id: pub.owner_id, title: pub.title });
+    },
+
     async reply(userId, threadId, body) {
       const profile = await accounts.ensureProfile(userId);
       accounts.assertCanPublish(profile);
@@ -227,12 +244,18 @@ export function createEngagement(ctx, accounts) {
       if (recent[0].n >= MAX_MESSAGES_PER_HOUR) throw tooMany("Trop de messages envoyés. Réessayez plus tard.");
       let t = thread;
       if (!t) {
-        const rows = await db.query(
-          `insert into ika_threads (id, listing_id, owner_id, visitor_id) values ($1,$2,$3,$4)
-           on conflict (listing_id, visitor_id) do update set last_message_at = ika_threads.last_message_at
-           returning id, owner_id, visitor_id`,
-          [newId("th"), listing.id, listing.owner_id, userId],
-        );
+        const rows = listing.publicationId
+          ? await db.query(
+            `insert into ika_threads (id, publication_id, owner_id, visitor_id) values ($1,$2,$3,$4)
+             on conflict (publication_id, visitor_id) where publication_id is not null do update set last_message_at = ika_threads.last_message_at
+             returning id, owner_id, visitor_id`,
+            [newId("th"), listing.publicationId, listing.owner_id, userId])
+          : await db.query(
+            `insert into ika_threads (id, listing_id, owner_id, visitor_id) values ($1,$2,$3,$4)
+             on conflict (listing_id, visitor_id) do update set last_message_at = ika_threads.last_message_at
+             returning id, owner_id, visitor_id`,
+            [newId("th"), listing.id, listing.owner_id, userId],
+          );
         t = { ...rows[0], title: listing.title };
       }
       await db.query("insert into ika_messages (id, thread_id, sender_id, body) values ($1,$2,$3,$4)", [newId("ms"), t.id, userId, text]);
@@ -245,7 +268,7 @@ export function createEngagement(ctx, accounts) {
 
     async threads(userId) {
       const rows = await db.query(
-        `select t.id, t.listing_id, t.owner_id, t.visitor_id, t.last_message_at, l.title, l.image_url,
+        `select t.id, t.listing_id, t.publication_id, t.owner_id, t.visitor_id, t.last_message_at, coalesce(l.title, left(pb.content, 60), 'Publication') as title, l.image_url,
            (t.owner_id = $1 and (t.owner_read_at is null or t.owner_read_at < t.last_message_at)) or
            (t.visitor_id = $1 and (t.visitor_read_at is null or t.visitor_read_at < t.last_message_at)) as unread,
            (select count(*)::int from ika_messages m where m.thread_id = t.id and m.sender_id <> $1
@@ -256,12 +279,12 @@ export function createEngagement(ctx, accounts) {
            case when t.owner_id = $1 then t.visitor_read_at else t.owner_read_at end as other_read_at,
            (select coalesce(nullif(p.full_name, ''), u.name) from ika_users u left join ika_profiles p on p.user_id = u.id where u.id = case when t.owner_id = $1 then t.visitor_id else t.owner_id end) as other_name,
            exists (select 1 from ika_user_blocks b where b.blocker_id = $1 and b.blocked_id = case when t.owner_id = $1 then t.visitor_id else t.owner_id end) as blocked_by_me
-         from ika_threads t join ika_listings l on l.id = t.listing_id
+         from ika_threads t left join ika_listings l on l.id = t.listing_id left join ika_publications pb on pb.id = t.publication_id
          where t.owner_id = $1 or t.visitor_id = $1 order by t.last_message_at desc limit 50`,
         [userId],
       );
       return rows.map((r) => ({
-        id: r.id, listingId: r.listing_id, title: r.title, imageUrl: r.image_url, otherName: r.other_name,
+        id: r.id, listingId: r.listing_id, publicationId: r.publication_id, title: r.title, imageUrl: r.image_url, otherName: r.other_name,
         otherId: r.owner_id === userId ? r.visitor_id : r.owner_id, lastBody: r.last_body, lastMine: r.last_sender === userId,
         lastRead: r.last_sender === userId && r.other_read_at != null && r.last_at != null && new Date(r.other_read_at) >= new Date(r.last_at),
         unread: r.unread, unreadCount: r.unread_count, lastMessageAt: r.last_message_at, asOwner: r.owner_id === userId, blockedByMe: r.blocked_by_me,
@@ -283,7 +306,7 @@ export function createEngagement(ctx, accounts) {
       const img = await db.query("select image_url from ika_listings where id = $1", [t.listing_id]);
       const otherReadAt = t.owner_id === userId ? t.visitor_read_at : t.owner_read_at;
       return {
-        id: t.id, listingId: t.listing_id, title: t.title, imageUrl: img[0]?.image_url ?? "", blockedByMe: Boolean(blocked[0]),
+        id: t.id, listingId: t.listing_id, publicationId: t.publication_id, title: t.title, imageUrl: img[0]?.image_url ?? "", blockedByMe: Boolean(blocked[0]),
         otherId: other, otherName: who[0]?.name ?? "", otherIsAdvertiser: t.owner_id === other,
         messages: messages.map((m) => ({ id: m.id, mine: m.sender_id === userId, body: m.body, createdAt: m.created_at,
           read: m.sender_id === userId && otherReadAt != null && new Date(otherReadAt) >= new Date(m.created_at) })),

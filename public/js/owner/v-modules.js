@@ -493,6 +493,29 @@ export const paymentSettingsView = (ctx) => page(ctx, {
   },
 });
 
+// ---------- Découvrir : publications signalées ou masquées ----------
+export const discoverView = (ctx) => page(ctx, {
+  eyebrow: "MODÉRATION", title: "Publications Découvrir",
+  desc: "Publications de la communauté signalées par les membres ou masquées. Masquer retire la publication du fil sans la supprimer ; le motif et votre nom sont conservés dans l'historique.",
+  load: () => api("/staff/discover/reports"),
+  build({ items }, reload) {
+    if (!items.length) return [empty("Aucune publication signalée ni masquée.")];
+    return items.map((p) => panel(`${p.kindLabel} · ${p.author.name}`, `${dateTime(p.createdAt)}${p.category ? ` · ${p.category}` : ""}${p.zone ? ` · ${p.zone}` : ""}`, h("div", { class: "stack" },
+      h("p", { style: { whiteSpace: "pre-wrap", overflowWrap: "anywhere", margin: 0 } }, p.content),
+      p.photos.length ? h("div", { class: "row", style: { flexWrap: "wrap", gap: "8px" } }, p.photos.map((u) => h("a", { href: u, target: "_blank", rel: "noopener" }, h("img", { src: u, alt: "Photo de la publication", style: { width: "88px", height: "88px", objectFit: "cover", borderRadius: "10px" } })))) : null,
+      h("div", { class: "row" }, pill(p.hidden ? "bad" : "warn", p.hidden ? "Masquée" : `${p.reports} signalement${p.reports > 1 ? "s" : ""}`), p.reports && p.hidden ? pill("neutral", `${p.reports} signalement${p.reports > 1 ? "s" : ""}`) : null),
+      ...(p.reportList ?? []).slice(0, 5).map((r) => h("small", { class: "muted" }, `${dateTime(r.at)} : ${r.reason}`)),
+      p.hidden ? h("small", null, `Masquée par ${p.hiddenByName ?? "—"} · ${dateTime(p.hiddenAt)}${p.hiddenReason ? ` · « ${p.hiddenReason} »` : ""}`) : null,
+      h("div", { class: "row" },
+        p.hidden
+          ? h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/discover/${encodeURIComponent(p.id)}/restore`, { method: "POST", body: {} }), "Publication rétablie.", reload) }, "Rétablir")
+          : h("button", { class: "btn sm", type: "button", onClick: async () => {
+            const v = await formDialog("Masquer cette publication", [{ name: "reason", label: "Motif (obligatoire)", type: "textarea", required: true, max: 300 }], { intro: "Elle disparaît du fil. Votre nom et le motif sont enregistrés.", submit: "Masquer" });
+            if (v) act(() => api(`/staff/discover/${encodeURIComponent(p.id)}/hide`, { method: "POST", body: { reason: v.reason } }), "Publication masquée.", reload);
+          } }, "Masquer")))));
+  },
+});
+
 // ---------- Conditions officielles (superadmin) ----------
 // Le code applique ce qui est décidé ici ; un cas particulier se règle par une EXCEPTION tracée sur la fiche du compte, jamais en modifiant le code.
 const STEP_LABELS = { 1: "Étude", 2: "Vérification", 3: "Confirmation" };
@@ -507,7 +530,12 @@ export const rulesView = (ctx) => page(ctx, {
     const stepBoxes = [1, 2, 3].map((n) => { const b = h("input", { type: "checkbox", id: `rl-step${n}`, disabled: !canEdit }); b.checked = rules.requiredSteps.includes(n); return [n, b]; });
     const granter = h("select", { id: "rl-granter", disabled: !canEdit }, h("option", { value: "SUPERADMIN" }, "Le superadmin seul"), h("option", { value: "ADMIN" }, "Les administrateurs aussi"));
     granter.value = rules.exceptionGrantedBy;
-    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
+    const dOpen = h("input", { type: "checkbox", id: "rl-d-open", disabled: !canEdit }); dOpen.checked = rules.discoverEnabled !== false;
+    const dPhone = h("input", { type: "checkbox", id: "rl-d-phone", disabled: !canEdit }); dPhone.checked = rules.discoverRequirePhone === true;
+    const dPhotos = h("input", { class: "input", type: "number", min: "0", max: "6", id: "rl-d-photos", disabled: !canEdit, value: String(rules.discoverMaxPhotos ?? 4) });
+    const dDay = h("input", { class: "input", type: "number", min: "1", max: "50", id: "rl-d-day", disabled: !canEdit, value: String(rules.discoverPostsPerDay ?? 5) });
+    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
+      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
     return [
       canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
       panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
@@ -516,6 +544,12 @@ export const rulesView = (ctx) => page(ctx, {
       panel("Dossier Premium : étapes à valider avant d'approuver", null, h("div", { class: "stack" },
         ...stepBoxes.map(([n, b]) => h("label", { class: "row", for: `rl-step${n}` }, b, h("span", null, `Étape ${n} : ${STEP_LABELS[n]}`))),
         h("p", { class: "small muted" }, "Seules les étapes cochées sont exigées pour approuver. Les autres restent possibles et tracées si l'équipe les valide."))),
+      panel("Découvrir : publications de la communauté", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "rl-d-open" }, dOpen, h("strong", null, "Découvrir ouvert (lecture et publication)")),
+        h("label", { class: "row", for: "rl-d-phone" }, dPhone, h("span", null, "Exiger un numéro confirmé pour publier")),
+        h("label", { class: "field", for: "rl-d-photos" }, "Photos par publication (0 = aucune, 6 au maximum)", dPhotos),
+        h("label", { class: "field", for: "rl-d-day" }, "Publications par compte et par 24 heures (1 à 50)", dDay),
+        h("p", { class: "small muted" }, "Fermé : le fil et la publication sont suspendus pour tout le monde, rien n'est supprimé. Les vidéos ne sont pas encore prises en charge."))),
       panel("Exceptions (jurisprudence)", null, h("div", { class: "stack" },
         h("label", { class: "field" }, "Qui peut accorder ou révoquer une exception", granter),
         h("p", { class: "small muted" }, "Une exception lève UNE condition pour UN compte : motif obligatoire, durée facultative, auteur et date conservés dans la fiche du compte et le journal d'audit. Elle se révoque sans rien effacer."))),

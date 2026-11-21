@@ -23,6 +23,7 @@ const routes = [
   [/^\/annonces$/, "home", "annoncesPage"],
   [/^\/partenaires$/, "partners", "partnersPage"],
   [/^\/annonceurs$/, "annonceurs", "annonceursPage"],
+  [/^\/decouvrir$/, "decouvrir", "decouvrirPage"],
   [/^\/centre$/, "centre", "centrePage"],
   [/^\/devenir-annonceur$/, "advertiser-apply", "advertiserApplyPage"],
   [/^\/premium$/, "premium", "premiumPage"],

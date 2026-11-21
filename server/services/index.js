@@ -23,6 +23,7 @@ import { createSuperadminSettings } from "./superadmin-settings.js";
 import { createPayments } from "./payments.js";
 import { createPremiumRequests } from "./premium-requests.js";
 import { createRuleExceptions } from "./rule-exceptions.js";
+import { createDiscover } from "./discover.js";
 import { createRequestsHub } from "./requests-hub.js";
 import { POLICY_KEY } from "../lib/payment-policy.js";
 import { createNotifier } from "../lib/notifier.js";
@@ -60,6 +61,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const geo = createGeo(ctx, accounts);
   const analytics = createAnalytics({ db, config, logger });
   const ruleExceptions = createRuleExceptions({ db, superadminSettings, accounts, moderationAudit });
+  const discover = createDiscover({ db, accounts, rules: ruleExceptions, engagement, moderationAudit });
   // Numéro confirmé exigé pour le Premium : condition officielle du superadmin, sauf exception tracée sur le compte.
   const phoneRequired = async (userId) => (await ruleExceptions.official()).phoneConfirmedForPremium && !(await ruleExceptions.activeKeys(userId)).has("phone");
   const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
@@ -78,7 +80,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const advertiserCenter = createAdvertiserCenter({ db, accounts });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

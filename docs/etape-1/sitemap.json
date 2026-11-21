@@ -394,5 +394,16 @@
   "source": "homepage-settings.js, platform-settings ; à compléter",
   "rights": "Superadmin (délégable selon la matrice)",
   "step": "E09"
+ },
+ {
+  "id": "S43",
+  "title": "Découvrir (publications de la communauté)",
+  "route": "#/decouvrir",
+  "status": "Existant",
+  "need": "Publier une actualité, une information ou un vœu de bien (maison, terrain…) sans passer par une annonce professionnelle, et écrire à l'auteur d'une publication.",
+  "journey": "Fil des publications (filtres type et bien) → écrire à l'auteur (messagerie) ou signaler ; composeur texte + photos ; modération : masquer ou rétablir.",
+  "source": "decouvrir.js, post-composer.js · GET /discover, POST /me/discover, /discover/:id/contact, /discover/:id/report ; discover.js",
+  "rights": "Lecture publique ; publier, écrire et signaler avec un compte ; modération : équipe (module modération)",
+  "step": "E04"
  }
 ]

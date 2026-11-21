@@ -26,7 +26,7 @@ export function createRuleExceptions({ db, superadminSettings, accounts, moderat
     async saveOfficial(actorId, value) {
       await accounts.requireStaff(actorId, "SUPERADMIN");
       const before = await official();
-      const next = normalizeRules(value);
+      const next = normalizeRules({ ...before, ...(value && typeof value === "object" ? value : {}) });
       await superadminSettings.set(actorId, RULES_KEY, next);
       await moderationAudit?.log(actorId, { action: "RULES_UPDATE", targetType: "settings", targetId: RULES_KEY, details: { before, after: next } }).catch(() => {});
       return next;

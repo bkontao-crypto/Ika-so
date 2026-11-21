@@ -162,7 +162,7 @@ export async function inboxPage() {
             h("div", null, h("div", { class: "bx-h1row" }, h("h3", null, active?.otherIsAdvertiser ? h("a", { href: `#/annonceur/${encodeURIComponent(active.otherId)}` }, cur.otherName || "Utilisateur") : (cur.otherName || "Utilisateur")), active?.otherIsAdvertiser ? h("span", { class: "bx-badge" }, "Annonceur") : null),
               h("p", { class: "bx-lt" }, icon("home"), h("span", null, cur.title)))),
           h("div", { class: "bx-h-actions" },
-            active?.listingId ? h("a", { class: "bx-ghost", href: `#/annonce/${encodeURIComponent(active.listingId)}` }, icon("home"), h("span", null, "Voir l'annonce")) : null,
+            active?.listingId ? h("a", { class: "bx-ghost", href: `#/annonce/${encodeURIComponent(active.listingId)}` }, icon("home"), h("span", null, "Voir l'annonce")) : active?.publicationId ? h("a", { class: "bx-ghost", href: "#/decouvrir" }, icon("sparkles"), h("span", null, "Voir Découvrir")) : null,
             h("a", { class: "bx-ghost", href: `#/boite/${encodeURIComponent(cur.id)}` }, icon("sliders"), h("span", null, "Options")))),
         area,
         cur.blockedByMe ? h("p", { class: "bx-blocked" }, "Vous avez bloqué cette personne. Débloquez-la depuis « Options » pour lui écrire.")
@@ -278,7 +278,7 @@ export async function threadPage(id) {
     h("section", { class: "chat" },
       h("header", { class: "chat-head" },
         avatar(t.otherName),
-        h("div", { class: "chat-who" }, h("h1", null, t.otherName || "Conversation"), h("a", { class: "small", href: `#/annonce/${encodeURIComponent(t.listingId)}` }, t.title)),
+        h("div", { class: "chat-who" }, h("h1", null, t.otherName || "Conversation"), t.listingId ? h("a", { class: "small", href: `#/annonce/${encodeURIComponent(t.listingId)}` }, t.title) : h("a", { class: "small", href: "#/decouvrir" }, `Publication : ${t.title}`)),
         h("div", { class: "chat-actions" },
           t.otherIsAdvertiser ? h("a", { class: "btn btn-quiet btn-small", href: `#/annonceur/${encodeURIComponent(t.otherId)}` }, "Profil") : null,
           h("button", { class: "btn btn-quiet btn-small", type: "button", onClick: () => dialog.showModal() }, "Signaler"),
