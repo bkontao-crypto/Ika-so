@@ -493,6 +493,37 @@ export const paymentSettingsView = (ctx) => page(ctx, {
   },
 });
 
+// ---------- Conditions officielles (superadmin) ----------
+// Le code applique ce qui est décidé ici ; un cas particulier se règle par une EXCEPTION tracée sur la fiche du compte, jamais en modifiant le code.
+const STEP_LABELS = { 1: "Étude", 2: "Vérification", 3: "Confirmation" };
+export const rulesView = (ctx) => page(ctx, {
+  eyebrow: "PILOTAGE", title: "Conditions & exceptions",
+  desc: "Les conditions officielles du site, et qui peut y déroger. Chaque exception est accordée sur la fiche d'un compte, avec un motif, et reste tracée.",
+  load: () => api("/staff/rules"),
+  build({ rules }, reload) {
+    const canEdit = ctx.isSuperadmin();
+    const phone = h("input", { type: "checkbox", id: "rl-phone", disabled: !canEdit });
+    phone.checked = rules.phoneConfirmedForPremium !== false;
+    const stepBoxes = [1, 2, 3].map((n) => { const b = h("input", { type: "checkbox", id: `rl-step${n}`, disabled: !canEdit }); b.checked = rules.requiredSteps.includes(n); return [n, b]; });
+    const granter = h("select", { id: "rl-granter", disabled: !canEdit }, h("option", { value: "SUPERADMIN" }, "Le superadmin seul"), h("option", { value: "ADMIN" }, "Les administrateurs aussi"));
+    granter.value = rules.exceptionGrantedBy;
+    const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
+    return [
+      canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
+      panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "rl-phone" }, phone, h("strong", null, "Exiger un numéro confirmé (code reçu) pour demander ou payer le Premium")),
+        h("p", { class: "small muted" }, "Décoché : plus personne n'a besoin de confirmer son numéro pour passer Premium. Pour un seul compte, accordez plutôt une exception sur sa fiche."))),
+      panel("Dossier Premium : étapes à valider avant d'approuver", null, h("div", { class: "stack" },
+        ...stepBoxes.map(([n, b]) => h("label", { class: "row", for: `rl-step${n}` }, b, h("span", null, `Étape ${n} : ${STEP_LABELS[n]}`))),
+        h("p", { class: "small muted" }, "Seules les étapes cochées sont exigées pour approuver. Les autres restent possibles et tracées si l'équipe les valide."))),
+      panel("Exceptions (jurisprudence)", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, "Qui peut accorder ou révoquer une exception", granter),
+        h("p", { class: "small muted" }, "Une exception lève UNE condition pour UN compte : motif obligatoire, durée facultative, auteur et date conservés dans la fiche du compte et le journal d'audit. Elle se révoque sans rien effacer."))),
+      canEdit ? h("div", { class: "row" }, save) : null,
+    ];
+  },
+});
+
 export const subscriptionsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Abonnements & formules", desc: "Formules de mise à la une : prix et activation. Aucun tarif n'est imposé.", load: () => api("/staff/owner/offers"),
   actions: (_, reload) => h("button", { class: "btn primary", type: "button", onClick: async () => { const v = await formDialog("Nouvelle formule", [{ name: "code", label: "Code", required: true, max: 20 }, { name: "label", label: "Libellé", required: true, max: 80 }, { name: "days", label: "Durée (jours)", type: "number", value: 7 }, { name: "price", label: "Prix (FCFA)", type: "number", value: 0 }]); if (v) act(() => api("/staff/owner/offers", { method: "POST", body: v }), "Formule créée.", reload); } }, ico("plus"), "Nouvelle formule"),

@@ -10,7 +10,7 @@ const NAV = [
   ["Pilotage de la plateforme", [
     ["overview", "grid", "Vue générale"], ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["listings", "list", "Annonces & modération", { count: "pendingListings" }],
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }],
-    ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["payment-settings", "gear", "Réglages paiement"], ["subscriptions", "clock", "Abonnements & formules"]]],
+    ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["payment-settings", "gear", "Réglages paiement"], ["rules", "gear", "Conditions & exceptions"], ["subscriptions", "clock", "Abonnements & formules"]]],
   ["Croissance & relation client", [
     ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"], ["regions", "pin", "Régions & tendances"]]],
   ["Système & configuration", [
@@ -19,7 +19,7 @@ const NAV = [
 ];
 const FLAT = NAV.flatMap(([, items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, rules: M.rulesView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView };
 
