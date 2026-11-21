@@ -34,3 +34,6 @@ Pour ces migrations, le seul retour sûr est la **restauration d'une sauvegarde*
 ## Comment c'est vérifié
 - `test/rollback-scripts.test.js` (sans base) : toute migration à partir de 017 doit avoir son script, qui doit effacer sa ligne `_migrations`, ne pas utiliser `cascade`, et être transactionnel.
 - Essai sur un vrai PostgreSQL (BUG-002, voir `Important/SUIVI.md`) : après chaque script de 065 à 017, schéma **et** données identiques à l'état précédent ; puis rejeu des migrations 017 à 065 : état final identique.
+
+## Migrations 001 à 016 : pas de script de retour arrière
+Ce sont les fondations (utilisateurs, annonces, engagement, sécurité, recherche, confiance, paiements, fichiers, brouillons, historique des prix, alertes, blocages, remboursements, consentements). Les défaire supprimerait les données de base du site : **aucun script n'est fourni volontairement**. Le seul retour possible est une **restauration** : branche Neon (point de retour) ou dernière sauvegarde (`BACKUP_DIR`, sauvegarde automatique toutes les 24 h, à vérifier depuis le centre de contrôle).
