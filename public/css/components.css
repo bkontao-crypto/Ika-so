@@ -496,3 +496,13 @@ textarea:focus {
 .consent-head{display:flex;gap:10px;align-items:center;cursor:pointer}
 .consent-row p{margin:6px 0 0}
 .consent-actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;position:sticky;bottom:-24px;background:var(--card);padding:12px 0 24px;margin:0 -24px -24px;padding-inline:24px;border-top:1px solid var(--line)}
+
+/* Carte « Annonceur » de la fiche annonce : même cadre que le profil public (couverture, photo, nom). */
+.owner-card{padding:0;overflow:hidden}
+.owner-cover{display:block;width:100%;height:92px;object-fit:cover;background:linear-gradient(110deg,#062f22,#0b8050)}
+.owner-body{padding:0 16px 16px}
+.owner-card .owner-body:only-child{padding-top:16px}
+.owner-id{display:flex;align-items:flex-end;gap:12px;margin-top:-34px}
+.owner-avatar{flex:none;width:72px;height:72px;border:4px solid var(--card,#fff);border-radius:18px;object-fit:cover;background:linear-gradient(135deg,#0a6842,#c6d86c);display:grid;place-items:center;color:#fff;font:900 1.4rem system-ui,sans-serif;box-sizing:border-box}
+.owner-who{min-width:0;display:grid;gap:2px;padding-bottom:4px}
+.owner-who h3{overflow-wrap:anywhere}
