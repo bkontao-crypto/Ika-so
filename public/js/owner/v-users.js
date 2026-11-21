@@ -172,6 +172,17 @@ export function userCenterView(ctx, userId) {
         f.decidedAt ? h("small", null, `Décision : ${f.decidedByName ?? "—"} · ${dateTime(f.decidedAt)}${f.decidedNote ? ` · « ${f.decidedNote} »` : ""}`) : null,
         f.refund ? h("div", { class: "stack" }, h("b", null, `Remboursement ${f.refund.status === "DONE" ? "clôturé" : "à suivre"}`), ...[1, 2, 3].map((n) => { const s = f.refund.steps.find((x) => x.step === n); return h("small", null, `Étape ${n} ${["Paiement vérifié", "Remboursement effectué", "Annonceur informé"][n - 1]} : ${s ? who(s) : "non validée"}`); })) : null)))
       : h("p", { class: "muted" }, "Aucun dossier Premium."));
+    const ps = a.premiumState;
+    const lim = h("div", { class: "stack" },
+      a.acquired ? h("p", { class: "small" }, pill("ok", "Droit acquis"), ` Certifié sous l'ancienne règle (« ${a.acquired.ruleBefore} ») : accès conservé jusqu'au ${a.acquired.until.startsWith("9999") ? "retrait ou suspension du compte" : dateOnly(a.acquired.until)}. Après cette date, la règle en vigueur s'applique.`) : h("p", { class: "muted" }, "Aucun droit acquis : la règle de certification en vigueur s'applique."),
+      ps?.unlimited ? h("p", { class: "small" }, pill("ok", "Premium sans limite"), ` Accordé par ${ps.by ?? "—"} · ${dateTime(ps.at)}${ps.reason ? ` · « ${ps.reason} »` : ""}. Dure jusqu'à retrait, suspension ou expulsion du compte.`) : null,
+      ctx.isSuperadmin() ? h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const on = !ps?.unlimited;
+        const v = await formDialog(on ? "Premium sans limite" : "Retirer le Premium sans limite", [{ name: "reason", label: "Motif (obligatoire, conservé dans l'historique)", type: "textarea", required: true, max: 500 }],
+          { intro: on ? "Le Premium de ce compte n'aura plus de date de fin, jusqu'à retrait, suspension ou expulsion. Votre nom, la date et le motif seront enregistrés." : "Le Premium de ce compte prendra fin immédiatement. Votre nom, la date et le motif seront enregistrés.", submit: "Confirmer" });
+        if (v) act(() => api(`/staff/owner/users/${encodeURIComponent(userId)}/premium-unlimited`, { method: "POST", body: { on, reason: v.reason } }), on ? "Premium sans limite accordé." : "Premium sans limite retiré.", reload);
+      } }, ps?.unlimited ? "Retirer le Premium sans limite" : "Accorder un Premium sans limite")) : null);
+    const acq = panel("Certification acquise et durée du Premium", "Les changements de règle ne touchent pas les comptes déjà certifiés avant l'échéance de leur Premium", lim);
     const catalogue = a.exceptionCatalogue ?? {};
     const canGrant = ctx.isSuperadmin() || a.rules?.exceptionGrantedBy === "ADMIN";
     const exc = panel("Exceptions aux conditions (jurisprudence)", `Conditions officielles levées pour ce compte seulement · accordées par ${a.rules?.exceptionGrantedBy === "ADMIN" ? "un administrateur ou le superadmin" : "le superadmin"}`, h("div", { class: "stack" },
@@ -190,7 +201,7 @@ export function userCenterView(ctx, userId) {
         { intro: "Votre nom, la date et le motif seront enregistrés sur la fiche de ce compte.", submit: "Accorder" });
         if (v) act(() => api(`/staff/owner/users/${encodeURIComponent(userId)}/rule-exceptions`, { method: "POST", body: { rule: v.rule, reason: v.reason, days: v.days || null } }), "Exception accordée.", reload);
       } }, "Accorder une exception")) : h("p", { class: "small muted" }, "Seul le superadmin peut accorder une exception (réglage « Conditions & exceptions »).")));
-    return [hero, ...kpis, h("div", { class: "cols2" }, loginChart, contactChart), h("div", { class: "cols2" }, trust, usage), files, exc, listings, h("div", { class: "cols2" }, recent, sanc), audits];
+    return [hero, ...kpis, h("div", { class: "cols2" }, loginChart, contactChart), h("div", { class: "cols2" }, trust, usage), files, acq, exc, listings, h("div", { class: "cols2" }, recent, sanc), audits];
   }
   reload();
   return root;

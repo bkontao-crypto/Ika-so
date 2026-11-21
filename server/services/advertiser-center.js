@@ -27,7 +27,8 @@ export function createAdvertiserCenter({ db, accounts, ruleExceptions }) {
       const groups = (await ruleExceptions.official()).certificationGroups;
       const result = evaluateGroups(groups, factsFromRow(p));
       const byException = !result.satisfied && (await ruleExceptions.activeKeys(userId)).has("certification");
-      cert = { satisfied: result.satisfied, byException, eligible: result.satisfied || byException, rule: describeGroups(groups) };
+      const byAcquired = !result.satisfied && !byException && Boolean(await ruleExceptions.acquired(userId));
+      cert = { satisfied: result.satisfied, byException, byAcquired, eligible: result.satisfied || byException || byAcquired, rule: describeGroups(groups) };
     }
     return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at), certificationOk: cert ? cert.eligible : undefined }), certification: cert, name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
   }

@@ -109,3 +109,53 @@ test("centre Premium : sans service de règles, l'ancien comportement (numéro c
   assert.deepEqual(await legacy({ phone_verified_at: new Date() }).mapPins("u1"), []);
   await assert.rejects(legacy({}).mapPins("u1"), (e) => e.status === 403);
 });
+
+// ---------- droits acquis et Premium sans limite (base simulée) ----------
+function acquisWorld({ role = "SUPERADMIN", candidates = [], acquis = null } = {}) {
+  const store = { account_rules: null }, audit = [], inserts = [], updates = [];
+  const db = { query: async (sql, args = []) => {
+    if (/from ika_profiles p where p\.premium_until > now\(\)/.test(sql)) return candidates;
+    if (/insert into ika_certification_acquise/.test(sql)) { inserts.push(args); return []; }
+    if (/from ika_certification_acquise/.test(sql)) return acquis ? [acquis] : [];
+    if (/update ika_profiles set premium_until/.test(sql)) { updates.push({ sql, args }); return [{ user_id: args[0] }]; }
+    return [];
+  } };
+  const accounts = { requireStaff: async (_u, min) => { const rank = { MODERATOR: 1, ADMIN: 2, SUPERADMIN: 3 }; if (rank[role] < rank[min]) throw Object.assign(new Error("Réservé"), { status: 403 }); } };
+  const rules = createRuleExceptions({ db, superadminSettings: { get: async (k) => store[k] ?? null, set: async (_a, k, v) => { store[k] = v; } }, accounts, moderationAudit: { log: async (who, e) => audit.push({ who, ...e }) } });
+  return { rules, audit, inserts, updates };
+}
+const until = new Date(Date.now() + 20 * 864e5).toISOString();
+
+test("changer les critères : les comptes Premium certifiés sous l'ancienne règle gardent leur accès jusqu'à la fin de leur Premium", async () => {
+  const w = acquisWorld({ candidates: [
+    { user_id: "ok", premium_until: until, phone_verified_at: new Date(), agency_verified_at: null, title_checked: 0 },
+    { user_id: "non", premium_until: until, phone_verified_at: null, agency_verified_at: null, title_checked: 0 },
+  ] });
+  await w.rules.saveOfficial("boss", { certificationGroups: [["AGENCY_RCCM", "TITRE_FONCIER"]] });
+  assert.equal(w.inserts.length, 1, "seul le compte qui remplissait l'ancienne règle est protégé");
+  assert.equal(w.inserts[0][0], "ok");
+  assert.equal(new Date(w.inserts[0][1]).toISOString(), until, "échéance = fin du Premium en cours");
+  assert.match(w.inserts[0][2], /Numéro de téléphone/);
+  // enregistrer sans changer les critères ne crée aucun droit acquis
+  await w.rules.saveOfficial("boss", { discoverMaxPhotos: 2 });
+  assert.equal(w.inserts.length, 1);
+});
+
+test("centre Premium : un droit acquis actif ouvre l'accès malgré la nouvelle règle ; sans lui, refus", async () => {
+  const rccm = { certificationGroups: [["AGENCY_RCCM", "TITRE_FONCIER"]] };
+  const make = (acquis) => createAdvertiserCenter({ db: fakeDb(profile({ phone_verified_at: new Date() })), accounts: {}, ruleExceptions: { ...rulesWorld({ settings: rccm }).rules, acquired: async () => acquis } });
+  assert.deepEqual(await make({ until }).mapPins("u1"), []);
+  await assert.rejects(make(null).mapPins("u1"), (e) => e.status === 403);
+});
+
+test("Premium sans limite : superadmin seul, motif obligatoire, tracé ; le retirer met fin au Premium", async () => {
+  const w = acquisWorld();
+  await assert.rejects(w.rules.setPremiumUnlimited("boss", "u1", { on: true, reason: "ok" }), (e) => e.status === 400);
+  assert.deepEqual(await w.rules.setPremiumUnlimited("boss", "u1", { on: true, reason: "Partenaire historique" }), { ok: true, unlimited: true });
+  assert.match(w.updates[0].args[1], /^9999-12-31/);
+  assert.equal(w.audit.at(-1).action, "PREMIUM_UNLIMITED_ON");
+  await w.rules.setPremiumUnlimited("boss", "u1", { on: false, reason: "Fin de partenariat" });
+  assert.match(w.updates[1].sql, /premium_until = now\(\)/);
+  assert.equal(w.audit.at(-1).action, "PREMIUM_UNLIMITED_OFF");
+  await assert.rejects(acquisWorld({ role: "ADMIN" }).rules.setPremiumUnlimited("adm", "u1", { on: true, reason: "Partenaire historique" }), (e) => e.status === 403);
+});
