@@ -42,6 +42,15 @@ a{color:inherit}
 .role small{display:block;color:#a9c9b7;font-size:10px;letter-spacing:.6px}.role strong{display:block;margin-top:2px;font-size:12px}
 @keyframes pulse{70%{box-shadow:0 0 0 9px rgba(183,214,91,0)}100%{box-shadow:0 0 0 0 rgba(183,214,91,0)}}
 .navtitle{color:#8bb59c;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;padding:0 10px;margin:4px 0 -10px}
+.navgroup{display:grid;gap:3px;border-radius:12px}
+.navgroup.open{background:rgba(234,244,237,.05);padding-bottom:4px}
+.navhead{display:flex;align-items:center;gap:10px;width:100%;border:0;background:transparent;color:#eaf4ed;padding:10px 11px;border-radius:10px;font:inherit;font-size:12.5px;font-weight:700;text-align:left;cursor:pointer}
+.navhead:hover{background:rgba(234,244,237,.1)}
+.navhead-t{flex:1}
+.navhead .ic{font-size:15px}
+.chev{width:7px;height:7px;border-right:2px solid #8bb59c;border-bottom:2px solid #8bb59c;transform:rotate(-45deg);transition:transform .15s;margin-right:4px}
+.navhead[aria-expanded="true"] .chev{transform:rotate(45deg)}
+.navgroup .nav{padding:0 4px 0 12px}
 .nav{display:grid;gap:3px}
 .nav a{border:0;background:transparent;color:#c1d7ca;text-decoration:none;padding:9px 11px;border-radius:9px;font-size:12px;display:flex;align-items:center;gap:10px;transition:background .15s,color .15s,transform .15s;position:relative}
 .nav a:hover{background:rgba(234,244,237,.1);color:#fff}

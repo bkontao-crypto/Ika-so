@@ -6,18 +6,24 @@ import { activityView, traceView } from "./v-activity.js";
 import * as M from "./v-modules.js";
 import { usersView, userCenterView } from "./v-users.js";
 
+// Menu rangé par fonction : chaque groupe se replie (celui de la page en cours reste ouvert). Les adresses « #/… » ne changent pas.
 const NAV = [
-  ["Pilotage de la plateforme", [
-    ["overview", "grid", "Vue générale"], ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["discover", "flag", "Publications Découvrir"],
-    ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }],
-    ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["payment-settings", "gear", "Réglages paiement"], ["rules", "gear", "Conditions & exceptions"], ["subscriptions", "clock", "Abonnements & formules"]]],
-  ["Croissance & relation client", [
-    ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"], ["regions", "pin", "Régions & tendances"]]],
-  ["Système & configuration", [
-    ["ai", "sparkles", "Assistance IA"], ["reports", "file", "Rapports & exports"], ["monitoring", "flag", "Surveillance & incidents", { count: "openIncidents" }], ["backups", "database", "Sauvegardes & restaurations"],
-    ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["audit", "scroll", "Journal d'audit"], ["permissions", "shield", "Permissions du personnel"], ["delegations", "users", "Délégations de modules"]]],
+  ["Pilotage", "grid", [
+    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["regions", "pin", "Régions & tendances"], ["reports", "file", "Rapports & exports"]]],
+  ["Utilisateurs & comptes", "users", [
+    ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }], ["permissions", "shield", "Permissions du personnel"], ["delegations", "users", "Délégations de modules"]]],
+  ["Paiements & Premium", "wallet", [
+    ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"], ["payment-settings", "gear", "Réglages paiement"]]],
+  ["Annonces & modération", "list", [
+    ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["discover", "flag", "Publications Découvrir"], ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }]]],
+  ["Clients & croissance", "funnel", [
+    ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"]]],
+  ["Paramètres du site", "gear", [
+    ["rules", "gear", "Conditions & exceptions"], ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["ai", "sparkles", "Assistance IA"]]],
+  ["Système & sécurité", "database", [
+    ["monitoring", "flag", "Surveillance & incidents", { count: "openIncidents" }], ["backups", "database", "Sauvegardes & restaurations"], ["audit", "scroll", "Journal d'audit"]]],
 ];
-const FLAT = NAV.flatMap(([, items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
+const FLAT = NAV.flatMap(([, , items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
 const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, rules: M.rulesView, discover: M.discoverView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
@@ -58,13 +64,26 @@ function toggleTheme() {
   try { localStorage.setItem("ika-owner-theme", next); } catch { /* ignoré */ }
 }
 
+const openGroups = (() => { try { return new Set(JSON.parse(localStorage.getItem("ika-owner-nav") || "[]")); } catch { return new Set(); } })();
+const saveGroups = () => { try { localStorage.setItem("ika-owner-nav", JSON.stringify([...openGroups])); } catch { /* ignoré */ } };
+let lastCurrent = null;
+
 function paintNav() {
   if (!navEl) return;
   const current = location.hash.replace(/^#\/?/, "").split("/")[0].split("?")[0] || "overview";
-  navEl.replaceChildren(...NAV.flatMap(([title, all]) => { const items = all.filter(([id]) => allowed(id)); return items.length ? [h("div", { class: "navtitle" }, title), h("nav", { class: "nav", "aria-label": title }, items.map(([id, icon, label, o]) => {
-    const n = o?.count ? badges[o.count] : null;
-    return h("a", { href: `#/${id}`, "aria-current": current === id ? "page" : null, onClick: () => closeMenu() }, ico(icon), label, o?.tag ? h("span", { class: "new" }, o.tag) : null, n ? h("span", { class: "count" }, n > 99 ? "99+" : n) : null);
-  }))] : []; }));
+  const groups = NAV.map(([title, icon, all]) => [title, icon, all.filter(([id]) => allowed(id))]).filter(([, , items]) => items.length);
+  // à l'arrivée sur une page, son groupe s'ouvre ; ensuite chacun reste comme l'utilisateur l'a laissé
+  if (current !== lastCurrent) { lastCurrent = current; const g = groups.find(([, , items]) => items.some(([id]) => id === current)); if (g) openGroups.add(g[0]); }
+  navEl.replaceChildren(...groups.map(([title, icon, items]) => {
+    const open = openGroups.has(title);
+    const total = items.reduce((n, [, , , o]) => n + (o?.count ? Number(badges[o.count]) || 0 : 0), 0);
+    const head = h("button", { class: "navhead", type: "button", "aria-expanded": String(open), onClick: () => { if (openGroups.has(title)) openGroups.delete(title); else openGroups.add(title); saveGroups(); paintNav(); } },
+      ico(icon), h("span", { class: "navhead-t" }, title), !open && total ? h("span", { class: "count" }, total > 99 ? "99+" : total) : null, h("span", { class: "chev", "aria-hidden": "true" }));
+    return h("div", { class: `navgroup${open ? " open" : ""}` }, head, open ? h("nav", { class: "nav", "aria-label": title }, items.map(([id, ic, label, o]) => {
+      const n = o?.count ? badges[o.count] : null;
+      return h("a", { href: `#/${id}`, "aria-current": current === id ? "page" : null, onClick: () => closeMenu() }, ico(ic), label, o?.tag ? h("span", { class: "new" }, o.tag) : null, n ? h("span", { class: "count" }, n > 99 ? "99+" : n) : null);
+    })) : null);
+  }));
 }
 function paintBell() {
   if (!bellBadge) return;
