@@ -4,6 +4,7 @@ import { badRequest, forbidden, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { compareDirectory, filterDirectory, premiumAccess, scoreAdvertiser } from "../lib/advertiser-ranking.js";
 import { shortName } from "./reviews.js";
+import { describeGroups, evaluateGroups, factsFromRow } from "../lib/certification-criteria.js";
 
 const LIVE = "l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN' and (l.expires_at is null or l.expires_at > now())";
 const PERIODS = [7, 14, 30, 90];
@@ -11,7 +12,7 @@ const iso = (d) => (d instanceof Date ? d.toISOString() : d ? String(d) : null);
 const snippet = (t) => { const s = String(t ?? "").replace(/\s+/g, " ").trim(); return s.length > 90 ? `${s.slice(0, 87)}…` : s; };
 const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) * 100) : now > 0 ? null : 0); // null = « nouveau » : pas de pourcentage possible quand la période précédente vaut 0
 
-export function createAdvertiserCenter({ db, accounts }) {
+export function createAdvertiserCenter({ db, accounts, ruleExceptions }) {
   async function access(userId) {
     const rows = await db.query(
       `select p.premium_until, p.phone_verified_at, p.phone_channel, p.agency_verified_at, p.agency_name, p.full_name, p.display_role, p.account_status,
@@ -20,7 +21,16 @@ export function createAdvertiserCenter({ db, accounts }) {
     const p = rows[0];
     if (!p) throw notFound("Profil introuvable.");
     if (p.account_status === "RESTRICTED") throw Object.assign(forbidden("Compte restreint : le centre de contrôle est indisponible."), { code: "RESTRICTED" });
-    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at) }), name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
+    // Conditions officielles configurables (+ exception tracée « certification »). Sans service de règles : règle historique (numéro confirmé).
+    let cert = null;
+    if (ruleExceptions) {
+      const groups = (await ruleExceptions.official()).certificationGroups;
+      const result = evaluateGroups(groups, factsFromRow(p));
+      const byException = !result.satisfied && (await ruleExceptions.activeKeys(userId)).has("certification");
+      const byAcquired = !result.satisfied && !byException && Boolean(await ruleExceptions.acquired(userId));
+      cert = { satisfied: result.satisfied, byException, byAcquired, eligible: result.satisfied || byException || byAcquired, rule: describeGroups(groups) };
+    }
+    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at), certificationOk: cert ? cert.eligible : undefined }), certification: cert, name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
   }
 
   async function series(userId, days, shift) {
@@ -92,7 +102,7 @@ export function createAdvertiserCenter({ db, accounts }) {
     async overview(userId, { days = 7 } = {}) {
       const acc = await access(userId);
       if (acc.status !== "ACTIVE") throw forbidden("Compte restreint : le centre de contrôle est indisponible.");
-      if (!acc.eligible) throw Object.assign(forbidden(acc.premium ? "Le centre de contrôle est réservé aux annonceurs certifiés (agence vérifiée ou titre foncier contrôlé)." : "Le centre de contrôle est réservé aux annonceurs Premium."), { code: acc.premium ? "NOT_CERTIFIED" : "NOT_PREMIUM" });
+      if (!acc.eligible) throw Object.assign(forbidden(acc.premium ? (acc.certification ? `Le centre de contrôle est réservé aux comptes certifiés. Condition en vigueur : ${acc.certification.rule}. Une exception peut être accordée par l'équipe.` : "Le centre de contrôle est réservé aux annonceurs certifiés.") : "Le centre de contrôle est réservé aux annonceurs Premium."), { code: acc.premium ? "NOT_CERTIFIED" : "NOT_PREMIUM" });
       const n = PERIODS.includes(Number(days)) ? Number(days) : 7;
       const [cur, prev, kpi, listings, threads, visits, notifs, reports, expiring, boosts, active, payments, fav] = await Promise.all([
         series(userId, n, 0), series(userId, n, n),
@@ -199,7 +209,7 @@ export function createAdvertiserCenter({ db, accounts }) {
         { key: "certified", label: "Profil certifié (agence vérifiée ou titre foncier contrôlé)", done: acc.certified, href: "#/profil" },
       ];
       return {
-        access: { name: acc.name, role: acc.role, premium: acc.premium, certified: acc.certified, phoneVerified: acc.phoneVerified, eligible: acc.eligible },
+        access: { name: acc.name, role: acc.role, premium: acc.premium, certified: acc.certified, phoneVerified: acc.phoneVerified, eligible: acc.eligible, certification: acc.certification },
         kpis: { listings: k.total, live: k.live, pending: k.pending, favorites: k.favorites, unread: k.unread, visits: k.visits },
         contacts7: k.contacts7,
         listings: listings.map((l) => ({ id: l.id, title: l.title, price: Number(l.price), transactionType: l.transaction_type, neighborhood: l.neighborhood, imageUrl: l.image_url, status: l.status, contacts: l.contacts })),

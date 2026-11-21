@@ -2,7 +2,10 @@
 import { randomUUID } from "node:crypto";
 import { badRequest, conflict, notFound } from "../lib/errors.js";
 import { EXCEPTION_RULES, RULES_KEY, normalizeRules, stepRule } from "../lib/account-rules.js";
+import { describeGroups, evaluateGroups, factsFromRow, normalizeGroups, sameGroups } from "../lib/certification-criteria.js";
 
+const UNLIMITED = "9999-12-31T00:00:00Z"; // Premium sans limite : date lointaine, pour que tous les contrôles existants restent valides
+const LIVE = "l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN' and (l.expires_at is null or l.expires_at > now())";
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 
 export function createRuleExceptions({ db, superadminSettings, accounts, moderationAudit }) {
@@ -18,6 +21,22 @@ export function createRuleExceptions({ db, superadminSettings, accounts, moderat
   const SELECT = `select e.*, g.full_name as granted_name, v.full_name as revoked_name
                     from ika_rule_exceptions e left join ika_profiles g on g.user_id = e.granted_by left join ika_profiles v on v.user_id = e.revoked_by`;
 
+  /** Droits acquis : les comptes Premium actifs qui remplissaient l'ancienne règle la gardent jusqu'à la fin de leur Premium en cours. */
+  async function protectAcquired(actorId, oldGroups) {
+    const rows = await db.query(
+      `select p.user_id, p.premium_until, p.phone_verified_at, p.agency_verified_at,
+              (select count(*)::int from ika_listings l where l.owner_id = p.user_id and ${LIVE} and l.document_verified_at is not null) as title_checked
+         from ika_profiles p where p.premium_until > now()`);
+    const label = describeGroups(oldGroups);
+    for (const r of rows) {
+      if (!evaluateGroups(oldGroups, factsFromRow(r)).satisfied) continue;
+      await db.query(
+        `insert into ika_certification_acquise (user_id, until, rule_before, changed_by) values ($1, $2, $3, $4)
+         on conflict (user_id) do update set until = greatest(ika_certification_acquise.until, excluded.until), rule_before = excluded.rule_before, changed_by = excluded.changed_by, created_at = now()`,
+        [r.user_id, r.premium_until, label, actorId]);
+    }
+  }
+
   return {
     official,
     catalogue: EXCEPTION_RULES,
@@ -25,11 +44,39 @@ export function createRuleExceptions({ db, superadminSettings, accounts, moderat
     /** Le superadmin décide des conditions officielles. Avant/après tracés. */
     async saveOfficial(actorId, value) {
       await accounts.requireStaff(actorId, "SUPERADMIN");
+      if (value && typeof value === "object" && value.certificationGroups !== undefined) value = { ...value, certificationGroups: normalizeGroups(value.certificationGroups) }; // 400 si critère inconnu ou vide
       const before = await official();
       const next = normalizeRules({ ...before, ...(value && typeof value === "object" ? value : {}) });
       await superadminSettings.set(actorId, RULES_KEY, next);
+      if (!sameGroups(before.certificationGroups, next.certificationGroups)) await protectAcquired(actorId, before.certificationGroups);
       await moderationAudit?.log(actorId, { action: "RULES_UPDATE", targetType: "settings", targetId: RULES_KEY, details: { before, after: next } }).catch(() => {});
       return next;
+    },
+
+    /** Droit acquis actif d'un compte (null si aucun) : date de fin et règle d'origine. */
+    async acquired(userId, q = db) {
+      const r = (await q.query("select until, rule_before, created_at from ika_certification_acquise where user_id = $1 and until > now()", [userId]))[0];
+      return r ? { until: iso(r.until), ruleBefore: r.rule_before, since: iso(r.created_at) } : null;
+    },
+
+    /** État Premium pour la fiche : sans limite ou non, qui l'a décidé. */
+    async premiumState(userId, q = db) {
+      const r = (await q.query("select p.premium_until, p.premium_unlimited, p.premium_unlimited_at, p.premium_unlimited_reason, g.full_name as by_name from ika_profiles p left join ika_profiles g on g.user_id = p.premium_unlimited_by where p.user_id = $1", [userId]))[0];
+      return r ? { premiumUntil: iso(r.premium_until), unlimited: Boolean(r.premium_unlimited), by: r.by_name ?? null, at: iso(r.premium_unlimited_at), reason: r.premium_unlimited_reason } : null;
+    },
+
+    /** Premium sans limite : superadmin seul, motif obligatoire, tracé. Il dure jusqu'à retrait ou suspension/expulsion du compte. Le retirer met fin au Premium immédiatement. */
+    async setPremiumUnlimited(actorId, userId, { on, reason } = {}) {
+      await accounts.requireStaff(actorId, "SUPERADMIN");
+      const why = String(reason ?? "").trim().slice(0, 500);
+      if (why.length < 5) throw badRequest("Indiquez le motif (5 caractères au moins) : il est conservé dans l'historique du compte.");
+      const target = String(userId ?? "").slice(0, 80);
+      const rows = on
+        ? await db.query("update ika_profiles set premium_until = $2, premium_unlimited = true, premium_unlimited_by = $3, premium_unlimited_at = now(), premium_unlimited_reason = $4 where user_id = $1 returning user_id", [target, UNLIMITED, actorId, why])
+        : await db.query("update ika_profiles set premium_until = now(), premium_unlimited = false, premium_unlimited_by = $2, premium_unlimited_at = now(), premium_unlimited_reason = $3 where user_id = $1 and premium_unlimited returning user_id", [target, actorId, why]);
+      if (!rows[0]) throw notFound(on ? "Compte introuvable." : "Ce compte n'a pas de Premium sans limite.");
+      await moderationAudit?.log(actorId, { action: on ? "PREMIUM_UNLIMITED_ON" : "PREMIUM_UNLIMITED_OFF", targetType: "user", targetId: target, details: { reason: why } }).catch(() => {});
+      return { ok: true, unlimited: Boolean(on) };
     },
 
     /** Exceptions actives d'un compte (clés), pour appliquer les conditions. */
