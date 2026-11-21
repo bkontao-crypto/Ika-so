@@ -13,6 +13,7 @@ export const DEFAULT_RULES = Object.freeze({
   discoverMaxPhotos: 4,             // photos par publication (0 à 6)
   discoverPostsPerDay: 5,           // publications par compte et par 24 h (1 à 50)
   discoverRequirePhone: false,      // exiger un numéro confirmé pour publier
+  discoverVideoLinks: false,        // liens vidéo YouTube / Facebook (éteint tant que le superadmin ne l'active pas)
 });
 /** Exceptions que l'on peut accorder à un compte : clé → libellé. « step1..3 » lève l'obligation de valider cette étape. */
 export const EXCEPTION_RULES = Object.freeze({
@@ -36,5 +37,6 @@ export function normalizeRules(value) {
     discoverMaxPhotos: bounded(v.discoverMaxPhotos, 0, 6, DEFAULT_RULES.discoverMaxPhotos),
     discoverPostsPerDay: bounded(v.discoverPostsPerDay, 1, 50, DEFAULT_RULES.discoverPostsPerDay),
     discoverRequirePhone: v.discoverRequirePhone === undefined ? DEFAULT_RULES.discoverRequirePhone : v.discoverRequirePhone === true,
+    discoverVideoLinks: v.discoverVideoLinks === true,
   };
 }

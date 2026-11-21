@@ -4,7 +4,7 @@ import { app } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
 import { ago, avatar } from "/js/components/espace.js";
-import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer } from "/js/components/post-composer.js";
+import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer, videoCard } from "/js/components/post-composer.js";
 
 const REASONS = ["Annonce déguisée ou publicité", "Arnaque ou demande d'argent", "Contenu choquant ou insultant", "Numéro de téléphone ou contact direct", "Autre"];
 
@@ -41,7 +41,7 @@ function card(item, onChange) {
   const article = h("article", { class: `card pad stack dc-post kind-${item.kind.toLowerCase()}` },
     h("header", { class: "dc-head" }, avatar(item.author.name, item.author.avatarUrl),
       h("div", { class: "dc-who" }, h("div", { class: "row" }, name, h("span", { class: "pill" }, item.kindLabel), item.author.advertiser ? h("span", { class: "pill pill-green" }, "Annonceur") : null), h("small", { class: "muted" }, meta))),
-    h("p", { class: "dc-text" }, item.content), photoGrid(item.photos),
+    h("p", { class: "dc-text" }, item.content), photoGrid(item.photos), videoCard(item.video),
     h("footer", { class: "row dc-actions" },
       item.mine
         ? h("button", { class: "btn btn-quiet", type: "button", onClick: async () => { if (!window.confirm("Supprimer cette publication ?")) return; try { await api(`/me/publications/${encodeURIComponent(item.id)}/delete`, { method: "POST", body: {} }); toast("Publication supprimée."); onChange(); } catch (error) { fail(error); } } }, icon("trash"), "Supprimer")
