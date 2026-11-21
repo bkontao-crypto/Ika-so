@@ -738,6 +738,12 @@ router.get("/listings/:id", async (req, res) => {
   });
   router.get("/staff/discover/reports", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ items: await services.discover.reported(await requireOwnerModule(req, "moderation")) }); });
   router.post("/staff/discover/:id/hide", async (req, res) => res.json(await services.discover.hide(await requireOwnerGate(req, "moderation"), id(req), clean(req.body?.reason, 300))));
+  router.post("/staff/discover/:id/dismiss", async (req, res) => res.json(await services.discover.dismiss(await requireOwnerGate(req, "moderation"), id(req))));
+  router.post("/me/discover/contest", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`discontest:${userId}`, 3, 60 * 60_000);
+    res.json(await services.discover.contest(userId, clean(req.body?.message, 1000)));
+  });
   router.post("/staff/discover/:id/restore", async (req, res) => res.json(await services.discover.restore(await requireOwnerGate(req, "moderation"), id(req))));
   router.post("/me/publications/:id/delete", async (req, res) => res.json(await reviews.deletePublication(requireUser(req), id(req))));
   router.post("/me/team", async (req, res) => {
@@ -1346,6 +1352,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     const reason = clean(req.body?.reason, 500);
     const out = await moderation.setAccountStatus(staffId, id(req), status, reason, req.body?.until ?? null);
     await moderationAudit.log(staffId, { action: "account_status", targetType: "user", targetId: id(req), details: { status, reason, until: req.body?.until ?? null } }).catch(() => {});
+    if (status === "ACTIVE") await services.discover.dismissAccountReports(staffId, id(req)).catch(() => {});
     res.json(out);
   });
   router.post("/staff/accounts/:id/role", async (req, res) => {
