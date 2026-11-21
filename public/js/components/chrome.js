@@ -20,7 +20,7 @@ const NAV = [
 // Barre du bas (mobile, accessible au pouce) : cinq accès, Publier au centre.
 const NAV_MOBILE = [
   { href: "#/", label: "Accueil", icon: "home", match: (p) => p === "/" },
-  { href: "#/annonces", label: "Annonces", icon: "list", match: (p, q) => onListings(p) },
+  { href: "#/decouvrir", label: "Découvrir", icon: "sparkles", match: (p) => p === "/decouvrir" },
   { href: "#/publier", label: "Publier", icon: "plus", match: (p) => p === "/publier" || p.startsWith("/modifier/"), publish: true },
   { href: "#/carte", label: "Carte", icon: "pin", match: (p) => p === "/carte" || p.startsWith("/localiser") },
   { href: "#/profil", label: "Compte", icon: "user", match: (p) => ["/profil", "/centre", "/favoris", "/connexion", "/paiements", "/agence"].includes(p) || p.startsWith("/boite"), loginHref: "#/connexion" },
@@ -51,7 +51,7 @@ function openMenu(opener) {
   const onKey = (e) => { if (e.key === "Escape") close(); };
   const { path, params } = currentRoute();
   const backdrop = h("div", { class: "rx-drawer-backdrop", onClick: close });
-  const items = [...NAV, { href: "#/favoris", label: "Mes favoris", icon: "heart", match: (p) => p === "/favoris" }, { href: "#/boite", label: "Messages", icon: "message", match: (p) => p.startsWith("/boite") }, { href: "#/confiance", label: "Centre de confiance", icon: "shield-check", match: (p) => p === "/confiance" }];
+  const items = [...NAV.slice(0, 1), { href: "#/annonces", label: "Toutes les annonces", icon: "list", match: (p, q) => onListings(p) && !q?.get("t") && !q?.get("category") }, ...NAV.slice(1), { href: "#/favoris", label: "Mes favoris", icon: "heart", match: (p) => p === "/favoris" }, { href: "#/boite", label: "Messages", icon: "message", match: (p) => p.startsWith("/boite") }, { href: "#/confiance", label: "Centre de confiance", icon: "shield-check", match: (p) => p === "/confiance" }];
   const panel = h("aside", { class: "rx-drawer stack", role: "dialog", "aria-modal": "true", "aria-label": "Menu", tabindex: "-1" },
     h("div", { class: "row-between" }, h("strong", { class: "title" }, "Menu"), h("button", { class: "btn btn-small btn-quiet", type: "button", onClick: close, "aria-label": "Fermer le menu" }, icon("x"))),
     h("nav", { class: "rx-menu-list", "aria-label": "Menu principal" }, items.map((it) => h("a", { href: it.href, class: it.match(path, params) ? "active" : "", "aria-current": it.match(path, params) ? "page" : null, onClick: close }, icon(it.icon), it.label))),
