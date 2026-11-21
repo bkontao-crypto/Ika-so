@@ -1699,7 +1699,7 @@ Branche : `feat/owner-center-unifie` (depuis `main` 9d85141). Non fusionnée. D�
   2. **Modération après publication** : une publication est visible tout de suite ; l'équipe agit sur signalement. Une validation avant publication est possible si le propriétaire la veut.
   3. **Les anciennes publications de profil apparaissent dans Découvrir** (type « Actualité »), car c'est la même table.
   4. La barre du bas du mobile reste à 5 entrées (règle du code) : Découvrir est dans le menu mobile, pas dans la barre ; à arbitrer si le propriétaire veut l'y mettre.
-  5. Les photos ajoutées à la page publique d'un annonceur ne s'y affichent pas encore (elles apparaissent dans Découvrir et dans le profil de la personne).
+  5. ~~Les photos ne s'affichent pas sur la page publique d'un annonceur~~ : corrigé le 21 novembre 2026 (onglet « Publications » du profil public : type et photos affichés ; vérifié dans le navigateur avec une API simulée, mobile, sans erreur JavaScript ; branche fix/profil-annonceur-photos-publications).
   6. Les exceptions par compte (jurisprudence) ne couvrent pas encore Découvrir.
 - **À faire :** vérification réelle par le propriétaire sur le site (publier avec photo, écrire depuis un autre compte, signaler, masquer côté Owner Center) ; décisions 1 à 4 ci-dessus.
 - **Risques :** migration 078 appliquée au démarrage de Render ; le retour arrière supprime les publications « Je cherche » / « Information », leurs photos, signalements et conversations ouvertes depuis une publication (les annonces et les actualités simples restent). Retour arrière : `git revert -m 1 <fusion>` puis `scripts/rollback/078_decouvrir_down.sql`.
