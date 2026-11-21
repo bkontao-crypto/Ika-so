@@ -163,7 +163,34 @@ export function userCenterView(ctx, userId) {
 
     const trust = panel("Confiance et signalements", null, h("div", { class: "stack" }, grid(4, mini("Signalements sur ses annonces", nf(e.reportsOnListings)), mini("Signalements faits", nf(e.reportsMade)), mini("Conversations signalées", nf(e.userReportsAgainst)), mini("Avis reçus", nf(e.reviewsReceived))), signals));
 
-    return [hero, ...kpis, h("div", { class: "cols2" }, loginChart, contactChart), h("div", { class: "cols2" }, trust, usage), listings, h("div", { class: "cols2" }, recent, sanc), audits];
+    // Validations Premium (qui, quand) et exceptions aux conditions : traçabilité visible côté équipe seulement.
+    const who = (s) => `${s.doneByName} · ${dateTime(s.doneAt)}${s.note ? ` · « ${s.note} »` : ""}`;
+    const files = panel("Dossiers Premium et validations", "Qui a validé chaque étape, et quand (noms visibles de l'équipe seulement)", (a.premiumFiles ?? []).length
+      ? h("div", { class: "stack" }, a.premiumFiles.map((f) => h("div", { class: "item" },
+        h("div", { class: "row" }, pill(f.status === "APPROVED" ? "ok" : f.status === "PENDING" ? "warn" : "neutral", { PENDING: "En attente", APPROVED: "Approuvé", REJECTED: "Refusé", CANCELLED: "Retiré" }[f.status] ?? f.status), h("b", null, `${f.paid ? "Payé" : `${f.months} mois demandés`} · ${dateTime(f.createdAt)}`)),
+        ...[1, 2, 3].map((n) => { const s = f.steps.find((x) => x.step === n); return h("small", null, `Étape ${n} ${STEP_LABELS[n]} : ${s ? who(s) : "non validée"}`); }),
+        f.decidedAt ? h("small", null, `Décision : ${f.decidedByName ?? "—"} · ${dateTime(f.decidedAt)}${f.decidedNote ? ` · « ${f.decidedNote} »` : ""}`) : null,
+        f.refund ? h("div", { class: "stack" }, h("b", null, `Remboursement ${f.refund.status === "DONE" ? "clôturé" : "à suivre"}`), ...[1, 2, 3].map((n) => { const s = f.refund.steps.find((x) => x.step === n); return h("small", null, `Étape ${n} ${["Paiement vérifié", "Remboursement effectué", "Annonceur informé"][n - 1]} : ${s ? who(s) : "non validée"}`); })) : null)))
+      : h("p", { class: "muted" }, "Aucun dossier Premium."));
+    const catalogue = a.exceptionCatalogue ?? {};
+    const canGrant = ctx.isSuperadmin() || a.rules?.exceptionGrantedBy === "ADMIN";
+    const exc = panel("Exceptions aux conditions (jurisprudence)", `Conditions officielles levées pour ce compte seulement · accordées par ${a.rules?.exceptionGrantedBy === "ADMIN" ? "un administrateur ou le superadmin" : "le superadmin"}`, h("div", { class: "stack" },
+      (a.ruleExceptions ?? []).length ? table([
+        { label: "Condition levée", render: (x) => x.label },
+        { label: "Accordée par", render: (x) => h("div", { class: "item" }, h("b", null, x.grantedByName), h("small", null, dateTime(x.createdAt)), x.expiresAt ? h("small", null, `jusqu'au ${dateOnly(x.expiresAt)}`) : h("small", null, "sans limite")) },
+        { label: "Motif", render: (x) => h("small", null, x.reason) },
+        { label: "État", render: (x) => (x.active ? pill("warn", "Active") : h("div", { class: "item" }, pill("neutral", x.revokedAt ? "Révoquée" : "Expirée"), x.revokedAt ? h("small", null, `${x.revokedByName ?? "—"} · ${dateTime(x.revokedAt)}${x.revokedReason ? ` · « ${x.revokedReason} »` : ""}`) : null)) },
+        { label: "", render: (x) => (x.active && canGrant ? h("button", { class: "btn sm", type: "button", onClick: async () => { const v = await formDialog("Révoquer l'exception", [{ name: "reason", label: "Motif (obligatoire)", type: "textarea", required: true, max: 300 }], { submit: "Révoquer" }); if (v) act(() => api(`/staff/rule-exceptions/${encodeURIComponent(x.id)}/revoke`, { method: "POST", body: { reason: v.reason } }), "Exception révoquée.", reload); } }, "Révoquer") : null) },
+      ], a.ruleExceptions, { emptyText: "" }) : h("p", { class: "muted" }, "Aucune exception : les conditions officielles s'appliquent à ce compte."),
+      canGrant ? h("div", { class: "row" }, h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const v = await formDialog("Accorder une exception", [
+          { name: "rule", label: "Condition à lever", type: "select", options: Object.entries(catalogue).map(([value, label]) => ({ value, label })) },
+          { name: "reason", label: "Motif (obligatoire, conservé dans l'historique)", type: "textarea", required: true, max: 500 },
+          { name: "days", label: "Durée en jours (vide = jusqu'à révocation)", type: "number", min: 1, max: 365 }],
+        { intro: "Votre nom, la date et le motif seront enregistrés sur la fiche de ce compte.", submit: "Accorder" });
+        if (v) act(() => api(`/staff/owner/users/${encodeURIComponent(userId)}/rule-exceptions`, { method: "POST", body: { rule: v.rule, reason: v.reason, days: v.days || null } }), "Exception accordée.", reload);
+      } }, "Accorder une exception")) : h("p", { class: "small muted" }, "Seul le superadmin peut accorder une exception (réglage « Conditions & exceptions »).")));
+    return [hero, ...kpis, h("div", { class: "cols2" }, loginChart, contactChart), h("div", { class: "cols2" }, trust, usage), files, exc, listings, h("div", { class: "cols2" }, recent, sanc), audits];
   }
   reload();
   return root;

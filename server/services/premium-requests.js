@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { DEFAULT_POLICY, POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
+import { normalizeRules, stepRule } from "../lib/account-rules.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 export const ACCOUNT_TYPES = ["AGENCY", "INDIVIDUAL", "OTHER"];
@@ -13,7 +14,14 @@ const refundStepNo = (v) => { const n = Math.floor(Number(v)); if (!REFUND_STEPS
 const stepNo = (v) => { const n = Math.floor(Number(v)); if (!STEPS[n]) throw badRequest("Étape inconnue (1 étude, 2 vérification, 3 confirmation)."); return n; };
 const cleanPhone = (v) => String(v ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 
-export function createPremiumRequests({ requestsHub, db, accounts, notify, superadminSettings, moderationAudit, payments }) {
+export function createPremiumRequests({ requestsHub, db, accounts, notify, superadminSettings, moderationAudit, payments, rules = null }) {
+  /** Conditions applicables à UN compte : conditions officielles du superadmin moins les exceptions actives tracées sur ce compte. */
+  async function conditions(userId, q = db) {
+    const official = rules ? await rules.official() : normalizeRules(null);
+    const waived = rules ? await rules.activeKeys(userId, q) : new Set();
+    const waivedSteps = official.requiredSteps.filter((n) => waived.has(stepRule(n)));
+    return { official, waived, waivedSteps, required: official.requiredSteps.filter((n) => !waivedSteps.includes(n)) };
+  }
   async function policy() {
     return normalizePolicy((await superadminSettings?.get(POLICY_KEY)) ?? DEFAULT_POLICY);
   }
@@ -38,7 +46,8 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
     /** L'annonceur demande le Premium pour 1 à maxMois mois. Refusé si le paiement en ligne est ouvert (il doit payer). */
     async create(userId, { months, accountType, phone, message, acceptTerms } = {}) {
       await accounts.requireActive(userId);
-      await accounts.requireVerifiedPhone(userId);
+      const cond = await conditions(userId);
+      if (cond.official.phoneConfirmedForPremium && !cond.waived.has("phone")) await accounts.requireVerifiedPhone(userId);
       const p = await policy();
       // Paiement en ligne ouvert : on paie d'abord, le dossier est étudié ensuite. Fermé : dossier d'abord, activation à la main après les 3 étapes.
       const online = await payments.onlineOpen();
@@ -79,6 +88,21 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
       return { request: rows[0] ? mineView(rows[0]) : null, history: rows.map(mineView), policy: await policy() };
     },
 
+    /** Dossiers Premium d'un compte avec QUI a validé quoi et quand (fiche du compte, côté équipe seulement). */
+    async historyForAccount(userId) {
+      const rows = await db.query("select r.*, dp.full_name as decided_name from ika_premium_requests r left join ika_profiles dp on dp.user_id = r.decided_by where r.user_id = $1 order by r.created_at desc limit 10", [userId]);
+      if (!rows.length) return [];
+      const ids = rows.map((r) => r.id);
+      const steps = await stepsOf(db, ids);
+      const refundRows = await db.query("select * from ika_premium_refunds where request_id = any($1::text[])", [ids]);
+      const rsteps = refundRows.length ? await db.query("select s.refund_id, s.step, s.done_by, s.done_at, s.note, p.full_name as done_name from ika_premium_refund_steps s left join ika_profiles p on p.user_id = s.done_by where s.refund_id = any($1::text[]) order by s.step", [refundRows.map((f) => f.id)]) : [];
+      return rows.map((r) => {
+        const f = refundRows.find((x) => x.request_id === r.id);
+        return { ...view(r), decidedByName: r.decided_name || r.decided_by || null, steps: steps.filter((s) => s.request_id === r.id).map(stepView(STEPS)),
+          refund: f ? { id: f.id, status: f.status, openedAt: iso(f.opened_at), closedAt: iso(f.closed_at), steps: rsteps.filter((x) => x.refund_id === f.id).map(stepView(REFUND_STEPS)) } : null };
+      });
+    },
+
     /** File des demandes pour l'équipe (en attente d'abord). */
     async listForStaff() {
       const rows = await db.query(
@@ -91,7 +115,11 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
       const refundRows = await db.query("select f.id, f.request_id, f.user_id, f.status, f.opened_at, f.closed_at, p.full_name as name from ika_premium_refunds f left join ika_profiles p on p.user_id = f.user_id order by (f.status = 'OPEN') desc, f.opened_at desc limit 100");
       const rsteps = refundRows.length ? await db.query("select s.refund_id, s.step, s.done_by, s.done_at, s.note, p.full_name as done_name from ika_premium_refund_steps s left join ika_profiles p on p.user_id = s.done_by where s.refund_id = any($1::text[]) order by s.step", [refundRows.map((f) => f.id)]) : [];
       const refunds = refundRows.map((f) => ({ id: f.id, requestId: f.request_id, userId: f.user_id, name: f.name, status: f.status, openedAt: iso(f.opened_at), closedAt: iso(f.closed_at), steps: rsteps.filter((x) => x.refund_id === f.id).map(stepView(REFUND_STEPS)) }));
-      return { refunds, refundSteps: Object.entries(REFUND_STEPS).map(([n, label]) => ({ step: Number(n), label })), requests: rows.map((r) => ({ ...view(r), steps: steps.filter((s) => s.request_id === r.id).map(stepView(STEPS)) })), steps: Object.entries(STEPS).map(([n, label]) => ({ step: Number(n), label })), policy: await policy() };
+      const official = rules ? await rules.official() : normalizeRules(null);
+      const pendingUsers = [...new Set(rows.filter((r) => r.status === "PENDING").map((r) => r.user_id))];
+      const exRows = pendingUsers.length ? await db.query("select user_id, rule from ika_rule_exceptions where user_id = any($1::text[]) and revoked_at is null and (expires_at is null or expires_at > now())", [pendingUsers]).catch(() => []) : [];
+      const waivedOf = (uid) => official.requiredSteps.filter((n) => exRows.some((e) => e.user_id === uid && e.rule === stepRule(n)));
+      return { requiredSteps: official.requiredSteps, refunds, refundSteps: Object.entries(REFUND_STEPS).map(([n, label]) => ({ step: Number(n), label })), requests: rows.map((r) => ({ ...view(r), waivedSteps: r.status === "PENDING" ? waivedOf(r.user_id) : [], steps: steps.filter((s) => s.request_id === r.id).map(stepView(STEPS)) })), steps: Object.entries(STEPS).map(([n, label]) => ({ step: Number(n), label })), policy: await policy() };
     },
 
     /** Valide une étape (1 étude, 2 vérification, 3 confirmation). Les étapes sont indépendantes ; chaque validation est tracée à la personne. */
@@ -109,7 +137,9 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         }
         await moderationAudit?.log(staffId, { action: "PREMIUM_STEP_DONE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, step: n, label: STEPS[n], note: why } }).catch(() => {});
         const done = Number((await tx.query("select count(*)::int as n from ika_premium_request_steps where request_id = $1", [r.id]))[0]?.n ?? 0);
-        return { ok: true, step: n, done, complete: done === 3 };
+        const cond = await conditions(r.user_id, tx);
+        const doneNow = (await tx.query("select step, done_by from ika_premium_request_steps where request_id = $1 order by step", [r.id])).map((x) => x.step);
+        return { ok: true, step: n, done, complete: cond.required.every((k) => doneNow.includes(k)) };
       });
     },
 
@@ -185,12 +215,14 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         }
         if (action !== "APPROVE") throw badRequest("Action inconnue.");
         const doneSteps = await tx.query("select step, done_by from ika_premium_request_steps where request_id = $1 order by step", [r.id]);
-        const missing = [1, 2, 3].filter((n) => !doneSteps.some((s) => s.step === n));
+        const cond = await conditions(r.user_id, tx);
+        const missing = cond.required.filter((n) => !doneSteps.some((s) => s.step === n));
         if (missing.length) throw conflict(`Validez d'abord toutes les étapes avant d'approuver (manquantes : ${missing.map((n) => STEPS[n]).join(", ")}).`);
+        const rulesTrace = { requiredSteps: cond.official.requiredSteps, waivedSteps: cond.waivedSteps, exceptions: [...cond.waived] }; // jurisprudence appliquée, conservée dans l'audit
         if (r.paid) {
           // Dossier étudié après paiement : le Premium payé est déjà actif, rien à accorder ; l'approbation certifie le compte.
           await tx.query("update ika_premium_requests set status = 'APPROVED', decided_by = $2, decided_at = now(), decided_note = $3 where id = $1", [r.id, staffId, why]);
-          await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, paid: true, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })) } }).catch(() => {});
+          await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, paid: true, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })), rules: rulesTrace } }).catch(() => {});
           if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Votre compte Premium est certifié", body: "Votre dossier a été étudié et approuvé par l'équipe Ika So.", link: "#/centre" }).catch(() => {});
           return { ok: true, status: "APPROVED", paid: true };
         }
@@ -201,7 +233,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         if (!prof[0]) throw notFound("Profil introuvable.");
         await tx.query("update ika_premium_requests set status = 'APPROVED', granted_months = $2, decided_by = $3, decided_at = now(), decided_note = $4 where id = $1", [r.id, granted, staffId, why]);
         await tx.query("insert into ika_premium_grants (id, user_id, granted_by, days, reason) values ($1, $2, $3, $4, $5)", [`pg_${randomUUID()}`, r.user_id, staffId, days, `Approbation manuelle Premium (${granted} mois)`]);
-        await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })) } }).catch(() => {});
+        await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, months: granted, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })), rules: rulesTrace } }).catch(() => {});
         const certified = await isCertified(r.user_id, tx); // information seulement (badge de confiance)
         const phoneOk = (await tx.query("select phone_verified_at, phone_channel from ika_profiles where user_id = $1", [r.user_id]).catch(() => []))[0];
         const smsOk = Boolean(phoneOk?.phone_verified_at);

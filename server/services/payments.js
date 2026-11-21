@@ -11,7 +11,7 @@ const MAX_PRICE_XOF = 5_000_000;
  * Règle d'or : une annonce n'est mise à la une (et le Premium n'est activé) que lorsque le fournisseur confirme le paiement
  * (webhook signé) avec le bon montant. Jamais sur la simple parole du navigateur.
  */
-export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy = null) {
+export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy = null, phoneRequired = async () => true) {
   const { db } = ctx;
   const enabled = () => Boolean(provider);
   // Réglage superadmin : paiement en ligne ouvert ou non (sans lecteur, comportement d'origine : ouvert si fournisseur configuré).
@@ -188,7 +188,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy
       await accounts.requireActive(userId);
       const offer = (await db.query("select * from ika_offers where code = $1 and active and price_xof > 0", [String(offerCode ?? "").slice(0, 40)]))[0];
       if (!offer) throw notFound("Offre indisponible.");
-      if (offer.kind === "PREMIUM") { await accounts.requireVerifiedPhone(userId); return checkoutPremium(userId, offer, from); }
+      if (offer.kind === "PREMIUM") { if (await phoneRequired(userId)) await accounts.requireVerifiedPhone(userId); return checkoutPremium(userId, offer, from); }
       const listing = (await db.query("select id, owner_id, status, visibility, featured_until from ika_listings where id = $1", [String(listingId ?? "").slice(0, 80)]))[0];
       if (!listing || listing.owner_id !== userId) throw notFound("Annonce introuvable.");
       if (listing.status !== "PUBLISHED" || listing.visibility === "HIDDEN") throw badRequest("Seule une annonce publiée et visible peut être mise à la une.");

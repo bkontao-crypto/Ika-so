@@ -40,8 +40,8 @@ test("demande Premium et achat : refusés sans numéro confirmé (code PHONE_REQ
   assert.match(src, /PHONE_REQUIRED/);
   const pr = (await import("node:fs")).readFileSync(new URL("../server/services/premium-requests.js", import.meta.url), "utf8");
   const pay = (await import("node:fs")).readFileSync(new URL("../server/services/payments.js", import.meta.url), "utf8");
-  assert.match(pr, /async create[\s\S]{0,200}requireVerifiedPhone/);
-  assert.match(pay, /kind === "PREMIUM"\) \{ await accounts\.requireVerifiedPhone/);
+  assert.match(pr, /async create[\s\S]{0,500}requireVerifiedPhone/);
+  assert.match(pay, /kind === "PREMIUM"\) \{ if \(await phoneRequired\(userId\)\) await accounts\.requireVerifiedPhone/);
 });
 
 test("approbation Premium : numéro non confirmé → le message le dit en premier", async () => {
