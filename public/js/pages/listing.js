@@ -3,13 +3,14 @@ import { S, app } from "/js/core/state.js";
 import { watchDwell } from "/js/core/analytics.js";
 import { needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
+import { initials } from "/js/components/espace.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
   watchDwell(item.id ?? id); // durée de visionnage, envoyée à la sortie de la fiche
-  const ownerSummary = h("div", { class: "card", style: "margin-top:16px" },
-    h("h3", { style: "margin:0 0 8px" }, "Annonceur"),
-    h("p", { class: "muted small" }, "Chargement…")
+  const ownerSummary = h("div", { class: "card owner-card", style: "margin-top:16px" },
+    h("div", { class: "owner-body" }, h("h3", { style: "margin:0 0 8px" }, "Annonceur"),
+      h("p", { class: "muted small" }, "Chargement…"))
   );
   if (item.ownerId) api(`/advertisers/${encodeURIComponent(item.ownerId)}`).then((p) => {
     const pills = [];
@@ -17,12 +18,16 @@ export async function listingPage(id) {
     if (p.trust?.label) pills.push(h("span", { class: "pill pill-green" }, p.trust.label));
     if (p.agencyVerified) pills.push(h("span", { class: "pill" }, "Agence vérifiée"));
     // filter(Boolean) : replaceChildren écrit « null » à la place d'un élément absent.
-    ownerSummary.replaceChildren(...[
-      h("h3", { style: "margin:0 0 8px" }, p.name || "Annonceur"),
-      pills.length ? h("div", { class: "row wrap gap-sm", style: "margin-bottom:8px" }, ...pills) : null,
+    // Même « cadre » que sur le profil public : couverture, photo (ou initiales), nom. Les images masquées par l'annonceur ou la modération n'arrivent pas.
+    const name = p.name || "Annonceur";
+    const cover = p.profile?.coverUrl ? h("img", { class: "owner-cover", src: p.profile.coverUrl, alt: "", loading: "lazy" }) : h("div", { class: "owner-cover", "aria-hidden": "true" });
+    const avatar = p.profile?.avatarUrl ? h("img", { class: "owner-avatar", src: p.profile.avatarUrl, alt: `Photo de ${name}`, loading: "lazy" }) : h("div", { class: "owner-avatar", "aria-hidden": "true" }, initials(name));
+    ownerSummary.replaceChildren(cover, h("div", { class: "owner-body" }, ...[
+      h("div", { class: "owner-id" }, avatar, h("div", { class: "owner-who" }, h("h3", { style: "margin:0" }, name), p.displayRole ? h("small", { class: "muted" }, p.displayRole) : null)),
+      pills.length ? h("div", { class: "row wrap gap-sm", style: "margin-top:10px" }, ...pills) : null,
       p.trust?.detail ? h("p", { class: "small muted" }, p.trust.detail) : null,
       h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}`, style: "margin-top:8px" }, "Voir le profil")
-    ].filter(Boolean));
+    ].filter(Boolean)));
   }).catch(() => {
     ownerSummary.replaceChildren(h("p", { class: "muted small" }, "Informations annonceur indisponibles."), h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}` }, "Voir le profil"));
   });
