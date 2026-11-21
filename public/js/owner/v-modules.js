@@ -369,6 +369,28 @@ function premiumSteps(r, reload) {
       } }, "Retirer") : null);
   }));
 }
+/** Suivi de remboursement d'un dossier refusé après paiement : 3 étapes, la 3e validée clôt le suivi et informe l'annonceur. */
+const REFUND_HINT = { 1: "Retrouver le paiement et confirmer le montant", 2: "Rembourser chez le fournisseur de paiement", 3: "Clôturer : l'annonceur est averti" };
+function refundSteps(f, reload) {
+  const byStep = new Map((f.steps ?? []).map((x) => [x.step, x]));
+  const open = f.status === "OPEN";
+  return h("div", { class: "pstep-grid" }, [1, 2, 3].map((n) => {
+    const done = byStep.get(n);
+    const label = ["Paiement vérifié", "Remboursement effectué", "Annonceur informé"][n - 1];
+    const url = `/staff/premium-refunds/${encodeURIComponent(f.id)}/steps/${n}`;
+    return h("div", { class: `pstep ${done ? "done" : ""}` },
+      h("div", { class: "row" }, pill(done ? "ok" : "neutral", done ? "✓ Validée" : `Étape ${n}`), h("b", null, label)),
+      h("small", null, done ? `Par ${done.doneByName} · ${dateTime(done.doneAt)}${done.note ? ` · « ${done.note} »` : ""}` : REFUND_HINT[n]),
+      open && !done ? h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const v = await formDialog(`Valider l'étape ${n} : ${label}`, [{ name: "note", label: "Observation ou référence (facultatif)", type: "textarea", max: 300 }], { intro: "Votre nom sera enregistré dans l'historique du site avec cette validation.", submit: "Valider l'étape" });
+        if (v) act(() => api(url, { method: "POST", body: { note: v.note } }), `Étape ${n} validée.`, reload);
+      } }, "Valider cette étape") : null,
+      open && done ? h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const v = await formDialog(`Retirer la validation de l'étape ${n}`, [{ name: "note", label: "Motif (obligatoire)", type: "textarea", max: 300 }], { submit: "Retirer" });
+        if (v) act(() => api(`${url}/undo`, { method: "POST", body: { note: v.note } }), "Validation retirée.", reload);
+      } }, "Retirer") : null);
+  }));
+}
 function premiumDecisionControls(r, max, reload) {
   const complete = (r.steps ?? []).length === 3;
   const sel = h("select", { "aria-label": "Durée accordée" }, ...Array.from({ length: max }, (_, i) => h("option", { value: String(i + 1) }, `${i + 1} mois`)));
@@ -377,7 +399,7 @@ function premiumDecisionControls(r, max, reload) {
   return h("div", { class: "stack" },
     r.paid ? h("small", null, "Dossier payé : le Premium payé est déjà actif.") : h("div", { class: "row" }, h("small", null, "Durée accordée"), sel),
     h("div", { class: "row" }, approve,
-      h("button", { class: "btn sm", type: "button", onClick: () => { const note = window.prompt(r.paid ? "Motif du refus (transmis à l'annonceur ; le remboursement est à traiter à part) :" : "Motif du refus (transmis à l'annonceur) :"); if (note === null) return; if (note.trim().length < 3) { toast("Le motif est obligatoire (3 caractères au moins)."); return; } act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT", note: note.trim() } }), "Demande refusée.", reload); } }, "Refuser")));
+      h("button", { class: "btn sm", type: "button", onClick: () => { const note = window.prompt(r.paid ? "Motif du refus (transmis à l'annonceur ; un suivi de remboursement en 3 étapes sera ouvert) :" : "Motif du refus (transmis à l'annonceur) :"); if (note === null) return; if (note.trim().length < 3) { toast("Le motif est obligatoire (3 caractères au moins)."); return; } act(() => api(`/staff/premium-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT", note: note.trim() } }), "Demande refusée.", reload); } }, "Refuser")));
 }
 export function premiumRequestsPanel(data, reload) {
   const max = data.policy?.manualPremiumMaxMonths ?? 3;
@@ -391,7 +413,10 @@ export function premiumRequestsPanel(data, reload) {
   const cards = (data.requests ?? []).filter((r) => r.status === "PENDING").map((r) => panel(`Dossier de ${r.name || "l'annonceur"}`,
     `${r.paid ? "Payé : dossier à étudier" : `${r.months} mois demandés`} · reçu le ${dateTime(r.createdAt)}${r.reviewDueAt ? ` · réponse avant le ${dateOnly(r.reviewDueAt)}` : ""}${r.message ? ` · « ${r.message} »` : ""}`,
     h("div", { class: "stack" }, premiumSteps(r, reload), premiumDecisionControls(r, max, reload))));
-  return h("div", { class: "stack" }, list, ...cards);
+  const refunds = (data.refunds ?? []).filter((f) => f.status === "OPEN").map((f) => panel(`Remboursement à suivre : ${f.name || "annonceur"}`,
+    `Dossier refusé après paiement : le Premium payé reste actif · suivi ouvert le ${dateTime(f.openedAt)} · aucun remboursement automatique`,
+    refundSteps(f, reload)));
+  return h("div", { class: "stack" }, list, ...cards, ...refunds);
 }
 
 // ---------- Demandes & validations : toutes les demandes en attente, au même endroit ----------
