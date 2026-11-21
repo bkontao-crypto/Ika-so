@@ -714,6 +714,31 @@ router.get("/listings/:id", async (req, res) => {
     limiter.hit(`pub:${userId}`, 20, 60 * 60_000);
     res.status(201).json(await reviews.addPublication(userId, { content: clean(req.body?.content, 2000), imageUrl: clean(req.body?.imageUrl, 500) }));
   });
+  // « Découvrir » : lecture publique ; publier, écrire à l'auteur et signaler demandent un compte.
+  router.get("/discover/settings", async (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.discover.settings()); });
+  router.get("/discover", async (req, res) => {
+    res.setHeader("Cache-Control", "no-store");
+    res.json(await services.discover.feed(req.user?.id ?? null, { kind: clean(req.query?.kind, 20), category: clean(req.query?.category, 40), before: clean(req.query?.before, 40) }));
+  });
+  router.post("/me/discover", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`disc:${userId}`, 20, 60 * 60_000);
+    const photos = Array.isArray(req.body?.photos) ? req.body.photos.slice(0, 7).map((x) => String(x)) : [];
+    res.status(201).json(await services.discover.create(userId, { content: clean(req.body?.content, 2000), kind: clean(req.body?.kind, 20), category: clean(req.body?.category, 40), zone: clean(req.body?.zone, 80), photos }));
+  });
+  router.post("/discover/:id/contact", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`disccontact:${userId}`, 30, 60 * 60_000);
+    res.status(201).json(await services.discover.contact(userId, id(req), clean(req.body?.body, 1000)));
+  });
+  router.post("/discover/:id/report", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`discreport:${userId}`, 20, 60 * 60_000);
+    res.json(await services.discover.report(userId, id(req), clean(req.body?.reason, 80)));
+  });
+  router.get("/staff/discover/reports", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ items: await services.discover.reported(await requireOwnerModule(req, "moderation")) }); });
+  router.post("/staff/discover/:id/hide", async (req, res) => res.json(await services.discover.hide(await requireOwnerGate(req, "moderation"), id(req), clean(req.body?.reason, 300))));
+  router.post("/staff/discover/:id/restore", async (req, res) => res.json(await services.discover.restore(await requireOwnerGate(req, "moderation"), id(req))));
   router.post("/me/publications/:id/delete", async (req, res) => res.json(await reviews.deletePublication(requireUser(req), id(req))));
   router.post("/me/team", async (req, res) => {
     const userId = requireUser(req);

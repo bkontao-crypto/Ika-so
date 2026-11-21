@@ -20,7 +20,8 @@ const UNREFERENCED = `
   and not exists (select 1 from ika_advertiser_applications ad, jsonb_array_elements(ad.documents) d where d->>'fileId' = f.id::text)
   and not exists (select 1 from ika_advertiser_profiles ap where lower(ap.cover_url) = '/api/media/' || f.id::text or lower(ap.avatar_url) = '/api/media/' || f.id::text)
   and not exists (select 1 from ika_homepage_settings hs where lower(hs.config->>'image') = '/api/media/' || f.id::text or lower(hs.config->>'pending_image') = '/api/media/' || f.id::text)
-  and not exists (select 1 from ika_partners pt where lower(pt.logo_url) = '/api/media/' || f.id::text)`;
+  and not exists (select 1 from ika_partners pt where lower(pt.logo_url) = '/api/media/' || f.id::text)
+  and not exists (select 1 from ika_publication_photos pp where lower(pp.url) = '/api/media/' || f.id::text)`;
 
 export function parseCleanupArgs(argv) {
   const opts = { apply: false, confirm: "", minAgeHours: ORPHAN_DEFAULT_MIN_AGE_HOURS, limit: ORPHAN_DEFAULT_LIMIT };

@@ -98,6 +98,17 @@ const PROFILE_IMAGE_ALLOWED = `${PROFILE_IMAGE_PUBLIC}
     where (ap.cover_url = $3 or ap.avatar_url = $3)
       and (ap.user_id = $2 or exists (select 1 from ika_profiles s where s.user_id = $2 and s.staff_role in ('MODERATOR','ADMIN','SUPERADMIN'))))`;
 
+// Photo d'une publication « Découvrir » : publique tant que la publication n'est pas masquée et que le compte n'est ni bloqué ni supprimé.
+const PUBLICATION_IMAGE_PUBLIC = `exists (
+  select 1 from ika_publication_photos pp join ika_publications pb on pb.id = pp.publication_id
+  join ika_profiles pr on pr.user_id = pb.user_id join ika_users u on u.id = pb.user_id
+  where pp.url = $3 and pb.status = 'PUBLISHED' and pr.account_status <> 'BANNED' and u.deleted_at is null)`;
+// L'auteur et le personnel la voient toujours (aperçu, modération).
+const PUBLICATION_IMAGE_ALLOWED = `${PUBLICATION_IMAGE_PUBLIC}
+  or exists (
+    select 1 from ika_publication_photos pp join ika_publications pb on pb.id = pp.publication_id
+    where pp.url = $3 and (pb.user_id = $2 or exists (select 1 from ika_profiles s where s.user_id = $2 and s.staff_role in ('MODERATOR','ADMIN','SUPERADMIN'))))`;
+
 export async function readPublicImage(db, id, viewerId = null, { metaOnly = false } = {}) {
   if (!UUID_RE.test(String(id ?? ""))) return null;
   const url = `/api/media/${id}`;
@@ -106,6 +117,7 @@ export async function readPublicImage(db, id, viewerId = null, { metaOnly = fals
             case when $4::boolean then null else f.content end as content,
             (
               ${PROFILE_IMAGE_PUBLIC}
+              or ${PUBLICATION_IMAGE_PUBLIC}
               or exists (select 1 from ika_homepage_settings hs where hs.config->>'image' = $3)
               or exists (select 1 from ika_listings l where l.image_url = $3 and ${PUBLIC_LISTING})
               or exists (
@@ -118,6 +130,7 @@ export async function readPublicImage(db, id, viewerId = null, { metaOnly = fals
        and f.mime_type in ('image/jpeg','image/png','image/webp')
        and (
          ${PROFILE_IMAGE_ALLOWED}
+         or ${PUBLICATION_IMAGE_ALLOWED}
          or exists (select 1 from ika_homepage_settings hs where hs.config->>'image' = $3)
          or exists (select 1 from ika_homepage_settings hs where hs.config->>'pending_image' = $3
                     and exists (select 1 from ika_profiles s where s.user_id = $2 and s.staff_role in ('ADMIN','SUPERADMIN')))

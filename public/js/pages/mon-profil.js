@@ -4,6 +4,7 @@ import { api, compressPhoto, fail, formatPrice, h, mount, readProofFile, toast }
 import { S, app, refreshSession } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { field } from "/js/components/ui.js";
+import { KIND_LABELS, photoGrid, postComposer } from "/js/components/post-composer.js";
 import { stars } from "/js/components/stars.js";
 import { bulkImportBlock } from "/js/components/bulk-import.js";
 import { accountSettings } from "/js/pages/account.js";
@@ -185,22 +186,18 @@ export async function profilePage() {
       h("p", { class: "mp-score-note" }, "Basé sur la confiance (40%), visibilité (20%), fidélité (20%) et réactivité (20%). ", h("b", null, "Ce n'est pas une certification officielle."))));
 
   /* ---------- Publications ---------- */
-  const postBox = h("textarea", { class: "input", rows: "3", maxlength: "2000", placeholder: "Partagez une actualité ou un bien… (pas de numéro de téléphone)" });
   const posts = pub?.publications ?? [];
   const publicationsTab = h("div", { class: "mp-grid" },
     h("div", { class: "mp-col" }, aboutCard, servicesCard, scoreCard),
     h("div", { class: "mp-col" },
-      h("div", { class: "mp-card" }, h("h3", null, "Nouvelle publication"), postBox,
-        h("div", { class: "mp-row end" }, h("button", { class: "mp-btn mp-btn-primary", type: "button", onClick: () => {
-          if (postBox.value.trim().length < 5) { toast("Le texte de la publication est trop court.", true); return; }
-          run(() => api("/me/publications", { method: "POST", body: { content: postBox.value.trim() } }), "Publication ajoutée.");
-        } }, "Publier"))),
+      postComposer({ onPosted: () => reload() }),
+      h("p", { class: "mp-hint" }, "Vos publications apparaissent aussi dans l'onglet « Découvrir » du site, séparées des annonces."),
       posts.length
-        ? posts.map((p) => h("article", { class: "mp-card" }, h("p", { class: "mp-post" }, p.content),
+        ? posts.map((p) => h("article", { class: "mp-card" }, p.kind && p.kind !== "ACTUALITE" ? h("span", { class: "pill" }, KIND_LABELS[p.kind] ?? p.kind) : null, h("p", { class: "mp-post" }, p.content), photoGrid(p.photos),
             h("div", { class: "mp-row between" }, h("small", null, dateFr(p.createdAt)),
               h("button", { class: "mp-link danger", type: "button", onClick: () => { if (window.confirm("Supprimer cette publication ?")) run(() => api(`/me/publications/${encodeURIComponent(p.id)}/delete`, { method: "POST", body: {} }), "Publication supprimée."); } }, "Supprimer"))))
         : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "📝"), h("h3", null, "Aucune publication récente"),
-            h("p", null, "Lorsque vous publierez des annonces ou partagerez des biens, ils apparaîtront ici."))));
+            h("p", null, "Partagez une actualité, une information ou ce que vous cherchez : vos publications apparaîtront ici."))));
 
   /* ---------- Mes annonces ---------- */
   const count = (f) => (f === "all" ? visible.length : visible.filter((l) => l.status === f).length);

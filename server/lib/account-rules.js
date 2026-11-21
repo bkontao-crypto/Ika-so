@@ -8,6 +8,11 @@ export const DEFAULT_RULES = Object.freeze({
   phoneConfirmedForPremium: true,   // numéro confirmé (code reçu) pour demander ou payer le Premium
   requiredSteps: [1, 2, 3],         // étapes d'étude à valider avant d'approuver un dossier Premium
   exceptionGrantedBy: "SUPERADMIN", // qui peut accorder une exception
+  // « Découvrir » (publications de la communauté) : décisions du superadmin, modifiables sans toucher au code.
+  discoverEnabled: true,            // ouvert : chacun peut lire et publier
+  discoverMaxPhotos: 4,             // photos par publication (0 à 6)
+  discoverPostsPerDay: 5,           // publications par compte et par 24 h (1 à 50)
+  discoverRequirePhone: false,      // exiger un numéro confirmé pour publier
 });
 /** Exceptions que l'on peut accorder à un compte : clé → libellé. « step1..3 » lève l'obligation de valider cette étape. */
 export const EXCEPTION_RULES = Object.freeze({
@@ -18,6 +23,8 @@ export const EXCEPTION_RULES = Object.freeze({
 });
 export const stepRule = (n) => `step${n}`;
 
+const bounded = (value, min, max, fallback) => { const n = Math.floor(Number(value)); return Number.isFinite(n) && n >= min && n <= max ? n : fallback; };
+
 export function normalizeRules(value) {
   const v = value && typeof value === "object" ? value : {};
   const steps = Array.isArray(v.requiredSteps) ? [...new Set(v.requiredSteps.map((n) => Math.floor(Number(n))).filter((n) => STEP_KEYS.includes(n)))].sort() : [...DEFAULT_RULES.requiredSteps];
@@ -25,5 +32,9 @@ export function normalizeRules(value) {
     phoneConfirmedForPremium: v.phoneConfirmedForPremium === undefined ? DEFAULT_RULES.phoneConfirmedForPremium : v.phoneConfirmedForPremium === true,
     requiredSteps: steps,
     exceptionGrantedBy: GRANTERS.includes(v.exceptionGrantedBy) ? v.exceptionGrantedBy : DEFAULT_RULES.exceptionGrantedBy,
+    discoverEnabled: v.discoverEnabled === undefined ? DEFAULT_RULES.discoverEnabled : v.discoverEnabled === true,
+    discoverMaxPhotos: bounded(v.discoverMaxPhotos, 0, 6, DEFAULT_RULES.discoverMaxPhotos),
+    discoverPostsPerDay: bounded(v.discoverPostsPerDay, 1, 50, DEFAULT_RULES.discoverPostsPerDay),
+    discoverRequirePhone: v.discoverRequirePhone === undefined ? DEFAULT_RULES.discoverRequirePhone : v.discoverRequirePhone === true,
   };
 }
