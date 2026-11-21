@@ -505,6 +505,7 @@ export const discoverView = (ctx) => page(ctx, {
       p.photos.length ? h("div", { class: "row", style: { flexWrap: "wrap", gap: "8px" } }, p.photos.map((u) => h("a", { href: u, target: "_blank", rel: "noopener" }, h("img", { src: u, alt: "Photo de la publication", style: { width: "88px", height: "88px", objectFit: "cover", borderRadius: "10px" } })))) : null,
       h("div", { class: "row" }, pill(p.hidden ? "bad" : "warn", p.hidden ? "Masquée" : `${p.reports} signalement${p.reports > 1 ? "s" : ""}`), p.reports && p.hidden ? pill("neutral", `${p.reports} signalement${p.reports > 1 ? "s" : ""}`) : null),
       ...(p.reportList ?? []).slice(0, 5).map((r) => h("small", { class: "muted" }, `${dateTime(r.at)} : ${r.reason}`)),
+      p.authorStatus && p.authorStatus !== "ACTIVE" ? h("div", { class: "row" }, pill("bad", p.authorStatus === "BANNED" ? "Compte banni" : "Compte bloqué"), p.authorStatusReason ? h("small", { class: "muted" }, p.authorStatusReason) : null) : null,
       p.hidden ? h("small", null, `Masquée par ${p.hiddenByName ?? "—"} · ${dateTime(p.hiddenAt)}${p.hiddenReason ? ` · « ${p.hiddenReason} »` : ""}`) : null,
       h("div", { class: "row" },
         p.hidden
@@ -512,7 +513,14 @@ export const discoverView = (ctx) => page(ctx, {
           : h("button", { class: "btn sm", type: "button", onClick: async () => {
             const v = await formDialog("Masquer cette publication", [{ name: "reason", label: "Motif (obligatoire)", type: "textarea", required: true, max: 300 }], { intro: "Elle disparaît du fil. Votre nom et le motif sont enregistrés.", submit: "Masquer" });
             if (v) act(() => api(`/staff/discover/${encodeURIComponent(p.id)}/hide`, { method: "POST", body: { reason: v.reason } }), "Publication masquée.", reload);
-          } }, "Masquer")))));
+          } }, "Masquer"),
+        p.reports ? h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/discover/${encodeURIComponent(p.id)}/dismiss`, { method: "POST", body: {} }), "Signalements classés sans suite.", reload) }, "Classer sans suite") : null,
+        p.authorStatus === "ACTIVE"
+          ? [["RESTRICTED", "Bloquer le compte", "Le compte ne peut plus publier ni commenter ; il peut contester."], ["BANNED", "Bannir le compte", "Le compte est banni : annonces masquées, sessions fermées."]].map(([status, label, intro]) => h("button", { class: "btn sm", type: "button", onClick: async () => {
+            const v = await formDialog(label, [{ name: "reason", label: "Motif (obligatoire)", type: "textarea", required: true, max: 500 }], { intro: `${p.author.name} — ${intro}`, submit: label });
+            if (v) act(() => api(`/staff/accounts/${encodeURIComponent(p.author.id)}/status`, { method: "POST", body: { status, reason: v.reason } }), "Compte mis à jour.", reload);
+          } }, label))
+          : h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/accounts/${encodeURIComponent(p.author.id)}/status`, { method: "POST", body: { status: "ACTIVE", reason: "" } }), "Compte débloqué ; ses signalements sont remis à zéro.", reload) }, "Débloquer le compte")))));
   },
 });
 
@@ -532,11 +540,12 @@ export const rulesView = (ctx) => page(ctx, {
     granter.value = rules.exceptionGrantedBy;
     const dOpen = h("input", { type: "checkbox", id: "rl-d-open", disabled: !canEdit }); dOpen.checked = rules.discoverEnabled !== false;
     const dPhone = h("input", { type: "checkbox", id: "rl-d-phone", disabled: !canEdit }); dPhone.checked = rules.discoverRequirePhone === true;
+    const dAuto = h("input", { class: "input", type: "number", min: "0", max: "100", id: "rl-d-auto", disabled: !canEdit, value: String(rules.discoverAutoBlockReports ?? 10) });
     const dVideo = h("input", { type: "checkbox", id: "rl-d-video", disabled: !canEdit }); dVideo.checked = rules.discoverVideoLinks === true;
     const dPhotos = h("input", { class: "input", type: "number", min: "0", max: "6", id: "rl-d-photos", disabled: !canEdit, value: String(rules.discoverMaxPhotos ?? 4) });
     const dDay = h("input", { class: "input", type: "number", min: "1", max: "50", id: "rl-d-day", disabled: !canEdit, value: String(rules.discoverPostsPerDay ?? 5) });
     const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
-      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, discoverVideoLinks: dVideo.checked, discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
+      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, discoverVideoLinks: dVideo.checked, discoverAutoBlockReports: Number(dAuto.value), discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
     return [
       canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
       panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
@@ -548,6 +557,7 @@ export const rulesView = (ctx) => page(ctx, {
       panel("Découvrir : publications de la communauté", null, h("div", { class: "stack" },
         h("label", { class: "row", for: "rl-d-open" }, dOpen, h("strong", null, "Découvrir ouvert (lecture et publication)")),
         h("label", { class: "row", for: "rl-d-phone" }, dPhone, h("span", null, "Exiger un numéro confirmé pour publier")),
+        h("label", { class: "field", for: "rl-d-auto" }, "Blocage automatique d'un compte après ce nombre de membres différents l'ayant signalé (0 = jamais)", dAuto),
         h("label", { class: "row", for: "rl-d-video" }, dVideo, h("span", null, "Autoriser les liens vidéo YouTube / Facebook (l'envoi de fichiers vidéo reste fermé)")),
         h("label", { class: "field", for: "rl-d-photos" }, "Photos par publication (0 = aucune, 6 au maximum)", dPhotos),
         h("label", { class: "field", for: "rl-d-day" }, "Publications par compte et par 24 heures (1 à 50)", dDay),

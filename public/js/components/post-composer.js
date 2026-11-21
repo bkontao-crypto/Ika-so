@@ -82,9 +82,16 @@ export function postComposer({ onPosted = () => {}, defaultKind = "ACTUALITE" } 
       h("a", { class: "btn btn-primary", href: "#/connexion" }, "Se connecter"));
   }
 
+  function drawRestricted() {
+    const msg = h("textarea", { class: "input", rows: "4", maxlength: "1000", "aria-label": "Votre contestation", placeholder: "Expliquez la situation et joignez vos preuves (texte)." });
+    root.replaceChildren(h("h3", null, "Compte restreint"), h("p", { class: "muted" }, `Vous ne pouvez plus publier.${S.user.statusReason ? ` ${S.user.statusReason}` : ""} Si vous pensez que c'est une erreur, contestez : l'équipe examinera votre cas.`), msg,
+      h("button", { class: "btn btn-primary", type: "button", onClick: async () => { try { await api("/me/discover/contest", { method: "POST", body: { message: msg.value.trim() } }); toast("Contestation envoyée à l'équipe."); msg.value = ""; } catch (error) { fail(error); } } }, "Envoyer ma contestation"));
+  }
+
   async function init() {
     if (!S.user) { drawGuest(); return; }
     try { settings = await api("/discover/settings"); } catch { /* valeurs par défaut */ }
+    if (S.user.accountStatus === "RESTRICTED") { drawRestricted(); return; }
     if (!settings.enabled) { root.replaceChildren(h("h3", null, "Nouvelle publication"), h("p", { class: "muted" }, "Les publications sont fermées pour le moment.")); return; }
     root.replaceChildren(h("h3", null, "Nouvelle publication"), kinds, text,
       h("div", { class: "dc-optional" }, category, zone), thumbs, fileInput, settings.videoLinks ? videoUrl : null,

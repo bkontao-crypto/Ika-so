@@ -8,10 +8,24 @@ import { storeDataUrl } from "../lib/file-storage.js";
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 const PAGE = 20;
 
-export function createDiscover({ db, accounts, rules, engagement, moderationAudit }) {
+export function createDiscover({ db, accounts, rules, engagement, moderationAudit, requestsHub }) {
   async function settings() {
     const r = await rules.official();
     return { enabled: r.discoverEnabled, maxPhotos: r.discoverMaxPhotos, postsPerDay: r.discoverPostsPerDay, requirePhone: r.discoverRequirePhone, videoLinks: r.discoverVideoLinks };
+  }
+
+  /** Blocage automatique : N membres différents (signalements non classés) ont signalé ce compte. Restriction sans date de fin, levée par l'équipe. */
+  async function autoBlock(authorId) {
+    const limit = (await rules.official()).discoverAutoBlockReports;
+    if (!limit) return false;
+    const n = Number((await db.query("select count(distinct r.reporter_id)::int as n from ika_publication_reports r join ika_publications p on p.id = r.publication_id where p.user_id = $1 and r.dismissed_at is null", [authorId]))[0]?.n ?? 0);
+    if (n < limit) return false;
+    const reason = `Blocage automatique : ${n} membres ont signalé ce compte. En attente d'examen par l'équipe.`;
+    const done = await db.query("update ika_profiles set account_status = 'RESTRICTED', status_reason = $2, status_until = null where user_id = $1 and account_status = 'ACTIVE' and staff_role = 'USER' returning user_id", [authorId, reason]);
+    if (!done[0]) return false;
+    await moderationAudit?.log(authorId, { action: "DISCOVER_AUTO_BLOCK", targetType: "user", targetId: authorId, details: { automatic: true, reporters: n, threshold: limit } }).catch(() => {});
+    await requestsHub?.notifyStaff({ kind: "DISCOVER_AUTO_BLOCK", title: "Compte bloqué automatiquement", body: `${n} signalements de membres différents. À examiner : débloquer ou bannir.`, link: "/owner#/discover", module: "moderation" }).catch(() => {});
+    return true;
   }
 
   const view = (r, viewerId) => ({
@@ -99,8 +113,40 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       const pub = (await db.query("select id, user_id from ika_publications where id = $1 and status = 'PUBLISHED'", [String(publicationId ?? "").slice(0, 80)]))[0];
       if (!pub) throw notFound("Publication introuvable.");
       if (pub.user_id === userId) throw badRequest("C'est votre propre publication.");
-      await db.query("insert into ika_publication_reports (id, publication_id, reporter_id, reason) values ($1, $2, $3, $4) on conflict (publication_id, reporter_id) do nothing", [`pr_${randomUUID()}`, pub.id, userId, why]);
+      const added = await db.query("insert into ika_publication_reports (id, publication_id, reporter_id, reason) values ($1, $2, $3, $4) on conflict (publication_id, reporter_id) do nothing returning id", [`pr_${randomUUID()}`, pub.id, userId, why]);
+      if (added[0]) {
+        // Alerte à l'équipe à chaque nouveau signalement, puis blocage automatique si le seuil fixé par le superadmin est atteint. Rien de cela ne fait échouer le signalement.
+        await requestsHub?.notifyStaff({ kind: "DISCOVER_REPORT", title: "Publication Découvrir signalée", body: `Motif : ${why}. À examiner.`, link: "/owner#/discover", exceptUserId: userId, module: "moderation" }).catch(() => {});
+        await autoBlock(pub.user_id).catch(() => {});
+      }
       return { ok: true };
+    },
+
+    /** Le membre bloqué automatiquement (ou restreint) conteste avec ses explications et preuves : l'équipe est alertée. */
+    async contest(userId, message) {
+      const profile = await accounts.requireActive(userId);
+      if (profile.account_status !== "RESTRICTED") throw badRequest("Votre compte n'est pas restreint.");
+      const text = String(message ?? "").trim();
+      if (text.length < 10) throw badRequest("Expliquez votre contestation (10 caractères au moins) : preuves, contexte.");
+      await moderationAudit?.log(userId, { action: "DISCOVER_CONTEST", targetType: "user", targetId: userId, details: { message: text.slice(0, 1000) } }).catch(() => {});
+      await requestsHub?.notifyStaff({ kind: "DISCOVER_CONTEST", title: "Contestation d'un compte restreint", body: text.slice(0, 200), link: "/owner#/users", exceptUserId: userId, module: "users" }).catch(() => {});
+      return { ok: true };
+    },
+
+    /** Classe sans suite les signalements ouverts d'une publication (après enquête : non fondés). */
+    async dismiss(actorId, publicationId) {
+      await accounts.requireStaff(actorId, "MODERATOR");
+      const rows = await db.query("update ika_publication_reports set dismissed_at = now(), dismissed_by = $2 where publication_id = $1 and dismissed_at is null returning id", [String(publicationId ?? "").slice(0, 80), actorId]);
+      if (!rows.length) throw notFound("Aucun signalement ouvert sur cette publication.");
+      await moderationAudit?.log(actorId, { action: "PUBLICATION_REPORTS_DISMISS", targetType: "publication", targetId: publicationId, details: { count: rows.length } }).catch(() => {});
+      return { ok: true, dismissed: rows.length };
+    },
+
+    /** Après un déblocage : les signalements ouverts sur les publications du compte sont classés, pour repartir de zéro. */
+    async dismissAccountReports(actorId, authorId) {
+      const rows = await db.query("update ika_publication_reports r set dismissed_at = now(), dismissed_by = $2 from ika_publications p where p.id = r.publication_id and p.user_id = $1 and r.dismissed_at is null returning r.id", [String(authorId ?? "").slice(0, 80), actorId]);
+      if (rows.length) await moderationAudit?.log(actorId, { action: "ACCOUNT_REPORTS_RESET", targetType: "user", targetId: authorId, details: { count: rows.length } }).catch(() => {});
+      return rows.length;
     },
 
     // ---------- Modération (équipe) ----------
@@ -110,12 +156,13 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       const rows = await db.query(
         `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.created_at, pb.hidden_at, pb.hidden_reason, hp.full_name as hidden_by_name,
                 ${AUTHOR}, ${PHOTOS},
-                (select count(*)::int from ika_publication_reports r where r.publication_id = pb.id) as reports,
-                (select coalesce(json_agg(json_build_object('reason', r.reason, 'at', r.created_at) order by r.created_at desc), '[]'::json) from ika_publication_reports r where r.publication_id = pb.id) as report_list
+                pr.account_status as author_status, pr.status_reason as author_status_reason,
+                (select count(*)::int from ika_publication_reports r where r.publication_id = pb.id and r.dismissed_at is null) as reports,
+                (select coalesce(json_agg(json_build_object('reason', r.reason, 'at', r.created_at) order by r.created_at desc), '[]'::json) from ika_publication_reports r where r.publication_id = pb.id and r.dismissed_at is null) as report_list
            from ika_publications pb ${AUTHOR_JOINS} left join ika_profiles hp on hp.user_id = pb.hidden_by
-          where pb.status = 'HIDDEN' or exists (select 1 from ika_publication_reports r where r.publication_id = pb.id)
-          order by (pb.status = 'PUBLISHED') desc, (select count(*) from ika_publication_reports r where r.publication_id = pb.id) desc, pb.created_at desc limit 100`);
-      return rows.map((r) => ({ ...view(r, null), reports: r.reports, reportList: r.report_list, hiddenAt: iso(r.hidden_at), hiddenReason: r.hidden_reason, hiddenByName: r.hidden_by_name || null }));
+          where pb.status = 'HIDDEN' or exists (select 1 from ika_publication_reports r where r.publication_id = pb.id and r.dismissed_at is null) or pr.account_status = 'RESTRICTED'
+          order by (pb.status = 'PUBLISHED') desc, (select count(*) from ika_publication_reports r where r.publication_id = pb.id and r.dismissed_at is null) desc, pb.created_at desc limit 100`);
+      return rows.map((r) => ({ ...view(r, null), reports: r.reports, reportList: r.report_list, hiddenAt: iso(r.hidden_at), hiddenReason: r.hidden_reason, hiddenByName: r.hidden_by_name || null, authorStatus: r.author_status, authorStatusReason: r.author_status_reason || null }));
     },
 
     async hide(actorId, publicationId, reason) {
