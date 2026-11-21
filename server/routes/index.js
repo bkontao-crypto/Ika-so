@@ -724,7 +724,7 @@ router.get("/listings/:id", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`disc:${userId}`, 20, 60 * 60_000);
     const photos = Array.isArray(req.body?.photos) ? req.body.photos.slice(0, 7).map((x) => String(x)) : [];
-    res.status(201).json(await services.discover.create(userId, { content: clean(req.body?.content, 2000), kind: clean(req.body?.kind, 20), category: clean(req.body?.category, 40), zone: clean(req.body?.zone, 80), photos }));
+    res.status(201).json(await services.discover.create(userId, { content: clean(req.body?.content, 2000), kind: clean(req.body?.kind, 20), category: clean(req.body?.category, 40), zone: clean(req.body?.zone, 80), photos, videoUrl: clean(req.body?.videoUrl, 300) }));
   });
   router.post("/discover/:id/contact", async (req, res) => {
     const userId = requireUser(req);

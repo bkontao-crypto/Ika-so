@@ -532,10 +532,11 @@ export const rulesView = (ctx) => page(ctx, {
     granter.value = rules.exceptionGrantedBy;
     const dOpen = h("input", { type: "checkbox", id: "rl-d-open", disabled: !canEdit }); dOpen.checked = rules.discoverEnabled !== false;
     const dPhone = h("input", { type: "checkbox", id: "rl-d-phone", disabled: !canEdit }); dPhone.checked = rules.discoverRequirePhone === true;
+    const dVideo = h("input", { type: "checkbox", id: "rl-d-video", disabled: !canEdit }); dVideo.checked = rules.discoverVideoLinks === true;
     const dPhotos = h("input", { class: "input", type: "number", min: "0", max: "6", id: "rl-d-photos", disabled: !canEdit, value: String(rules.discoverMaxPhotos ?? 4) });
     const dDay = h("input", { class: "input", type: "number", min: "1", max: "50", id: "rl-d-day", disabled: !canEdit, value: String(rules.discoverPostsPerDay ?? 5) });
     const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
-      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
+      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, discoverVideoLinks: dVideo.checked, discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
     return [
       canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
       panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
@@ -547,6 +548,7 @@ export const rulesView = (ctx) => page(ctx, {
       panel("Découvrir : publications de la communauté", null, h("div", { class: "stack" },
         h("label", { class: "row", for: "rl-d-open" }, dOpen, h("strong", null, "Découvrir ouvert (lecture et publication)")),
         h("label", { class: "row", for: "rl-d-phone" }, dPhone, h("span", null, "Exiger un numéro confirmé pour publier")),
+        h("label", { class: "row", for: "rl-d-video" }, dVideo, h("span", null, "Autoriser les liens vidéo YouTube / Facebook (l'envoi de fichiers vidéo reste fermé)")),
         h("label", { class: "field", for: "rl-d-photos" }, "Photos par publication (0 = aucune, 6 au maximum)", dPhotos),
         h("label", { class: "field", for: "rl-d-day" }, "Publications par compte et par 24 heures (1 à 50)", dDay),
         h("p", { class: "small muted" }, "Fermé : le fil et la publication sont suspendus pour tout le monde, rien n'est supprimé. Les vidéos ne sont pas encore prises en charge."))),

@@ -146,7 +146,7 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
         db.query("select count(*)::int as n from ika_follows where followee_id = $1", [a.id]),
         db.query("select count(*)::int as n from ika_follows where follower_id = $1", [a.id]),
         viewerId ? db.query("select anonymous from ika_follows where follower_id = $1 and followee_id = $2", [viewerId, a.id]) : Promise.resolve([]),
-        db.query("select id, content, image_url, kind, status, created_at, (select coalesce(array_agg(ph.url order by ph.position), '{}') from ika_publication_photos ph where ph.publication_id = ika_publications.id) as photos from ika_publications where user_id = $1 and status = 'PUBLISHED' order by created_at desc limit 10", [a.id]),
+        db.query("select id, content, image_url, kind, status, video_url, video_provider, created_at, (select coalesce(array_agg(ph.url order by ph.position), '{}') from ika_publication_photos ph where ph.publication_id = ika_publications.id) as photos from ika_publications where user_id = $1 and status = 'PUBLISHED' order by created_at desc limit 10", [a.id]),
         db.query("select id, name, role from ika_team_members where user_id = $1 order by created_at", [a.id]),
         db.query("select id, title, description from ika_services where user_id = $1 order by created_at", [a.id]),
         db.query(
@@ -189,7 +189,7 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
         isFollowing: isFollowing.length > 0,
         followAnonymous: isFollowing[0]?.anonymous === true,
         responseRate,
-        publications: publications.map((r) => ({ id: r.id, content: r.content, imageUrl: r.image_url, kind: r.kind, photos: r.photos ?? [], createdAt: r.created_at })),
+        publications: publications.map((r) => ({ id: r.id, content: r.content, imageUrl: r.image_url, kind: r.kind, photos: r.photos ?? [], video: r.video_url ? { provider: r.video_provider, url: r.video_url } : null, createdAt: r.created_at })),
         team: [...linkedTeam.map((m) => ({ id: m.linkId, userId: m.id, name: m.name, role: m.teamRole || m.role, avatarUrl: m.avatarUrl, linked: true })), ...team.map((r) => ({ id: r.id, name: r.name, role: r.role }))],
         teamLink,
         services: services.map((r) => ({ id: r.id, title: r.title, description: r.description })),

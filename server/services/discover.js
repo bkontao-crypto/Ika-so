@@ -2,7 +2,7 @@
 // Réglages (ouvert, photos, plafond par jour, numéro confirmé) = conditions officielles du superadmin ; modération = masquer / rétablir, tracée.
 import { randomUUID } from "node:crypto";
 import { badRequest, forbidden, notFound, tooMany } from "../lib/errors.js";
-import { CATEGORIES, KINDS, REPORT_REASONS, TEXT_MAX, TEXT_MIN, containsPhone } from "../lib/discover.js";
+import { CATEGORIES, KINDS, REPORT_REASONS, TEXT_MAX, TEXT_MIN, containsPhone, parseVideoLink } from "../lib/discover.js";
 import { storeDataUrl } from "../lib/file-storage.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
@@ -11,12 +11,12 @@ const PAGE = 20;
 export function createDiscover({ db, accounts, rules, engagement, moderationAudit }) {
   async function settings() {
     const r = await rules.official();
-    return { enabled: r.discoverEnabled, maxPhotos: r.discoverMaxPhotos, postsPerDay: r.discoverPostsPerDay, requirePhone: r.discoverRequirePhone };
+    return { enabled: r.discoverEnabled, maxPhotos: r.discoverMaxPhotos, postsPerDay: r.discoverPostsPerDay, requirePhone: r.discoverRequirePhone, videoLinks: r.discoverVideoLinks };
   }
 
   const view = (r, viewerId) => ({
     id: r.id, kind: r.kind, kindLabel: KINDS[r.kind] ?? r.kind, content: r.content, category: r.category || null, zone: r.zone || null,
-    photos: r.photos ?? [], createdAt: iso(r.created_at), mine: Boolean(viewerId) && r.user_id === viewerId, hidden: r.status === "HIDDEN",
+    photos: r.photos ?? [], video: r.video_url ? { provider: r.video_provider, url: r.video_url } : null, createdAt: iso(r.created_at), mine: Boolean(viewerId) && r.user_id === viewerId, hidden: r.status === "HIDDEN",
     author: { id: r.user_id, name: r.name || "Utilisateur", advertiser: Boolean(r.advertiser), avatarUrl: r.avatar_url && !r.images_hidden ? r.avatar_url : null },
   });
   const PHOTOS = "(select coalesce(array_agg(ph.url order by ph.position), '{}') from ika_publication_photos ph where ph.publication_id = pb.id) as photos";
@@ -35,7 +35,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       const c = CATEGORIES.includes(category) ? category : null;
       const b = before && Number.isFinite(Date.parse(before)) ? new Date(before).toISOString() : null;
       const rows = await db.query(
-        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.created_at, ${AUTHOR}, ${PHOTOS}
+        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.created_at, ${AUTHOR}, ${PHOTOS}
            from ika_publications pb ${AUTHOR_JOINS}
           where pb.status = 'PUBLISHED'
             and ($2::text is null or pb.kind = $2) and ($3::text is null or pb.category = $3) and ($4::timestamptz is null or pb.created_at < $4)
@@ -47,7 +47,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
     },
 
     /** Publie. Texte obligatoire (pas de numéro de téléphone), photos facultatives (envoyées déjà réduites par le navigateur). */
-    async create(userId, { content, kind, category, zone, photos } = {}) {
+    async create(userId, { content, kind, category, zone, photos, videoUrl } = {}) {
       const profile = await accounts.ensureProfile(userId);
       accounts.assertCanPublish(profile);
       const s = await settings();
@@ -61,6 +61,13 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       const cat = category ? String(category) : null;
       if (cat && !CATEGORIES.includes(cat)) throw badRequest("Type de bien inconnu.");
       const place = String(zone ?? "").trim().slice(0, 80) || null;
+      const link = String(videoUrl ?? "").trim();
+      let video = null;
+      if (link) {
+        if (!s.videoLinks) throw badRequest("Les liens vidéo ne sont pas activés pour le moment.");
+        video = parseVideoLink(link);
+        if (!video) throw badRequest("Collez un lien vidéo YouTube ou Facebook valide (https).");
+      }
       const files = Array.isArray(photos) ? photos : [];
       if (files.length > s.maxPhotos) throw badRequest(s.maxPhotos ? `${s.maxPhotos} photo${s.maxPhotos > 1 ? "s" : ""} au maximum par publication.` : "Les photos ne sont pas autorisées pour le moment.");
       const today = Number((await db.query("select count(*)::int as n from ika_publications where user_id = $1 and created_at > now() - interval '24 hours'", [userId]))[0]?.n ?? 0);
@@ -72,7 +79,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       }
       const id = `pub_${randomUUID()}`;
       await db.transaction(async (tx) => {
-        await tx.query("insert into ika_publications (id, user_id, content, kind, category, zone) values ($1, $2, $3, $4, $5, $6)", [id, userId, text, k, cat, place]);
+        await tx.query("insert into ika_publications (id, user_id, content, kind, category, zone, video_url, video_provider) values ($1, $2, $3, $4, $5, $6, $7, $8)", [id, userId, text, k, cat, place, video?.url ?? null, video?.provider ?? null]);
         for (const [i, url] of urls.entries()) await tx.query("insert into ika_publication_photos (publication_id, position, url) values ($1, $2, $3)", [id, i, url]);
       });
       return { id };
@@ -101,7 +108,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
     async reported(actorId) {
       await accounts.requireStaff(actorId, "MODERATOR");
       const rows = await db.query(
-        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.created_at, pb.hidden_at, pb.hidden_reason, hp.full_name as hidden_by_name,
+        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.created_at, pb.hidden_at, pb.hidden_reason, hp.full_name as hidden_by_name,
                 ${AUTHOR}, ${PHOTOS},
                 (select count(*)::int from ika_publication_reports r where r.publication_id = pb.id) as reports,
                 (select coalesce(json_agg(json_build_object('reason', r.reason, 'at', r.created_at) order by r.created_at desc), '[]'::json) from ika_publication_reports r where r.publication_id = pb.id) as report_list

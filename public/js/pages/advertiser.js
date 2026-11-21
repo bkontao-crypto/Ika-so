@@ -5,7 +5,7 @@ import { S, app } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 import { stars } from "/js/components/stars.js";
-import { KIND_LABELS, loadDiscoverCss, photoGrid } from "/js/components/post-composer.js";
+import { KIND_LABELS, loadDiscoverCss, photoGrid, videoCard } from "/js/components/post-composer.js";
 
 const REVIEW_REASONS = ["Insulte ou propos haineux", "Avis faux ou sans échange réel", "Information privée (numéro, adresse)", "Autre"];
 const REPORT_REASONS = ["Arnaque ou demande d'acompte", "Annonce trompeuse ou bien inexistant", "Faux profil ou usurpation d'identité", "Harcèlement ou insultes", "Autre"];
@@ -233,7 +233,7 @@ export async function advertiserPage(id) {
   const panels = {
     listings: () => [card(h("div", { class: "pa-sectionhead" }, h("div", null, h("h2", null, "Annonces immobilières"), h("small", { class: "pa-muted" }, "Biens actuellement proposés par ce profil"))),
       p.listings.length ? h("div", { class: "pa-listinggrid" }, p.listings.map(listingCard)) : h("div", { class: "pa-empty" }, h("b", null, "Aucune annonce en ligne"), "Ce profil n'a pas de bien publié actuellement."))],
-    publications: () => [card(h("h2", null, "Publications"), p.publications?.length ? h("div", { class: "pa-stack" }, p.publications.map((pub) => h("article", { class: "pa-post" }, pub.kind && pub.kind !== "ACTUALITE" ? h("span", { class: "pa-badge" }, KIND_LABELS[pub.kind] ?? pub.kind) : null, h("p", { class: "pa-about" }, pub.content), photoGrid(pub.photos), !pub.photos?.length && pub.imageUrl ? h("img", { src: pub.imageUrl, alt: "", style: { maxWidth: "100%", borderRadius: "12px", marginTop: "8px" } }) : null, h("small", { class: "pa-muted" }, formatDate(pub.createdAt))))) : h("p", { class: "pa-muted" }, "Aucune publication pour le moment."))],
+    publications: () => [card(h("h2", null, "Publications"), p.publications?.length ? h("div", { class: "pa-stack" }, p.publications.map((pub) => h("article", { class: "pa-post" }, pub.kind && pub.kind !== "ACTUALITE" ? h("span", { class: "pa-badge" }, KIND_LABELS[pub.kind] ?? pub.kind) : null, h("p", { class: "pa-about" }, pub.content), photoGrid(pub.photos), videoCard(pub.video), !pub.photos?.length && pub.imageUrl ? h("img", { src: pub.imageUrl, alt: "", style: { maxWidth: "100%", borderRadius: "12px", marginTop: "8px" } }) : null, h("small", { class: "pa-muted" }, formatDate(pub.createdAt))))) : h("p", { class: "pa-muted" }, "Aucune publication pour le moment."))],
     team: () => [card(h("h2", null, "Équipe & collaborateurs"),
       p.team?.length ? h("div", { class: "pa-listinggrid" }, p.team.map((m) => h(m.userId ? "a" : "div", { class: "pa-metric", href: m.userId ? `#/annonceur/${encodeURIComponent(m.userId)}` : null },
         m.avatarUrl ? h("img", { class: "pa-miniava", src: m.avatarUrl, alt: "", loading: "lazy" }) : h("div", { class: "pa-miniava" }, initialsOf(m.name)), h("b", null, m.name), h("small", null, m.role || "Collaborateur")))) : h("p", { class: "pa-muted" }, "Aucune équipe renseignée."),
