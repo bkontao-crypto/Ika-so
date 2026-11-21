@@ -67,6 +67,7 @@ export async function centrePage() {
     const burger = h("button", { class: "esp-burger", type: "button", "aria-label": "Menu", onClick: () => {
       side.classList.toggle("open");
     } }, "☰");
+    host.addEventListener("click", (e) => { if (side.classList.contains("open") && !burger.contains(e.target) && (!side.contains(e.target) || e.target.closest(".esp-nav"))) side.classList.remove("open"); }); // un lien du tiroir ou un clic à côté le referme
 
     // ----- Bannière + indicateurs -----
     const hero = h("section", { class: "esp-hero", id: "esp-top" }, h("h1", null, first ? `Bonjour ${first}` : "Bonjour"), h("p", null, "Bienvenue dans votre centre de contrôle IKA SO. Gérez vos annonces, suivez vos performances et répondez plus vite."),
