@@ -7,6 +7,9 @@ const iso = (d) => (d ? new Date(d).toISOString() : null);
 export const ACCOUNT_TYPES = ["AGENCY", "INDIVIDUAL", "OTHER"];
 /** Les 3 étapes d'étude d'un dossier Premium : indépendantes, validables en même temps, toutes requises pour approuver. */
 export const STEPS = Object.freeze({ 1: "Étude", 2: "Vérification", 3: "Confirmation" });
+/** Suivi de remboursement (dossier refusé après paiement) : 3 étapes indépendantes ; la dernière validée clôt le suivi et informe l'annonceur. */
+export const REFUND_STEPS = Object.freeze({ 1: "Paiement vérifié", 2: "Remboursement effectué", 3: "Annonceur informé" });
+const refundStepNo = (v) => { const n = Math.floor(Number(v)); if (!REFUND_STEPS[n]) throw badRequest("Étape inconnue (1 paiement vérifié, 2 remboursement effectué, 3 annonceur informé)."); return n; };
 const stepNo = (v) => { const n = Math.floor(Number(v)); if (!STEPS[n]) throw badRequest("Étape inconnue (1 étude, 2 vérification, 3 confirmation)."); return n; };
 const cleanPhone = (v) => String(v ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 
@@ -18,7 +21,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
   /** Vue annonceur : l'avancement seulement (jamais le nom des personnes qui étudient le dossier). */
   const userView = (r, steps = []) => ({ ...view(r), progress: [1, 2, 3].map((n) => steps.some((s) => s.step === n)) });
   const stepsOf = (q, ids) => (ids.length ? q.query("select s.request_id, s.step, s.done_by, s.done_at, s.note, p.full_name as done_name from ika_premium_request_steps s left join ika_profiles p on p.user_id = s.done_by where s.request_id = any($1::text[]) order by s.step", [ids]) : Promise.resolve([]));
-  const stepView = (s) => ({ step: s.step, label: STEPS[s.step], doneBy: s.done_by, doneByName: s.done_name || s.done_by, doneAt: iso(s.done_at), note: s.note });
+  const stepView = (labels) => (s) => ({ step: s.step, label: labels[s.step], doneBy: s.done_by, doneByName: s.done_name || s.done_by, doneAt: iso(s.done_at), note: s.note });
 
   /** Profil certifié = agence vérifiée ou titre foncier contrôlé sur une annonce en ligne (même règle que le centre de contrôle). */
   async function isCertified(userId, q = db) {
@@ -85,7 +88,10 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
            join ika_users u on u.id = r.user_id left join ika_profiles p on p.user_id = r.user_id
           order by (r.status = 'PENDING') desc, r.created_at desc limit 200`);
       const steps = await stepsOf(db, rows.map((r) => r.id));
-      return { requests: rows.map((r) => ({ ...view(r), steps: steps.filter((s) => s.request_id === r.id).map(stepView) })), steps: Object.entries(STEPS).map(([n, label]) => ({ step: Number(n), label })), policy: await policy() };
+      const refundRows = await db.query("select f.id, f.request_id, f.user_id, f.status, f.opened_at, f.closed_at, p.full_name as name from ika_premium_refunds f left join ika_profiles p on p.user_id = f.user_id order by (f.status = 'OPEN') desc, f.opened_at desc limit 100");
+      const rsteps = refundRows.length ? await db.query("select s.refund_id, s.step, s.done_by, s.done_at, s.note, p.full_name as done_name from ika_premium_refund_steps s left join ika_profiles p on p.user_id = s.done_by where s.refund_id = any($1::text[]) order by s.step", [refundRows.map((f) => f.id)]) : [];
+      const refunds = refundRows.map((f) => ({ id: f.id, requestId: f.request_id, userId: f.user_id, name: f.name, status: f.status, openedAt: iso(f.opened_at), closedAt: iso(f.closed_at), steps: rsteps.filter((x) => x.refund_id === f.id).map(stepView(REFUND_STEPS)) }));
+      return { refunds, refundSteps: Object.entries(REFUND_STEPS).map(([n, label]) => ({ step: Number(n), label })), requests: rows.map((r) => ({ ...view(r), steps: steps.filter((s) => s.request_id === r.id).map(stepView(STEPS)) })), steps: Object.entries(STEPS).map(([n, label]) => ({ step: Number(n), label })), policy: await policy() };
     },
 
     /** Valide une étape (1 étude, 2 vérification, 3 confirmation). Les étapes sont indépendantes ; chaque validation est tracée à la personne. */
@@ -123,6 +129,43 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
       });
     },
 
+    /** Valide une étape du suivi de remboursement. Indépendantes ; la 3e validée clôt le suivi et notifie l'annonceur (décision finale). */
+    async completeRefundStep(staffId, refundId, step, { note } = {}) {
+      const n = refundStepNo(step);
+      const why = String(note ?? "").trim().slice(0, 300);
+      return db.transaction(async (tx) => {
+        const f = (await tx.query("select * from ika_premium_refunds where id = $1 for update", [String(refundId ?? "").slice(0, 80)]))[0];
+        if (!f) throw notFound("Suivi de remboursement introuvable.");
+        if (f.status !== "OPEN") throw conflict("Ce remboursement est déjà clôturé.");
+        const inserted = await tx.query("insert into ika_premium_refund_steps (refund_id, step, done_by, note) values ($1, $2, $3, $4) on conflict (refund_id, step) do nothing returning step", [f.id, n, staffId, why]);
+        if (!inserted[0]) throw conflict(`L'étape « ${REFUND_STEPS[n]} » est déjà validée.`);
+        await moderationAudit?.log(staffId, { action: "PREMIUM_REFUND_STEP_DONE", targetType: "premium_refund", targetId: f.id, details: { userId: f.user_id, requestId: f.request_id, step: n, label: REFUND_STEPS[n], note: why } }).catch(() => {});
+        const done = Number((await tx.query("select count(*)::int as n from ika_premium_refund_steps where refund_id = $1", [f.id]))[0]?.n ?? 0);
+        const complete = done === 3;
+        if (complete) {
+          await tx.query("update ika_premium_refunds set status = 'DONE', closed_at = now() where id = $1", [f.id]);
+          if (notify) await notify(f.user_id, { kind: "PREMIUM", title: "Remboursement Premium effectué", body: "Votre remboursement a été traité par l'équipe Ika So.", link: "#/devenir-premium" }).catch(() => undefined);
+        }
+        return { ok: true, step: n, done, complete };
+      });
+    },
+
+    /** Retire la validation d'une étape de remboursement (suivi encore ouvert) : motif obligatoire, tracé. */
+    async undoRefundStep(staffId, refundId, step, { note } = {}) {
+      const n = refundStepNo(step);
+      const why = String(note ?? "").trim().slice(0, 300);
+      if (why.length < 3) throw badRequest("Indiquez pourquoi vous retirez cette validation (3 caractères au moins).");
+      return db.transaction(async (tx) => {
+        const f = (await tx.query("select * from ika_premium_refunds where id = $1 for update", [String(refundId ?? "").slice(0, 80)]))[0];
+        if (!f) throw notFound("Suivi de remboursement introuvable.");
+        if (f.status !== "OPEN") throw conflict("Ce remboursement est déjà clôturé.");
+        const gone = await tx.query("delete from ika_premium_refund_steps where refund_id = $1 and step = $2 returning done_by", [f.id, n]);
+        if (!gone[0]) throw conflict(`L'étape « ${REFUND_STEPS[n]} » n'était pas validée.`);
+        await moderationAudit?.log(staffId, { action: "PREMIUM_REFUND_STEP_UNDONE", targetType: "premium_refund", targetId: f.id, details: { userId: f.user_id, step: n, label: REFUND_STEPS[n], previousBy: gone[0].done_by, note: why } }).catch(() => {});
+        return { ok: true, step: n };
+      });
+    },
+
     /** Approuve (1 à maxMois mois, ajoutés au Premium en cours) ou refuse. */
     async decide(staffId, requestId, { action, months, note } = {}) {
       const p = await policy();
@@ -135,6 +178,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         if (action === "REJECT") {
           if (why.length < 3) throw badRequest("Indiquez le motif du refus (3 caractères au moins) : il est transmis à l'annonceur.");
           await tx.query("update ika_premium_requests set status = 'REJECTED', decided_by = $2, decided_at = now(), decided_note = $3 where id = $1", [r.id, staffId, why]);
+          if (r.paid) await tx.query("insert into ika_premium_refunds (id, request_id, user_id) values ($1, $2, $3) on conflict (request_id) do nothing", [`rf_${randomUUID()}`, r.id, r.user_id]);
           await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_REJECT", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, note: why } }).catch(() => {});
           if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Demande Premium non retenue", body: why ? `Motif : ${why}` : "Votre demande Premium n'a pas été retenue. Vous pouvez en déposer une nouvelle.", link: "#/devenir-premium" }).catch(() => undefined);
           return { ok: true, status: "REJECTED" };
