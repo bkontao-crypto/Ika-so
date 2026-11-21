@@ -37,6 +37,25 @@ function computeScore(lead) {
 // Service CRM leads (E07)
 export function createCrm({ db }) {
   return {
+    /** Synthèse des leads d'un annonceur : total, répartition par statut, taux de conversion (WON / total, en %), leads créés par semaine sur 4 semaines. */
+    async stats(advertiserId) {
+      const byStatusRows = await db.query(
+        "select status, count(*)::int as n from ika_crm_leads where advertiser_id = $1 group by status",
+        [advertiserId]
+      );
+      const byStatus = Object.fromEntries(byStatusRows.map((r) => [r.status, r.n]));
+      const total = byStatusRows.reduce((sum, r) => sum + r.n, 0);
+      const conversionRate = total ? Math.round(((byStatus.WON ?? 0) / total) * 100) : 0;
+      const weeks = await db.query(
+        `select to_char(date_trunc('week', created_at), 'YYYY-MM-DD') as week, count(*)::int as count
+         from ika_crm_leads
+         where advertiser_id = $1 and created_at >= date_trunc('week', now()) - interval '3 weeks'
+         group by 1 order by 1`,
+        [advertiserId]
+      );
+      return { total, byStatus, conversionRate, evolution: weeks.map((w) => ({ week: w.week, count: w.count })) };
+    },
+
     async list(advertiserId, { status, limit = 100, offset = 0 } = {}) {
       const params = [advertiserId];
       let where = "advertiser_id = $1";

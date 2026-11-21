@@ -401,7 +401,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         const days = Math.max(1, Number(input.days) || 7);
         const price = Math.max(0, Number(input.price) || 0);
         const kind = input.kind === "PREMIUM" ? "PREMIUM" : "BOOST";
-        if (!code || !label) throw new Error("Code et libellé obligatoires.");
+        if (!code || !label) throw badRequest("Code et libellé obligatoires.");
         await db.query(
           "insert into ika_offers (code, label, days, price_xof, kind) values ($1, $2, $3, $4, $5) on conflict (code) do nothing",
           [code, label, days, price, kind]
@@ -415,7 +415,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         await accounts.audit(userId, "OFFER_TOGGLE", null, code);
         return { code, toggled: true };
       }
-      throw new Error("Action inconnue.");
+      throw badRequest("Action inconnue.");
     },
     /** Journal des restaurations. */
     async logRestore(userId, backupId, note = "Restauration manuelle") {
@@ -617,7 +617,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       const id = "nl_" + Date.now().toString(36);
       const subject = String(input.subject || "").trim().slice(0, 120);
       const content = String(input.content || "").slice(0, 5000);
-      if (!subject) throw new Error("Sujet obligatoire.");
+      if (!subject) throw badRequest("Sujet obligatoire.");
       await db.query(
         "insert into ika_newsletters (id, subject, content, created_by) values ($1, $2, $3, $4)",
         [id, subject, content, userId]
@@ -728,7 +728,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       await accounts.requirePermission(userId, "owner.stats");
       const t = String(title || "").trim().slice(0, 120);
       const b = String(body || "").trim().slice(0, 500);
-      if (!t || !b) throw new Error("Titre et message obligatoires.");
+      if (!t || !b) throw badRequest("Titre et message obligatoires.");
       let where = "account_status = 'ACTIVE'";
       if (target === "STAFF") where = "staff_role <> 'USER' and account_status = 'ACTIVE'";
       if (target === "AGENCIES") where = "agency_name is not null and account_status = 'ACTIVE'";
@@ -781,12 +781,12 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     async updatePipelineStage(userId, itemId, stage) {
       await accounts.requirePermission(userId, "owner.stats");
       const allowed = ["NEW","CONTACTED","VISIT_PLANNED","VISIT_DONE","NEGOTIATION","WON","LOST"];
-      if (!allowed.includes(stage)) throw new Error("Étape invalide.");
+      if (!allowed.includes(stage)) throw badRequest("Étape invalide.");
       const rows = await db.query(
         "update ika_crm_pipeline set stage = $2, updated_at = now() where id = $1 returning id, stage",
         [itemId, stage]
       );
-      if (!rows.length) throw new Error("Élément introuvable.");
+      if (!rows.length) throw notFound("Élément introuvable.");
       await accounts.audit(userId, "CRM_PIPELINE_STAGE", null, `${itemId} → ${stage}`);
       return rows[0];
     },
@@ -888,12 +888,12 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     async updateVisitStatus(userId, visitId, status) {
       await accounts.requirePermission(userId, "owner.stats");
       const allowed = ["PENDING", "ACCEPTED", "DECLINED", "CANCELLED"];
-      if (!allowed.includes(status)) throw new Error("Statut invalide.");
+      if (!allowed.includes(status)) throw badRequest("Statut invalide.");
       const rows = await db.query(
         "update ika_visit_requests set status = $2, answered_at = now() where id = $1 returning id, status",
         [visitId, status]
       );
-      if (!rows.length) throw new Error("Visite introuvable.");
+      if (!rows.length) throw notFound("Visite introuvable.");
       await accounts.audit(userId, "CRM_VISIT_STATUS", null, `${visitId} → ${status}`);
       return rows[0];
     },
@@ -918,7 +918,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       const id = "rp_" + Date.now().toString(36);
       const reason = String(input.reason || "").trim().slice(0, 200);
       const details = String(input.details || "").trim().slice(0, 1000);
-      if (!reason) throw new Error("Motif obligatoire.");
+      if (!reason) throw badRequest("Motif obligatoire.");
       await db.query(
         "insert into ika_reports (id, reporter_id, listing_id, reason, details, status) values ($1, $2, $3, $4, $5, 'OPEN')",
         [id, userId, input.listingId || null, reason, details]
@@ -930,7 +930,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         "select id, listing_id, reason, details, status, resolution, created_at, resolved_at, closed_at from ika_reports where id = $1 and reporter_id = $2",
         [reportId, userId]
       );
-      if (!reports.length) throw new Error("Réclamation introuvable.");
+      if (!reports.length) throw notFound("Réclamation introuvable.");
       // Le plaignant voit ses propres commentaires et les réponses que l'équipe a choisi de lui rendre visibles ; jamais les notes internes.
       const comments = await db.query(
         "select content, created_at, (author_id is distinct from $2) as from_team from ika_complaint_comments where report_id = $1 and (author_id = $2 or visible_to_complainant) order by created_at",
@@ -946,10 +946,10 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     },
     async addMyComment(userId, reportId, content) {
       const reports = await db.query("select id from ika_reports where id = $1 and reporter_id = $2", [reportId, userId]);
-      if (!reports.length) throw new Error("Réclamation introuvable.");
+      if (!reports.length) throw notFound("Réclamation introuvable.");
       const id = newId("cc");
       const text = String(content || "").trim().slice(0, 1000);
-      if (!text) throw new Error("Commentaire vide.");
+      if (!text) throw badRequest("Commentaire vide.");
       await db.query(
         "insert into ika_complaint_comments (id, report_id, author_id, content) values ($1, $2, $3, $4)",
         [id, reportId, userId, text]
@@ -963,7 +963,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         `select r.*, l.title from ika_reports r left join ika_listings l on l.id = r.listing_id where r.id = $1`,
         [reportId]
       );
-      if (!reports.length) throw new Error("Réclamation introuvable.");
+      if (!reports.length) throw notFound("Réclamation introuvable.");
       const comments = await db.query(
         "select id, author_id, content, visible_to_complainant, created_at from ika_complaint_comments where report_id = $1 order by created_at",
         [reportId]
@@ -982,7 +982,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         "update ika_reports set assigned_to = $2, status = case when status = 'OPEN' then 'IN_PROGRESS' else status end where id = $1 returning id, assigned_to, status",
         [reportId, assigneeId || null]
       );
-      if (!rows.length) throw new Error("Réclamation introuvable.");
+      if (!rows.length) throw notFound("Réclamation introuvable.");
       await accounts.audit(userId, "COMPLAINT_ASSIGN", null, `${reportId} → ${assigneeId}`);
       return rows[0];
     },
@@ -992,7 +992,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       const id = newId("cc");
       const visible = visibleToComplainant === true;
       const text = String(content || "").trim().slice(0, 1000);
-      if (!text) throw new Error("Commentaire vide.");
+      if (!text) throw badRequest("Commentaire vide.");
       await db.query(
         "insert into ika_complaint_comments (id, report_id, author_id, content, visible_to_complainant) values ($1, $2, $3, $4, $5)",
         [id, reportId, userId, text, visible]
@@ -1006,7 +1006,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         "update ika_reports set status = 'CLOSED', closed_at = now() where id = $1 and status in ('RESOLVED', 'DISMISSED') returning id, status",
         [reportId]
       );
-      if (!rows.length) throw new Error("Réclamation non résolue ou introuvable.");
+      if (!rows.length) throw notFound("Réclamation non résolue ou introuvable.");
       await accounts.audit(userId, "COMPLAINT_CLOSE", null, reportId);
       return rows[0];
     },
@@ -1018,7 +1018,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
          where id = $1 returning id, status`,
         [reportId, String(resolution || "").slice(0, 500), userId]
       );
-      if (!rows.length) throw new Error("Réclamation introuvable.");
+      if (!rows.length) throw notFound("Réclamation introuvable.");
       await accounts.audit(userId, "COMPLAINT_RESOLVE", null, reportId);
       return rows[0];
     },
@@ -1036,7 +1036,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       const kind = ["DB","PAYMENT","STORAGE","ERROR","OTHER"].includes(input.kind) ? input.kind : "OTHER";
       const severity = ["INFO","WARNING","CRITICAL"].includes(input.severity) ? input.severity : "WARNING";
       const message = String(input.message || "").trim().slice(0, 300);
-      if (!message) throw new Error("Message obligatoire.");
+      if (!message) throw badRequest("Message obligatoire.");
       await db.query(
         "insert into ika_incidents (id, kind, severity, message) values ($1, $2, $3, $4)",
         [id, kind, severity, message]
