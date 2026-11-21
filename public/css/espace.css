@@ -227,9 +227,13 @@ main>.pc-card{margin-bottom:16px}
 .esp-burger{display:none;position:fixed;top:72px;left:12px;z-index:30;width:44px;height:44px;border:0;border-radius:12px;background:var(--green);color:#fff;font-size:1.3rem;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.15)}
 @media (max-width:900px){
   .esp-burger{display:inline-flex;align-items:center;gap:8px;position:static;width:auto;height:44px;padding:0 16px;margin:0 0 12px;justify-self:start;align-self:start;font-weight:700;font-size:1rem}
+  .esp-burger{z-index:auto}
   .esp-burger::after{content:"Menu";font-size:.9rem}
-  .esp-side{position:fixed;top:0;left:0;bottom:0;width:260px;z-index:25;transform:translateX(-100%);transition:transform .25s ease;overflow-y:auto;border-radius:0}
-  .esp-side.open{transform:translateX(0)}
+  /* Tiroir : colonne verticale (la règle « barre horizontale » ci-dessus ne s'applique pas ici), caché hors écran tant qu'il n'est pas ouvert */
+  .esp-side{position:fixed;top:0;left:0;bottom:0;width:260px;max-width:85vw;z-index:25;transform:translateX(-100%);visibility:hidden;transition:transform .25s ease,visibility 0s .25s;flex-direction:column;overflow-x:hidden;overflow-y:auto;padding:12px;gap:2px;border-radius:0;scroll-snap-type:none}
+  .esp-side .esp-nav{width:100%;flex:none;white-space:normal}
+  .esp-side .esp-prem{display:grid}
+  .esp-side.open{transform:translateX(0);visibility:visible;transition:transform .25s ease,visibility 0s;box-shadow:0 0 40px rgba(0,0,0,.55)}
 }
 
 

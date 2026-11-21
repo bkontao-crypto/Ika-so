@@ -368,7 +368,7 @@ body.is-home main { padding: 0; }
 @keyframes rx-rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
 .rx-reveal { opacity: 0; transform: translateY(22px); transition: opacity .7s var(--ease), transform .7s var(--ease); }
 .rx-reveal.is-in { opacity: 1; transform: none; }
-main > * { animation: rx-page .45s var(--ease) both; }
+main > * { animation: rx-page .45s var(--ease) backwards; } /* backwards : sans « both », le transform animé reste actif et devient le repère des éléments position:fixed (tiroir « Mon espace » décalé) */
 @keyframes rx-page { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
