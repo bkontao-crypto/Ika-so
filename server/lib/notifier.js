@@ -4,10 +4,10 @@
  *  2. côté personne : elle doit l'avoir activé elle-même (ika_notify_prefs), avec la date du consentement.
  * Règles de confidentialité : jamais le texte d'un message privé ni un numéro de téléphone dans un e-mail ou un SMS ;
  * seulement « vous avez un nouveau message » et un lien. Un e-mail rappelle comment se désinscrire.
- * Limites : 1 e-mail par heure et par type d'alerte et par personne ; 5 SMS par jour et par personne, réservés aux messages et visites.
+ * Limites : 1 e-mail par heure et par type d'alerte et par personne ; 5 SMS par jour et par personne, réservés aux messages, visites et décisions Premium.
  */
 const EMAIL_KINDS = new Set(["MESSAGE", "VISIT_REQUEST", "VISIT_ANSWER", "SEARCH_MATCH", "SEARCH_DIGEST", "LISTING_APPROVED", "LISTING_REJECTED", "ADVERTISER_APPLICATION", "TEAM_REQUEST"]);
-const SMS_KINDS = new Set(["MESSAGE", "VISIT_REQUEST", "VISIT_ANSWER"]);
+const SMS_KINDS = new Set(["MESSAGE", "VISIT_REQUEST", "VISIT_ANSWER", "PREMIUM"]); // PREMIUM = décision finale sur un dossier Premium
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const SMS_PER_DAY = 5;
@@ -51,7 +51,7 @@ export function createNotifier({ db, config, sendEmail = null, sendSms = null, l
         const recent = (sentSms.get(userId) ?? []).filter((t) => now() - t < DAY);
         if (recent.length < SMS_PER_DAY) {
           sentSms.set(userId, [...recent, now()]);
-          await sendSms(u.phone, note.kind === "MESSAGE" ? "Ika So : vous avez un nouveau message. Ouvrez l'application pour le lire." : "Ika So : vous avez une nouvelle notification. Ouvrez l'application.");
+          await sendSms(u.phone, note.kind === "MESSAGE" ? "Ika So : vous avez un nouveau message. Ouvrez l'application pour le lire." : note.kind === "PREMIUM" ? "Ika So : la décision sur votre dossier Premium est disponible. Ouvrez l'application pour la consulter." : "Ika So : vous avez une nouvelle notification. Ouvrez l'application.");
           out.sms = true;
         }
       }
