@@ -122,7 +122,7 @@ export function renderChrome() {
           : (S.user.name || S.user.fullName || "U").slice(0, 1).toUpperCase()),
         h("div", { class: "profile-dropdown" },
           h("a", { href: "#/profil" }, "Mon profil"),
-          h("a", { href: "#/centre" }, "Mon espace"),
+          h("a", { href: "#/centre" }, "Mon espace premium"),
           h("a", { href: "#/favoris" }, "Mes favoris"),
           h("a", { href: "#/mes-annonces" }, "Mes annonces"),
           h("a", { href: "#/boite" }, "Mes conversations"),
