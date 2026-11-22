@@ -144,7 +144,7 @@ export function headerSection(src, reload) {
 
 /** Sections de l'accueil : ordre et visibilité (le héros et la recherche restent en tête). */
 export function layoutSection(src, reload) {
-  const d = { sections: src.sections.map((x) => ({ ...x })), texts: JSON.parse(JSON.stringify(src.texts ?? {})) };
+  const d = { sections: src.sections.map((x) => ({ ...x })), texts: JSON.parse(JSON.stringify(src.texts ?? {})), cards: JSON.parse(JSON.stringify(src.cards ?? {})) };
   const FIELDS = [["kicker", "Petit titre (au-dessus)", 40], ["title", "Titre", 120], ["text", "Texte d'introduction", 300]];
   const box = h("div", { class: "stack" });
   const draw = () => fill(box, d.sections.map((x, i) => {
@@ -160,7 +160,13 @@ export function layoutSection(src, reload) {
           const i = h("input", { class: "input", maxlength: String(max), placeholder: "Vide = texte d'origine", value: d.texts[x.id]?.[k] ?? "" });
           i.addEventListener("input", () => { (d.texts[x.id] ??= {})[k] = i.value; });
           return h("label", { class: "field" }, h("span", null, label), i);
-        }))));
+        })),
+        ...Array.from({ length: src.cardCounts?.[x.id] ?? 0 }, (_, n) => h("div", { class: "form two" },
+          ...[["title", `Carte ${n + 1} · titre`, 60], ["text", `Carte ${n + 1} · texte`, 200]].map(([k, label, max]) => {
+            const i = h("input", { class: "input", maxlength: String(max), placeholder: "Vide = texte d'origine", value: d.cards[x.id]?.[n]?.[k] ?? "" });
+            i.addEventListener("input", () => { const list = (d.cards[x.id] ??= []); while (list.length <= n) list.push({ title: "", text: "" }); list[n][k] = i.value; });
+            return h("label", { class: "field" }, h("span", null, label), i);
+          })))));
   }));
   draw();
   return [

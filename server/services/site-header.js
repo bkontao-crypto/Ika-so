@@ -49,6 +49,9 @@ export const HOME_SECTIONS = Object.freeze([
   ["cta", "Devenir annonceur"], ["ads", "Offres partenaires"], ["partners", "Partenaires et services"], ["guides", "Guides et conseils"], ["download", "Application mobile"],
 ].map(([id, label]) => ({ id, label })));
 
+// Cartes modifiables (titre et texte ; l'icône et le nombre de cartes restent ceux d'origine).
+export const HOME_CARDS = Object.freeze({ how: 3, trust: 4 });
+
 export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
   const setting = async (key) => (await db.query("select value from ika_settings where key = $1", [key]))[0]?.value ?? "";
   const put = (key, value) => db.query("insert into ika_settings (key, value) values ($1, $2) on conflict (key) do update set value = $2", [key, value]);
@@ -118,7 +121,19 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
       }
       if (Object.keys(one).length) texts[id] = one;
     }
-    return { sections, texts };
+    const cards = {};
+    const rawCards = input.cards && typeof input.cards === "object" && !Array.isArray(input.cards) ? input.cards : {};
+    for (const [id, list] of Object.entries(rawCards)) {
+      if (!HOME_CARDS[id] || !Array.isArray(list) || list.length > HOME_CARDS[id]) throw badRequest("Cartes invalides.");
+      const out = list.map((c) => {
+        const title = String(c?.title ?? "").trim(), text = String(c?.text ?? "").trim();
+        if (title.length > 60) throw badRequest("Le titre d'une carte est limité à 60 caractères.");
+        if (text.length > 200) throw badRequest("Le texte d'une carte est limité à 200 caractères.");
+        return { title, text };
+      });
+      if (out.some((c) => c.title || c.text)) cards[id] = out;
+    }
+    return { sections, texts, cards };
   }
   // Pied de page : texte de présentation, colonnes de liens, mention de droits. Les liens légaux et le choix des cookies restent fixes dans la page.
   const FOOTER_DEFAULT = Object.freeze({
@@ -173,7 +188,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     },
     /** Public : lu par l'accueil. */
     getLayout: layout,
-    async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])) }; },
+    async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])), cardCounts: HOME_CARDS }; },
     async saveLayout(userId, input) {
       await accounts.requirePermission(userId, "contenu.gerer");
       if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
