@@ -1,4 +1,5 @@
 // Zone « Nouvelle publication » : texte, photos, type (actualité, je cherche, information). Partagée par Découvrir et le profil.
+import { openLightbox } from "/js/components/social.js";
 import { CATEGORIES, api, compressPhoto, fail, h, toast } from "/js/dom.js";
 import { S } from "/js/core/state.js";
 import { icon } from "/js/icons.js";
@@ -12,14 +13,25 @@ const KIND_HINTS = {
 const TEXT_MAX = 2000;
 
 export function loadDiscoverCss() {
-  for (const href of ["/css/espace.css", "/css/decouvrir.css"]) if (!document.querySelector(`link[href="${href}"]`)) document.head.append(h("link", { rel: "stylesheet", href }));
+  for (const href of ["/css/espace.css", "/css/decouvrir.css", "/css/social.css"]) if (!document.querySelector(`link[href="${href}"]`)) document.head.append(h("link", { rel: "stylesheet", href }));
 }
 
 /** Photos d'une publication : grille de 1 à 4 vignettes (« +N » s'il y en a davantage), chacune s'ouvre en grand. */
-export function photoGrid(urls = []) {
+export function photoGrid(urls = [], ctx = {}) {
   if (!urls.length) return null;
-  return h("div", { class: `dc-photos n${Math.min(urls.length, 4)}` }, urls.slice(0, 4).map((u, i) => h("a", { href: u, target: "_blank", rel: "noopener", "aria-label": `Agrandir la photo ${i + 1}` },
+  // Un clic ouvre la photo en plein écran avec j'aime, partage et commentaires de la publication (si on connaît son identifiant).
+  const open = (i) => (e) => { if (!ctx.id) return; e.preventDefault(); openLightbox(urls, i, { type: "PUBLICATION", id: ctx.id, title: ctx.title }); };
+  return h("div", { class: `dc-photos n${Math.min(urls.length, 4)}` }, urls.slice(0, 4).map((u, i) => h("a", { href: u, target: "_blank", rel: "noopener", "aria-label": `Agrandir la photo ${i + 1}`, onClick: open(i) },
     h("img", { src: u, alt: `Photo ${i + 1} de la publication`, loading: "lazy" }), urls.length > 4 && i === 3 ? h("span", { class: "dc-more" }, `+${urls.length - 4}`) : null)));
+}
+
+/** Carte de l'original dans une republication (annonce ou publication) ; « n'est plus disponible » si l'original a disparu. */
+export function sharedCard(shared) {
+  if (!shared) return null;
+  if (shared.gone) return h("div", { class: "dc-shared muted" }, "Le contenu republié n'est plus disponible.");
+  const price = shared.price ? ` · ${new Intl.NumberFormat("fr-FR").format(shared.price)} FCFA` : "";
+  return h("a", { class: "dc-shared", href: shared.href }, shared.photo ? h("img", { src: shared.photo, alt: "", loading: "lazy" }) : null,
+    h("div", null, h("strong", null, shared.title), h("div", { class: "small muted" }, shared.type === "LISTING" ? `Annonce${shared.place ? ` · ${shared.place}` : ""}${price}` : shared.excerpt)));
 }
 
 /** Lien vidéo YouTube / Facebook : carte-lien sûre qui s'ouvre dans un nouvel onglet (aucun lecteur externe intégré). */
@@ -94,7 +106,7 @@ export function postComposer({ onPosted = () => {}, defaultKind = "ACTUALITE" } 
     if (S.user.accountStatus === "RESTRICTED") { drawRestricted(); return; }
     if (!settings.enabled) { root.replaceChildren(h("h3", null, "Nouvelle publication"), h("p", { class: "muted" }, "Les publications sont fermées pour le moment.")); return; }
     root.replaceChildren(h("h3", null, "Nouvelle publication"), kinds, text,
-      h("div", { class: "dc-optional" }, category, zone), thumbs, fileInput, settings.videoLinks ? videoUrl : null,
+      h("div", { class: "dc-optional" }, category, zone), thumbs, fileInput, ...(settings.videoLinks ? [videoUrl] : []),
       h("p", { class: "small muted" }, "Pas de numéro de téléphone : les personnes intéressées vous écrivent par la messagerie. Ce n'est pas une annonce professionnelle."),
       h("div", { class: "row between" }, h("div", { class: "row" }, photoBtn, counter), send));
     draw();

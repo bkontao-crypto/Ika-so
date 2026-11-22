@@ -10,6 +10,7 @@ import { createAdvertiserApplications } from "./advertiser-applications.js";
 import { createFeaturedRequests } from "./featured-requests.js";
 import { createEngagement } from "./engagement.js";
 import { createAlerts } from "./alerts.js";
+import { createSocial } from "./social.js";
 import { createGeo } from "./geo.js";
 import { createImports } from "./imports.js";
 import { createListings } from "./listings.js";
@@ -74,6 +75,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
   const ownerDelegations = createOwnerDelegations({ db, accounts });
   const requestsHub = createRequestsHub({ db, ownerDelegations, notify: (userId, note) => engagement.notify(userId, note) });
+  const social = createSocial({ db, accounts, notify: engagement.notify });
   const alerts = createAlerts({ db, accounts, rules: ruleExceptions, moderationAudit, engagement });
   const discover = createDiscover({ db, accounts, rules: ruleExceptions, engagement, moderationAudit, requestsHub });
   const premiumRequests = createPremiumRequests({ requestsHub, db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments, rules: ruleExceptions });
@@ -89,7 +91,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";
