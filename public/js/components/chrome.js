@@ -26,6 +26,48 @@ const NAV_MOBILE = [
   { href: "#/profil", label: "Compte", icon: "user", match: (p) => ["/profil", "/centre", "/favoris", "/connexion", "/paiements", "/agence"].includes(p) || p.startsWith("/boite"), loginHref: "#/connexion" },
 ];
 
+// En-tête personnalisable par le superadmin (onglets, logo, couleurs, bouton Publier). Dernière version connue gardée en local :
+// le premier affichage ne clignote pas, et le site reste complet si l'API est lente ou en panne.
+let HEADER = null;
+try { HEADER = JSON.parse(localStorage.getItem("ika_header") || "null"); } catch { HEADER = null; }
+const DEFAULT_LOGO = "/media/logo-ika-so.webp";
+const SYSTEM_MATCH = Object.fromEntries(NAV.map((n, i) => [["home", "buy", "rent", "land", "map", "discover", "advertisers", "partners"][i], n]));
+/** Onglets affichés : ceux du superadmin (ordre, noms, visibilité), à défaut les onglets d'origine. */
+function navItems() {
+  if (!HEADER?.tabs?.length) return NAV;
+  const out = [];
+  for (const t of HEADER.tabs) {
+    if (t.visible === false) continue;
+    const base = SYSTEM_MATCH[t.id];
+    if (base) { out.push({ ...base, label: t.label || base.label }); continue; }
+    const external = /^https:/i.test(t.href);
+    const target = external ? null : String(t.href).replace(/^#/, "").split("?")[0];
+    out.push({ href: t.href, label: t.label, icon: "list", external, match: (p, q) => !external && p === target && (!String(t.href).includes("?") || [...new URLSearchParams(String(t.href).split("?")[1])].every(([k, v]) => q?.get(k) === v)) });
+  }
+  return out.length ? out : NAV;
+}
+/** Logo, couleurs et bouton de l'en-tête (appelé à chaque dessin : tout reste cohérent après un changement de thème). */
+function applyHeaderStyle() {
+  const header = document.querySelector(".site-header");
+  if (!header) return;
+  const logo = header.querySelector(".brand-logo");
+  const want = HEADER?.logoUrl || DEFAULT_LOGO;
+  if (logo && logo.getAttribute("src") !== want) logo.setAttribute("src", want);
+  const pair = HEADER?.[document.documentElement.dataset.theme === "dark" ? "dark" : "light"];
+  const custom = !!(pair?.bg && pair?.ink);
+  header.toggleAttribute("data-custom", custom);
+  header.style.setProperty("--header-bg", custom ? pair.bg : "");
+  header.style.setProperty("--header-ink", custom ? pair.ink : "");
+}
+/** Charge la configuration publiée puis redessine l'en-tête. Silencieux en cas d'échec. */
+export async function loadHeader() {
+  try {
+    HEADER = await api("/site-header");
+    try { localStorage.setItem("ika_header", JSON.stringify(HEADER)); } catch { /* stockage indisponible */ }
+    renderChrome();
+  } catch { /* on garde la dernière version connue */ }
+}
+
 // Icônes absentes de icons.js (thème clair / sombre), dessinées en SVG réel (createElementNS).
 const THEME_PATHS = {
   moon: "M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z",
@@ -51,7 +93,8 @@ function openMenu(opener) {
   const onKey = (e) => { if (e.key === "Escape") close(); };
   const { path, params } = currentRoute();
   const backdrop = h("div", { class: "rx-drawer-backdrop", onClick: close });
-  const items = [...NAV.slice(0, 1), { href: "#/annonces", label: "Toutes les annonces", icon: "list", match: (p, q) => onListings(p) && !q?.get("t") && !q?.get("category") }, ...NAV.slice(1), { href: "#/favoris", label: "Mes favoris", icon: "heart", match: (p) => p === "/favoris" }, { href: "#/boite", label: "Messages", icon: "message", match: (p) => p.startsWith("/boite") }, { href: "#/confiance", label: "Centre de confiance", icon: "shield-check", match: (p) => p === "/confiance" }];
+  const nav = navItems();
+  const items = [...nav.slice(0, 1), { href: "#/annonces", label: "Toutes les annonces", icon: "list", match: (p, q) => onListings(p) && !q?.get("t") && !q?.get("category") }, ...nav.slice(1), { href: "#/favoris", label: "Mes favoris", icon: "heart", match: (p) => p === "/favoris" }, { href: "#/boite", label: "Messages", icon: "message", match: (p) => p.startsWith("/boite") }, { href: "#/confiance", label: "Centre de confiance", icon: "shield-check", match: (p) => p === "/confiance" }];
   const panel = h("aside", { class: "rx-drawer stack", role: "dialog", "aria-modal": "true", "aria-label": "Menu", tabindex: "-1" },
     h("div", { class: "row-between" }, h("strong", { class: "title" }, "Menu"), h("button", { class: "btn btn-small btn-quiet", type: "button", onClick: close, "aria-label": "Fermer le menu" }, icon("x"))),
     h("nav", { class: "rx-menu-list", "aria-label": "Menu principal" }, items.map((it) => h("a", { href: it.href, class: it.match(path, params) ? "active" : "", "aria-current": it.match(path, params) ? "page" : null, onClick: close }, icon(it.icon), it.label))),
@@ -87,11 +130,11 @@ export function renderChrome() {
   const link = (item, cls, badgeCls) => {
     const active = item.match(path, params);
     const href = item.loginHref && !S.user ? item.loginHref : item.href;
-    return h("a", { href, class: cls + (active ? " active" : "") + (item.publish ? " publish-btn" : ""), "aria-current": active ? "page" : null },
+    return h("a", { href, class: cls + (active ? " active" : "") + (item.publish ? " publish-btn" : ""), "aria-current": active ? "page" : null, target: item.external ? "_blank" : null, rel: item.external ? "noopener noreferrer" : null },
       item.publish ? h("span", { class: "nav-icon" }, icon(item.icon)) : icon(item.icon), h("span", null, item.label),
       item.count && S.unread ? h("span", { class: badgeCls }, String(S.unread)) : null);
   };
-  mount(document.getElementById("nav-desktop"), NAV.map((item) => link(item, "nav-link", "notification")));
+  mount(document.getElementById("nav-desktop"), navItems().map((item) => link(item, "nav-link", "notification")));
   mount(document.getElementById("nav-bottom"), NAV_MOBILE.map((item) => link(item, "mobile-nav-link", "badge-count")));
 
   // Thème appliqué avant le dessin du bouton, pour que l'icône reflète le thème réel.
@@ -109,7 +152,7 @@ export function renderChrome() {
     },
   }, themeIcon(saved === "dark" ? "sun" : "moon"));
 
-  const publish = h("a", { href: "#/publier", class: "btn btn-small header-publish" }, icon("plus"), "Publier");
+  const publish = HEADER?.publishVisible === false ? null : h("a", { href: "#/publier", class: "btn btn-small header-publish" }, icon("plus"), HEADER?.publishLabel || "Publier");
   const inbox = S.user
     ? h("a", { href: "#/boite", class: "icon-btn", "aria-label": S.unread ? `Messages, ${S.unread} non lu${S.unread > 1 ? "s" : ""}` : "Messages", title: "Messages" },
         icon("message"), S.unread ? h("span", { class: "badge-count", style: { position: "absolute", top: "-4px", right: "-4px", margin: "0" } }, String(S.unread)) : null)
@@ -133,5 +176,6 @@ export function renderChrome() {
     : h("a", { href: "#/connexion", class: "btn btn-small", id: "loginLink" }, "Connexion");
   // Menu complet sur mobile et tablette : toutes les entrées de navigation dans un tiroir latéral.
   const menuBtn = h("button", { class: "icon-btn rx-menu-btn", type: "button", "aria-label": "Ouvrir le menu", "aria-haspopup": "dialog", onClick: (e) => openMenu(e.currentTarget) }, icon("list"));
-  mount(actions, publish, themeBtn, inbox, account, menuBtn);
+  mount(actions, publish, HEADER?.themeToggle === false ? null : themeBtn, inbox, account, menuBtn);
+  applyHeaderStyle();
 }

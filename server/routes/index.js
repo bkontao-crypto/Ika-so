@@ -28,7 +28,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { userCenter, featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { userCenter, featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -1093,6 +1093,11 @@ router.get("/listings/:id", async (req, res) => {
   });
 
   // ---------- Personnalisation de la page d’accueil ----------
+  // En-tête du site : onglets, logo, couleurs (lecture publique ; modification réservée à « contenu.gerer »).
+  router.get("/site-header", async (_req, res) => res.json(await siteHeader.get()));
+  router.get("/staff/site-header", async (req, res) => res.json(await siteHeader.getForStaff(requireUser(req))));
+  router.put("/staff/site-header", async (req, res) => res.json(await siteHeader.save(requireUser(req), req.body ?? {})));
+  router.post("/staff/site-header/logo", async (req, res) => res.status(201).json(await siteHeader.uploadLogo(requireUser(req), req.body?.dataUrl)));
   router.get("/homepage-settings", async (_req, res) => res.json(await homepageSettings.get()));
   router.get("/platform-settings", async (_req, res) => res.json(await stats.publicPlatform()));
   router.put("/staff/homepage-settings", async (req, res) => res.json(await homepageSettings.save(requireUser(req), req.body ?? {})));

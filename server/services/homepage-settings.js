@@ -1,5 +1,6 @@
 import { badRequest } from "../lib/errors.js";
 import { storeDataUrl } from "../lib/file-storage.js";
+import { MIN_TEXT, ratio, suggestInk } from "../../public/js/lib/contrast.js";
 
 const DEFAULTS = Object.freeze({
   image: "/media/villa-badala.jpg",
@@ -72,6 +73,11 @@ export function createHomepageSettings({ db, accounts }) {
           continue;
         }
         config[key] = value;
+      }
+      // Lisibilité : le voile (couleur + opacité) doit laisser lire le texte. Sous 50 % d'opacité la photo domine et le contraste n'est plus calculable : seul l'écran Owner avertit.
+      if (Number(config.overlayOpacity) >= 0.5) {
+        const bad = [["textColor", "le texte"], ["accentColor", "la couleur d'accent"]].filter(([k]) => ratio(config[k], config.overlayColor) < MIN_TEXT);
+        if (bad.length) throw badRequest(`Publication bloquée : ${bad.map(([k, l]) => `${l} est illisible sur le voile (contraste ${String(ratio(config[k], config.overlayColor)).replace(".", ",")}:1, minimum 4,5:1 ; essayez ${suggestInk(config[k], config.overlayColor)})`).join(" ; ")}.`);
       }
       // Explicitement retirer toute image en attente après enregistrement
       delete config.pending_image;
