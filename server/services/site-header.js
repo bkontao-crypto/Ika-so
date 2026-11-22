@@ -13,7 +13,14 @@ export const SYSTEM_TABS = Object.freeze([
   { id: "advertisers", label: "Annonceurs", href: "#/annonceurs" },
   { id: "partners", label: "Partenaires", href: "#/partenaires" },
 ]);
+// Barre du bas sur mobile : 3 à 5 accès parmi ce catalogue ; « Compte » reste obligatoire (accès à la connexion).
+export const MOBILE_CATALOG = Object.freeze([
+  ["home", "Accueil"], ["discover", "Découvrir"], ["publish", "Publier"], ["map", "Carte"], ["account", "Compte"],
+  ["buy", "Acheter"], ["rent", "Louer"], ["land", "Terrains"], ["advertisers", "Annonceurs"], ["partners", "Partenaires"], ["alerts", "Alertes"], ["inbox", "Messages"],
+].map(([id, label]) => ({ id, label })));
+const MOBILE_DEFAULT = Object.freeze(["home", "discover", "publish", "map", "account"]);
 const DEFAULTS = Object.freeze({
+  mobile: [...MOBILE_DEFAULT],
   tabs: SYSTEM_TABS.map((t) => ({ ...t, visible: true })),
   light: { bg: "", ink: "" }, dark: { bg: "", ink: "" }, // vide = couleurs du thème
   publishLabel: "Publier", publishVisible: true, themeToggle: true,
@@ -74,7 +81,10 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     if (problems.length) throw badRequest(`Publication bloquée. ${problems.join(" ")}`);
     const publishLabel = String(input.publishLabel ?? DEFAULTS.publishLabel).trim();
     if (!publishLabel || publishLabel.length > 24) throw badRequest("Le texte du bouton est obligatoire (24 caractères maximum).");
-    return { tabs, light, dark, publishLabel, publishVisible: input.publishVisible !== false, themeToggle: input.themeToggle !== false };
+    const mobile = Array.isArray(input.mobile) ? input.mobile : MOBILE_DEFAULT;
+    if (mobile.length < 3 || mobile.length > 5 || new Set(mobile).size !== mobile.length || !mobile.every((id) => MOBILE_CATALOG.some((c) => c.id === id))) throw badRequest("Barre du bas : 3 à 5 accès différents, choisis dans la liste.");
+    if (!mobile.includes("account")) throw badRequest("Barre du bas : « Compte » doit rester affiché (accès à la connexion).");
+    return { tabs, mobile: [...mobile], light, dark, publishLabel, publishVisible: input.publishVisible !== false, themeToggle: input.themeToggle !== false };
   }
 
   async function config() {
@@ -177,7 +187,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     /** Personnel : ajoute le logo importé en attente (visible seulement ici, publié à l'enregistrement). */
     async getForStaff(userId) {
       await accounts.requirePermission(userId, "contenu.gerer");
-      return { ...(await config()), logoUrl: await logo(), pendingLogo: String(await setting("site_header_logo_pending")).trim() };
+      return { ...(await config()), mobileCatalog: MOBILE_CATALOG, logoUrl: await logo(), pendingLogo: String(await setting("site_header_logo_pending")).trim() };
     },
     async uploadLogo(userId, dataUrl) {
       await accounts.requirePermission(userId, "contenu.gerer");
