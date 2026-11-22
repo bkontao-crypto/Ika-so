@@ -128,6 +128,9 @@ function reveal(root) {
 
 // Textes modifiables par le superadmin (Owner Center > Sections de l'accueil) : une valeur vide garde le texte d'origine.
 let TEXTS = {};
+let CARDS = {};
+/** Titre/texte d'une carte : valeur du superadmin si renseignée, sinon texte d'origine. */
+const card = (id, i, t, p) => { const c = CARDS[id]?.[i]; return [c?.title?.trim() || t, c?.text?.trim() || p]; };
 const ov = (id, d) => ({ ...d, ...Object.fromEntries(Object.entries(TEXTS[id] ?? {}).filter(([, v]) => typeof v === "string" && v.trim())) });
 const sectionHead = (kicker, title, text, link, id) => { const o = ov(id, { kicker, title, text }); return h("div", { class: "rx-sec-head" },
   h("div", null, h("span", { class: "rx-kicker" }, o.kicker), h("h2", null, o.title), o.text ? h("p", null, o.text) : null),
@@ -147,7 +150,7 @@ export async function renderHome() {
     : Promise.resolve(false);
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
   let layout = null; // ordre et visibilité des sections choisis par le superadmin ; à défaut, ordre d'origine
-  try { const l = await api("/home-layout"); layout = l.sections; TEXTS = l.texts ?? {}; } catch { /* ordre d'origine */ }
+  try { const l = await api("/home-layout"); layout = l.sections; TEXTS = l.texts ?? {}; CARDS = l.cards ?? {}; } catch { /* ordre d'origine */ }
   const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
   const isAdvertiser = !required || await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
@@ -215,7 +218,7 @@ export async function renderHome() {
       ["Recherchez", "Filtrez par type de bien, quartier et budget, en grille, en liste ou sur la carte."],
       ["Contactez en confiance", "Appelez, écrivez sur WhatsApp ou utilisez la messagerie. Les numéros sont vérifiés par code SMS."],
       ["Visitez et vérifiez", "Demandez les documents, visitez le bien et faites contrôler le titre avant tout paiement."],
-    ].map(([t, p]) => h("article", { class: "rx-step" }, h("h3", null, t), h("p", null, p)))));
+    ].map(([t, p], i) => card("how", i, t, p)).map(([t, p]) => h("article", { class: "rx-step" }, h("h3", null, t), h("p", null, p)))));
 
   const trust = section("confiance", sectionHead("Confiance", "Pourquoi faire confiance à IKA SO ?", "Des repères concrets, et l'honnêteté sur leurs limites.", ["#/confiance", "Centre de confiance"], "trust"),
     h("div", { class: "rx-trust" }, [
@@ -223,7 +226,7 @@ export async function renderHome() {
       ["phone", "Numéro contrôlé", "Le téléphone de l'annonceur est vérifié par un code SMS."],
       ["file", "Documents : déclaré ≠ vérifié", "Un document n'est présenté comme contrôlé qu'après validation réelle."],
       ["flag", "Signalement et réclamations", "Signalez une annonce ou déposez une réclamation, suivie par l'équipe."],
-    ].map(([ic, t, p]) => h("article", null, icon(ic), h("h3", null, t), h("p", null, p)))));
+    ].map(([ic, t, p], i) => [ic, ...card("trust", i, t, p)]).map(([ic, t, p]) => h("article", null, icon(ic), h("h3", null, t), h("p", null, p)))));
 
   const cta = isAdvertiser ? null : h("section", { class: "rx-cta rx-reveal", id: "vendre" }, h("div", { class: "rx-cta-inner" },
     (() => { const o = ov("cta", { kicker: "Devenir annonceur", title: "Donnez à votre bien la visibilité qu'il mérite.", text: "Propriétaire, agence ou démarcheur : publiez en quelques minutes, suivez vos demandes et mettez vos annonces en avant." });

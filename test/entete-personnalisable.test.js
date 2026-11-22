@@ -165,3 +165,16 @@ test("barre du bas mobile : 3 à 5 accès du catalogue, « Compte » obligatoire
   await bad(["home", "pirate", "account"]);                               // inconnu
   assert.ok((await svc.getForStaff("u")).mobileCatalog.length >= 12);
 });
+
+test("cartes de l'accueil : titre/texte modifiables, nombre et sections bornés, vides ignorés", async () => {
+  const { svc } = make();
+  const out = await svc.saveLayout("u", { cards: { how: [{ title: "Cherchez", text: "" }, { title: "", text: "" }], trust: [{ title: "", text: "" }] } });
+  assert.deepEqual(out.cards, { how: [{ title: "Cherchez", text: "" }, { title: "", text: "" }] }); // trust vide : ignoré
+  assert.deepEqual((await svc.getLayout()).cards, out.cards);
+  const bad = (c) => assert.rejects(() => svc.saveLayout("u", { cards: c }), /./);
+  await bad({ pirate: [{ title: "x" }] });
+  await bad({ how: Array.from({ length: 4 }, () => ({ title: "x" })) });
+  await bad({ how: [{ title: "x".repeat(61) }] });
+  await bad({ trust: [{ text: "x".repeat(201) }] });
+  assert.equal((await svc.getForStaff("u")).mobileCatalog.length > 0, true);
+});
