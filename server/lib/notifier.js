@@ -19,7 +19,8 @@ const SUBJECT = {
   ADVERTISER_APPLICATION: "Nouvelle demande annonceur à examiner", TEAM_REQUEST: "Invitation à rejoindre une équipe sur Ika So",
 };
 
-export function createNotifier({ db, config, sendEmail = null, sendSms = null, logger = null, now = () => Date.now() }) {
+/** WhatsApp : `sendWhatsapp(numéro)` envoie le modèle approuvé (null = non configuré) ; `whatsappOn()` lit le réglage du superadmin (faux par défaut). */
+export function createNotifier({ db, config, sendEmail = null, sendSms = null, sendWhatsapp = null, whatsappOn = async () => false, logger = null, now = () => Date.now() }) {
   const sentEmail = new Map(); // `${userId}:${kind}` -> dernière heure d'envoi
   const sentSms = new Map();   // userId -> [heures d'envoi]
   const base = config.publicUrl || "";
@@ -27,9 +28,9 @@ export function createNotifier({ db, config, sendEmail = null, sendSms = null, l
   /** Fonction branchée sur `ctx.notifiers` : (userId, { kind, title, body, link }). Ne lève jamais. */
   async function deliver(userId, note) {
     try {
-      if (!sendEmail && !sendSms) return { skipped: "aucun canal" };
+      if (!sendEmail && !sendSms && !sendWhatsapp) return { skipped: "aucun canal" };
       const rows = await db.query(
-        `select u.email, p.phone, p.phone_verified_at, p.phone_channel, n.email_enabled, n.sms_enabled
+        `select u.email, p.phone, p.phone_verified_at, p.phone_channel, n.email_enabled, n.sms_enabled, n.whatsapp_enabled
          from ika_users u left join ika_profiles p on p.user_id = u.id left join ika_notify_prefs n on n.user_id = u.id
          where u.id = $1 and u.deleted_at is null`, [userId]);
       const u = rows[0];
@@ -55,6 +56,11 @@ export function createNotifier({ db, config, sendEmail = null, sendSms = null, l
           out.sms = true;
         }
       }
+      // WhatsApp : uniquement la décision finale Premium, si le superadmin l'a activé, si la personne a consenti et si son numéro est confirmé.
+      if (sendWhatsapp && note.kind === "PREMIUM" && u.whatsapp_enabled && u.phone && u.phone_verified_at && await whatsappOn()) {
+        await sendWhatsapp(u.phone);
+        out.whatsapp = true;
+      }
       return out;
     } catch (error) {
       logger?.warn("alerte_hors_site_echec", { error: String(error?.message ?? error).slice(0, 120) });
@@ -63,20 +69,20 @@ export function createNotifier({ db, config, sendEmail = null, sendSms = null, l
   }
 
   async function getPrefs(userId) {
-    const r = (await db.query("select email_enabled, sms_enabled, consent_at from ika_notify_prefs where user_id = $1", [userId]))[0];
-    return { emailAvailable: Boolean(sendEmail), smsAvailable: Boolean(sendSms), email: Boolean(r?.email_enabled), sms: Boolean(r?.sms_enabled), consentAt: r?.consent_at ?? null };
+    const r = (await db.query("select email_enabled, sms_enabled, whatsapp_enabled, consent_at from ika_notify_prefs where user_id = $1", [userId]))[0];
+    return { emailAvailable: Boolean(sendEmail), smsAvailable: Boolean(sendSms), whatsappAvailable: Boolean(sendWhatsapp) && await whatsappOn(), whatsapp: Boolean(r?.whatsapp_enabled), email: Boolean(r?.email_enabled), sms: Boolean(r?.sms_enabled), consentAt: r?.consent_at ?? null };
   }
 
   /** La personne choisit. Activer un canal qui n'est pas disponible côté serveur est refusé (pas de faux consentement). */
-  async function setPrefs(userId, { email, sms }) {
-    if ((email === true && !sendEmail) || (sms === true && !sendSms)) {
+  async function setPrefs(userId, { email, sms, whatsapp }) {
+    if ((email === true && !sendEmail) || (sms === true && !sendSms) || (whatsapp === true && !(sendWhatsapp && await whatsappOn()))) {
       const e = new Error("Ce canal n'est pas encore disponible."); e.status = 409; throw e;
     }
     await db.query(
-      `insert into ika_notify_prefs (user_id, email_enabled, sms_enabled, consent_at, updated_at) values ($1, $2, $3, case when $2 or $3 then now() end, now())
-       on conflict (user_id) do update set email_enabled = $2, sms_enabled = $3,
-         consent_at = case when $2 or $3 then coalesce(case when ika_notify_prefs.email_enabled or ika_notify_prefs.sms_enabled then ika_notify_prefs.consent_at end, now()) else null end, updated_at = now()`,
-      [userId, email === true, sms === true]);
+      `insert into ika_notify_prefs (user_id, email_enabled, sms_enabled, whatsapp_enabled, consent_at, updated_at) values ($1, $2, $3, $4, case when $2 or $3 or $4 then now() end, now())
+       on conflict (user_id) do update set email_enabled = $2, sms_enabled = $3, whatsapp_enabled = $4,
+         consent_at = case when $2 or $3 or $4 then coalesce(case when ika_notify_prefs.email_enabled or ika_notify_prefs.sms_enabled or ika_notify_prefs.whatsapp_enabled then ika_notify_prefs.consent_at end, now()) else null end, updated_at = now()`,
+      [userId, email === true, sms === true, whatsapp === true]);
     return getPrefs(userId);
   }
   return { deliver, getPrefs, setPrefs };

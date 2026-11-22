@@ -74,6 +74,9 @@ export function getConfig(env = process.env) {
       verifyToken: get("WHATSAPP_VERIFY_TOKEN"),
       appSecret: get("WHATSAPP_APP_SECRET"),
       apiVersion: get("WHATSAPP_API_VERSION", "v21.0"),
+      // Modèle de message approuvé par Meta pour la décision Premium (sans variable) ; vide = envoi impossible.
+      templatePremium: get("WHATSAPP_TEMPLATE_PREMIUM"),
+      templateLanguage: get("WHATSAPP_TEMPLATE_LANGUAGE", "fr"),
     },
     // E-mail (alertes facultatives, désactivées par défaut) : « brevo » ou « resend ». Vide = aucun e-mail envoyé.
     email: {

@@ -194,11 +194,12 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
         if (!file) return;
         try { await api("/me/proofs", { method: "POST", body: { kind: "AGENCE", fileData: await readProofFile(file) } }); toast("Pièce envoyée."); } catch (error) { fail(error); }
       } }))) : null,
-    prefs && (prefs.emailAvailable || prefs.smsAvailable) ? h("article", { class: "card pad stack" },
+    prefs && (prefs.emailAvailable || prefs.smsAvailable || prefs.whatsappAvailable) ? h("article", { class: "card pad stack" },
       h("h2", null, "Alertes hors du site"),
       h("p", { class: "small muted" }, "Désactivées par défaut. Vous pouvez les activer ou les couper à tout moment. Aucun message privé n'est jamais recopié dans un e-mail ou un SMS : seulement « vous avez un nouveau message »."),
-      prefs.emailAvailable ? h("label", { class: "row" }, h("input", { type: "checkbox", checked: prefs.email, onChange: (e) => savePrefs({ email: e.target.checked, sms: prefs.sms }) }), h("span", null, "Me prévenir par e-mail")) : null,
-      prefs.smsAvailable ? h("label", { class: "row" }, h("input", { type: "checkbox", checked: prefs.sms, disabled: !m.phoneVerified, onChange: (e) => savePrefs({ email: prefs.email, sms: e.target.checked }) }), h("span", null, m.phoneVerified ? "Me prévenir par SMS (messages et visites, 5 par jour au plus)" : "Me prévenir par SMS (vérifiez d'abord votre numéro)")) : null) : null,
+      prefs.emailAvailable ? h("label", { class: "row" }, h("input", { type: "checkbox", checked: prefs.email, onChange: (e) => savePrefs({ email: e.target.checked, sms: prefs.sms, whatsapp: prefs.whatsapp }) }), h("span", null, "Me prévenir par e-mail")) : null,
+      prefs.smsAvailable ? h("label", { class: "row" }, h("input", { type: "checkbox", checked: prefs.sms, disabled: !m.phoneVerified, onChange: (e) => savePrefs({ email: prefs.email, sms: e.target.checked, whatsapp: prefs.whatsapp }) }), h("span", null, m.phoneVerified ? "Me prévenir par SMS (messages et visites, 5 par jour au plus)" : "Me prévenir par SMS (vérifiez d'abord votre numéro)")) : null,
+      prefs.whatsappAvailable ? h("label", { class: "row" }, h("input", { type: "checkbox", checked: prefs.whatsapp, disabled: !m.phoneVerified, onChange: (e) => savePrefs({ email: prefs.email, sms: prefs.sms, whatsapp: e.target.checked }) }), h("span", null, m.phoneVerified ? "Me prévenir par WhatsApp (seulement la décision sur mon dossier Premium)" : "Me prévenir par WhatsApp (vérifiez d'abord votre numéro)")) : null) : null,
     stats ? h("article", { class: "card pad stack" },
       h("h2", null, "Statistiques d'usage"),
       h("p", { class: "small muted" }, "Facultatif. Ika So peut compter certaines actions (annonces vues, favoris, contacts) pour s'améliorer. Ni votre adresse IP, ni vos messages, ni votre numéro ne sont enregistrés. Refuser ne change rien à votre usage ; si vous refusez, vos actions restent comptées sans votre nom."),
