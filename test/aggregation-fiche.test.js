@@ -1,7 +1,7 @@
 // BUG-003 lot 4 : server/lib/aggregation.js (agrégation journalière) et server/lib/fiche.js (fiche de parcelle).
 import test from "node:test";
 import assert from "node:assert/strict";
-import { parseDay, planDays, aggregateDay, DAILY_QUERIES, METHOD_VERSION, MAX_DAYS } from "../server/lib/aggregation.js";
+import { parseDay, planDays, aggregateDay, DAILY_QUERIES, UNIQUE_QUERIES, HOURLY_QUERIES, METHOD_VERSION, MAX_DAYS } from "../server/lib/aggregation.js";
 import { ficheHtml, fondCarteUrl, planSvg, MENTION_OBLIGATOIRE } from "../server/lib/fiche.js";
 
 const NOW = new Date("2026-11-15T10:00:00Z");
@@ -39,6 +39,15 @@ test("DAILY_QUERIES : aucune colonne d'identité de personne, et les robots sont
   assert.ok(DAILY_QUERIES.find((q) => /bot/.test(q.sql)).sql.includes("is_bot"));
 });
 
+test("UNIQUE_QUERIES : lisent une identité seulement pour compter ; sortie limitée à (metric, dim_type, dim_id, value), robots exclus", () => {
+  assert.ok(Object.isFrozen(UNIQUE_QUERIES) && Object.isFrozen(HOURLY_QUERIES));
+  for (const q of [...UNIQUE_QUERIES, ...HOURLY_QUERIES]) {
+    assert.match(q.sql, /not is_bot/, q.label);
+    const out = q.sql.slice(q.sql.indexOf("select") + 6, q.sql.indexOf(" from ika_analytics_events"));
+    assert.doesNotMatch(out.replace(/count\(distinct [^)]*\)/g, ""), /user_id|visitor_id|ip_hash|session|email/i, `${q.label} : la sortie ne doit exposer aucune identité`);
+  }
+});
+
 /** Base simulée : renvoie le verrou, les totaux attendu / observé et enregistre les écritures. */
 function fakeDb({ lock = true, expected = 5, observed = 5 } = {}) {
   const writes = []; const checks = [];
@@ -47,6 +56,10 @@ function fakeDb({ lock = true, expected = 5, observed = 5 } = {}) {
       if (sql.includes("pg_try_advisory_xact_lock")) return [{ ok: lock }];
       if (sql.startsWith("delete from ika_agg_daily")) { writes.push(["delete", params]); return []; }
       if (sql.startsWith("insert into ika_agg_daily")) { writes.push(["insert", params]); return [{ 1: 1 }]; }
+      if (sql.startsWith("delete from ika_agg_hourly")) { writes.push(["delete-hourly", params]); return []; }
+      if (sql.startsWith("insert into ika_agg_hourly")) { writes.push(["insert-hourly", params]); return [{ 1: 1 }]; }
+      if (sql.startsWith("delete from ika_visitor_days") || sql.startsWith("delete from ika_listing_viewer_days") || sql.startsWith("insert into ika_visitor_days") || sql.startsWith("insert into ika_listing_viewer_days")) { writes.push(["visiteurs", params]); return []; }
+      if (sql.includes("from ika_agg_hourly where hour_start")) return [{ n: observed }];
       if (sql.includes("from ika_analytics_events where") && sql.includes("count(*)")) return [{ n: expected }];
       if (sql.includes("from ika_agg_daily where day")) return [{ n: observed }];
       if (sql.startsWith("insert into ika_analytics_checks")) { checks.push(params); return []; }
@@ -60,9 +73,11 @@ test("aggregateDay : recalcul idempotent d'un jour, contrôle consigné (cohére
   const db = fakeDb({ expected: 5, observed: 5 });
   const r = await aggregateDay(db, "2026-11-14", { newId: (p) => `${p}-1` });
   assert.equal(r.ok, true);
-  assert.equal(r.lines, DAILY_QUERIES.length);
+  assert.equal(r.lines, DAILY_QUERIES.length + UNIQUE_QUERIES.length + HOURLY_QUERIES.length);
   assert.deepEqual(db.writes[0], ["delete", ["2026-11-14", METHOD_VERSION]], "supprime d'abord la même version du jour");
-  assert.equal(db.writes.filter((w) => w[0] === "insert").length, DAILY_QUERIES.length);
+  assert.equal(db.writes.filter((w) => w[0] === "insert").length, DAILY_QUERIES.length + UNIQUE_QUERIES.length);
+  assert.equal(db.writes.filter((w) => w[0] === "insert-hourly").length, HOURLY_QUERIES.length);
+  assert.deepEqual(db.checks.map((c) => c[1]), ["2026-11-14", "2026-11-14"], "un contrôle journalier et un contrôle horaire");
   assert.deepEqual(db.checks[0].slice(0, 5), ["ck-1", "2026-11-14", 5, 5, true]);
   assert.equal(db.checks[0][5], null);
 });

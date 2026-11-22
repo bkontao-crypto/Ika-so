@@ -4,7 +4,7 @@ import { previewDocument } from "./proof-viewer.js";
 import { proofHistoryPanel } from "./v-proof-history.js";
 
 /** Gabarit : en-tête + chargement asynchrone + reprise sur erreur. build(data, reload) → nœuds. */
-function page(ctx, { eyebrow, title, desc, load, build, actions }) {
+export function page(ctx, { eyebrow, title, desc, load, build, actions }) {
   const root = h("div", { class: "view" });
   const head = (extra) => h("div", { class: "welcome" }, h("div", null, h("div", { class: "eyebrow" }, eyebrow), h("h1", null, title), desc ? h("p", null, desc) : null), h("div", { class: "actions" }, extra ?? null));
   async function reload() {
@@ -14,9 +14,9 @@ function page(ctx, { eyebrow, title, desc, load, build, actions }) {
   reload();
   return root;
 }
-const mini = (l, v, sub) => h("div", { class: "card mini" }, h("small", null, l), h("strong", null, v), sub ? h("small", null, sub) : null);
-const minis = (...m) => h("div", { class: "mini-stats" }, m);
-const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/${type}/${encodeURIComponent(id)}`) }, ico("route"), label);
+export const mini = (l, v, sub) => h("div", { class: "card mini" }, h("small", null, l), h("strong", null, v), sub ? h("small", null, sub) : null);
+export const minis = (...m) => h("div", { class: "mini-stats" }, m);
+export const tracer = (ctx, type, id, label = "Retracer") => h("button", { class: "btn sm", type: "button", onClick: () => ctx.go(`#/trace/${type}/${encodeURIComponent(id)}`) }, ico("route"), label);
 
 // Demandes gratuites de mise à la une (repris de l'ancien centre) : mettre à la une ou refuser avec motif.
 const featuredRequestsPanel = (reload) => {
@@ -262,18 +262,47 @@ const blacklistPanel = (reload) => {
   fill();
   return panel("Liste noire", "Téléphones et adresses e-mail bloqués.", box);
 };
+const post = (url, body = {}) => api(url, { method: "POST", body });
+const enc = encodeURIComponent;
+/** Retirer un badge de confiance : annonce ou compte, motif obligatoire (journalisé). */
+async function revokeBadgeDialog(reload, preset = {}) {
+  const v = await formDialog("Retirer un badge de confiance", [
+    { name: "kind", label: "Cible", type: "select", options: [{ value: "listing", label: "Annonce (badge « document vérifié »)" }, { value: "user", label: "Compte (badge « agence vérifiée »)" }], value: preset.kind ?? "listing" },
+    { name: "id", label: "Identifiant de l'annonce ou du compte", required: true, max: 80, value: preset.id ?? "" },
+    { name: "reason", label: "Motif (obligatoire, conservé dans le journal)", type: "textarea", required: true, max: 500 }], { submit: "Retirer le badge" });
+  if (!v) return;
+  act(() => post("/staff/badges/revoke", { reason: v.reason, ...(v.kind === "user" ? { userId: v.id.trim() } : { listingId: v.id.trim() }) }), "Badge retiré.", reload);
+}
 export const trustView = (ctx) => page(ctx, {
-  eyebrow: "PILOTAGE", title: "Confiance & vérifications", desc: "Pièces justificatives à contrôler, alertes, signalements de confiance et liste noire.",
+  eyebrow: "PILOTAGE", title: "Confiance & vérifications", desc: "Pièces justificatives à contrôler, alertes, signalements de commentaires, de personnes et d'avis, et liste noire.",
   load: () => api("/staff/trust"),
+  actions: (_t, reload) => h("button", { class: "btn sm", type: "button", onClick: () => revokeBadgeDialog(reload) }, ico("shield"), "Retirer un badge"),
   build(t, reload) {
     const n = (a) => (a ?? []).length;
-    const sec = (title, rows, cols) => panel(`${title} (${n(rows)})`, null, table(cols, rows ?? [], { emptyText: "Rien à traiter." }));
-    return [minis(mini("Pièces à contrôler", nf(n(t.proofs))), mini("Alertes ouvertes", nf(n(t.alerts))), mini("Commentaires signalés", nf(n(t.commentReports))), mini("Personnes / avis signalés", nf(n(t.userReports) + n(t.reviewReports)))),
+    const btn = (label, onClick, cls = "btn sm") => h("button", { class: cls, type: "button", onClick }, label);
+    const sec = (title, desc, rows, cols) => panel(`${title} (${n(rows)})`, desc, table(cols, rows ?? [], { emptyText: "Rien à traiter." }));
+    const hideAsk = (title, text, url, done, afterUrl) => async () => { if (await confirmDialog(title, text, "Masquer")) act(async () => { const out = await post(url); if (afterUrl) await post(afterUrl); return out; }, done, reload); };
+    const dismissAsk = (url) => async () => { if (await confirmDialog("Ignorer les signalements", "Le contenu reste visible ; les signalements sont classés sans suite.", "Ignorer")) act(() => post(url), "Signalements classés.", reload); };
+    const quote = (text) => h("small", null, String(text ?? "").slice(0, 220));
+    return [minis(mini("Pièces à contrôler", nf(n(t.proofs))), mini("Alertes ouvertes", nf(n(t.alerts))), mini("Commentaires signalés", nf(n(t.commentReports))), mini("Personnes signalées", nf(n(t.userReports))), mini("Avis signalés", nf(n(t.reviewReports)))),
       proofsPanel(t.proofs ?? [], reload),
       proofHistoryPanel(t.proofs ?? []),
       h("div", { class: "cols2" },
-        sec("Alertes", t.alerts, [{ label: "Alerte", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? "Alerte"), h("small", null, r.detail ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) }]),
-        blacklistPanel(reload))];
+        sec("Alertes", null, t.alerts, [{ label: "Alerte", render: (r) => h("div", { class: "item" }, h("b", null, r.kind ?? "Alerte"), h("small", null, r.detail ?? "")) }, { label: "Date", render: (r) => dateOnly(r.createdAt ?? r.created_at) },
+          { label: "", render: (r) => btn("Clore", () => act(() => post(`/staff/alerts/${enc(r.id)}/close`), "Alerte close.", reload)) }]),
+        blacklistPanel(reload)),
+      sec("Commentaires signalés", "« Masquer » retire le commentaire du site ; « Ignorer » le laisse visible.", t.commentReports, [
+        { label: "Commentaire", render: (r) => h("div", { class: "item" }, h("b", null, r.authorName ?? "—"), quote(r.body)) },
+        { label: "Signalements", render: (r) => h("div", { class: "item" }, h("b", null, nf(r.reports)), h("small", null, r.lastReason ?? "")) },
+        { label: "", render: (r) => h("div", { class: "row" }, r.hidden ? pill("neutral", "Déjà masqué") : btn("Masquer", hideAsk("Masquer ce commentaire", "Il disparaît du site. L'action est journalisée.", `/staff/comments/${enc(r.commentId)}/hide`, "Commentaire masqué.", `/staff/comments/${enc(r.commentId)}/dismiss-reports`)), btn("Ignorer", dismissAsk(`/staff/comments/${enc(r.commentId)}/dismiss-reports`)), r.listingId ? tracer(ctx, "listing", r.listingId) : null) }]),
+      sec("Avis signalés", "« Masquer » retire l'avis ; « Ignorer » le laisse visible.", t.reviewReports, [
+        { label: "Avis", render: (r) => h("div", { class: "item" }, h("b", null, `${r.authorName ?? "—"} · ${r.rating ?? "?"}/5`), quote(r.body)) },
+        { label: "Signalements", render: (r) => h("div", { class: "item" }, h("b", null, nf(r.reports)), h("small", null, r.lastReason ?? "")) },
+        { label: "", render: (r) => h("div", { class: "row" }, btn("Masquer", hideAsk("Masquer cet avis", "Il disparaît de la fiche de l'annonceur et ses signalements sont classés.", `/staff/reviews/${enc(r.reviewId)}/hide`, "Avis masqué.")), btn("Ignorer", dismissAsk(`/staff/reviews/${enc(r.reviewId)}/dismiss-reports`))) }]),
+      sec("Personnes signalées", "« Ignorer » classe les signalements sans suite ; pour une sanction, ouvrez le compte.", t.userReports, [
+        { label: "Personne", render: (r) => h("div", { class: "item" }, h("b", null, r.name ?? r.userId), quote(r.lastDetails)) },
+        { label: "Signalements", render: (r) => h("div", { class: "item" }, h("b", null, nf(r.reports)), h("small", null, r.lastReason ?? "")) },
+        { label: "", render: (r) => h("div", { class: "row" }, btn("Ouvrir le compte", () => ctx.go(`#/users/${enc(r.userId)}`), "btn primary sm"), btn("Ignorer", dismissAsk(`/staff/user-reports/${enc(r.userId)}/dismiss`))) }])];
   },
 });
 

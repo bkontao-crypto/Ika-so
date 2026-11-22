@@ -50,12 +50,17 @@ export async function crmLeadsPage() {
         h("option", { value: "80" }, "≥ 80 (chaud)")
       )
     ),
+    h("button", { class: "btn btn-outline", type: "button", title: "Vous prévient (e-mail, SMS, WhatsApp) des nouveaux leads dont le score est d'au moins 80", onClick: async () => {
+      try { const r = await api("/me/crm/remind-hot", { method: "POST", body: {} }); toast(r.reminded ? `Rappel envoyé : ${r.reminded} lead(s) chaud(s) à traiter.` : "Aucun lead chaud en attente."); } catch (e) { fail(e); }
+    } }, "Rappeler les leads chauds"),
     h("button", { class: "btn btn-outline", type: "button", onClick: () => exportCsv() }, "Exporter CSV"),
     h("a", { class: "btn btn-outline", href: "/api/me/crm/leads.pdf", download: "" }, "Exporter PDF")
   );
 
   const statsEl = h("div", { class: "card" }, h("p", { class: "muted" }, "Chargement des stats…"));
+  const insightsEl = h("div", { class: "card", hidden: true });
   const listEl = h("div", { class: "stack", style: "display:grid;gap:12px" });
+  let templates = null; // modèles WhatsApp approuvés, chargés à la demande
 
   async function load() {
     try {
@@ -74,6 +79,7 @@ export async function crmLeadsPage() {
         h("div", { class: "row wrap gap-sm", style: "margin-top:4px" }, ...pills),
         h("p", { class: "small muted", style: "margin-top:8px" }, `Évolution (4 sem.) : ${evo}`)
       );
+      loadInsights();
       // List
       if (!leads.length) {
         listEl.replaceChildren(h("div", { class: "card empty-state" }, h("p", null, "Aucun lead pour le moment.")));
@@ -97,6 +103,37 @@ export async function crmLeadsPage() {
     }
   }
 
+
+  /** Analyse : conversion par source et leads à relancer. Un échec ici ne bloque pas la page. */
+  async function loadInsights() {
+    try {
+      const i = await api("/me/crm/insights");
+      const bySrc = Object.entries(i.conversionBySource || {});
+      insightsEl.hidden = !bySrc.length && !(i.toRelaunch || []).length;
+      insightsEl.replaceChildren(
+        h("strong", null, "Analyse de vos leads"),
+        bySrc.length ? h("p", { class: "small", style: "margin:6px 0" }, "Conversion par source : " + bySrc.map(([k, v]) => `${k} ${v} %`).join(" · ")) : null,
+        (i.toRelaunch || []).length ? h("div", null, h("p", { class: "small", style: "margin:6px 0" }, `À relancer en priorité (${i.toRelaunch.length}) :`),
+          ...i.toRelaunch.map((l) => h("p", { class: "small muted", style: "margin:2px 0" }, `${l.contact_name || "Contact anonyme"} · ${l.status} · score ${l.score ?? 0}`))) : null);
+    } catch { insightsEl.hidden = true; }
+  }
+
+  /** Envoie un modèle WhatsApp approuvé à ce lead (choix par numéro). */
+  async function sendTemplate(l) {
+    try {
+      if (!templates) {
+        const raw = await api("/me/whatsapp/templates");
+        templates = (Array.isArray(raw) ? raw : []).filter((t) => !t.status || t.status === "APPROVED");
+      }
+      if (!templates.length) { toast("Aucun modèle WhatsApp approuvé n'est disponible."); return; }
+      const pick = prompt("Choisissez un modèle (numéro) :\n" + templates.map((t, k) => `${k + 1}. ${t.name} (${t.language || "fr"})`).join("\n"), "1");
+      const t = templates[Number(pick) - 1];
+      if (!t) return;
+      await api(`/me/crm/leads/${l.id}/whatsapp-template`, { method: "POST", body: { template: t.name, language: t.language || "fr" } });
+      toast("Modèle WhatsApp envoyé");
+      load();
+    } catch (e) { fail(e); }
+  }
 
   function scoreClass(score) {
     const s = score ?? 0;
@@ -150,7 +187,8 @@ export async function crmLeadsPage() {
               load();
             } catch (e) { fail(e); }
           }
-        }, "Envoyer WhatsApp") : null
+        }, "Envoyer WhatsApp") : null,
+        l.contact_phone ? h("button", { class: "btn btn-small btn-outline", type: "button", onClick: () => sendTemplate(l) }, "Modèle WhatsApp") : null
       )
     );
   }
@@ -183,7 +221,7 @@ export async function crmLeadsPage() {
     URL.revokeObjectURL(a.href);
   }
 
-  root.append(form, toolbar, statsEl, listEl);
+  root.append(form, toolbar, statsEl, insightsEl, listEl);
   const app = document.getElementById("app") || document.querySelector("main") || document.body;
   mount(app, root);
   await load();
