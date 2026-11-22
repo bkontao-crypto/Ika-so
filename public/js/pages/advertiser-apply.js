@@ -13,7 +13,13 @@ export async function advertiserApplyPage() {
   // Demande déjà envoyée : on peut y joindre une pièce (utile quand l'équipe demande des informations).
   const openRequest = (a) => h("div", { class: "card pad stack" },
     h("p", { class: "notice" }, `Vous avez déjà une demande en cours (${STATUS[a.status] || a.status}).`),
-    a.status === "ADDITIONAL_INFO_REQUIRED" && a.admin_note ? h("p", null, `Message de l'équipe : ${a.admin_note}`) : null,
+    (a.messages ?? []).length ? h("div", { class: "stack", "aria-label": "Échanges avec l'équipe" }, a.messages.map((m) => h("p", { class: m.side === "STAFF" ? "notice" : "small" }, h("strong", null, m.side === "STAFF" ? "L'équipe : " : "Vous : "), m.body, h("small", { class: "muted" }, ` · ${new Date(m.at).toLocaleString("fr-FR")}`)))) : (a.status === "ADDITIONAL_INFO_REQUIRED" && a.admin_note ? h("p", null, `Message de l'équipe : ${a.admin_note}`) : null),
+    a.status === "ADDITIONAL_INFO_REQUIRED" ? (() => {
+      const box = h("textarea", { class: "input", rows: "4", maxlength: "1000", "aria-label": "Votre réponse à l'équipe", placeholder: "Votre réponse à la demande d'informations…" });
+      return h("div", { class: "stack" }, box, h("button", { class: "btn btn-primary", type: "button", onClick: async () => {
+        try { await api(`/me/advertiser-applications/${encodeURIComponent(a.id)}/reply`, { method: "POST", body: { message: box.value.trim() } }); toast("Réponse envoyée à l'équipe."); location.reload(); } catch (error) { fail(error); }
+      } }, "Envoyer ma réponse"));
+    })() : null,
     h("p", { class: "small muted" }, `Pièces jointes : ${a.documents_count ?? 0} sur 5. Toutes sont facultatives.`),
     h("label", { class: "btn" }, "Ajouter une pièce (photo ou PDF, 700 Ko au plus)", h("input", { class: "sr-only", type: "file", accept: "image/*,application/pdf", "aria-label": "Ajouter une pièce à la demande", onChange: async (e) => {
       const file = e.target.files?.[0];
