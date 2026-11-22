@@ -126,9 +126,12 @@ function reveal(root) {
   nodes.forEach((n) => io.observe(n));
 }
 
-const sectionHead = (kicker, title, text, link) => h("div", { class: "rx-sec-head" },
-  h("div", null, h("span", { class: "rx-kicker" }, kicker), h("h2", null, title), text ? h("p", null, text) : null),
-  link ? h("a", { class: "rx-link", href: link[0] }, link[1], " →") : null);
+// Textes modifiables par le superadmin (Owner Center > Sections de l'accueil) : une valeur vide garde le texte d'origine.
+let TEXTS = {};
+const ov = (id, d) => ({ ...d, ...Object.fromEntries(Object.entries(TEXTS[id] ?? {}).filter(([, v]) => typeof v === "string" && v.trim())) });
+const sectionHead = (kicker, title, text, link, id) => { const o = ov(id, { kicker, title, text }); return h("div", { class: "rx-sec-head" },
+  h("div", null, h("span", { class: "rx-kicker" }, o.kicker), h("h2", null, o.title), o.text ? h("p", null, o.text) : null),
+  link ? h("a", { class: "rx-link", href: link[0] }, link[1], " →") : null); };
 
 
 const section = (id, ...children) =>
@@ -144,7 +147,7 @@ export async function renderHome() {
     : Promise.resolve(false);
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
   let layout = null; // ordre et visibilité des sections choisis par le superadmin ; à défaut, ordre d'origine
-  try { layout = (await api("/home-layout")).sections; } catch { /* ordre d'origine */ }
+  try { const l = await api("/home-layout"); layout = l.sections; TEXTS = l.texts ?? {}; } catch { /* ordre d'origine */ }
   const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
   const isAdvertiser = !required || await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
@@ -190,7 +193,7 @@ export async function renderHome() {
   const searchEl = h("div", { class: "rx-search-wrap" }, h("div", { class: "rx-search" },
     h("div", { class: "rx-tabs", role: "group", "aria-label": "Type de recherche" }, tabButtons), form, quick));
 
-  const catsEl = section("categories", sectionHead("Explorer", "Un bien pour chaque projet", "Les catégories les plus recherchées sur la plateforme."),
+  const catsEl = section("categories", sectionHead("Explorer", "Un bien pour chaque projet", "Les catégories les plus recherchées sur la plateforme.", null, "categories"),
     h("div", { class: "rx-cats" }, KINDS.map((k) => h("a", { class: "rx-cat", href: `#/annonces?category=${encodeURIComponent(k.category)}` },
       h("span", { class: "rx-cat-ic" }, icon(k.icon)), h("strong", null, k.title), h("small", null, k.text), h("span", { class: "go" }, "Voir les annonces →")))));
 
@@ -204,17 +207,17 @@ export async function renderHome() {
     ads: h("div", { class: "rx-reveal", id: "partenaires-services" }),
   };
 
-  const hoods = section("quartiers", sectionHead("Quartiers", "Explorer par quartier", "Parcourez les annonces d'un quartier, ou consultez les prix et repères par quartier.", ["/quartiers", "Tous les quartiers"]),
+  const hoods = section("quartiers", sectionHead("Quartiers", "Explorer par quartier", "Parcourez les annonces d'un quartier, ou consultez les prix et repères par quartier.", ["/quartiers", "Tous les quartiers"], "quartiers"),
     h("div", { class: "rx-hoods" }, ZONES.map((z) => h("a", { class: "rx-hood", href: `#/annonces?zone=${encodeURIComponent(z.name)}` }, icon("pin"), z.name))));
 
-  const how = section("comment-ca-marche", sectionHead("Simple et clair", "Comment fonctionne IKA SO ?"),
+  const how = section("comment-ca-marche", sectionHead("Simple et clair", "Comment fonctionne IKA SO ?", null, null, "how"),
     h("div", { class: "rx-steps" }, [
       ["Recherchez", "Filtrez par type de bien, quartier et budget, en grille, en liste ou sur la carte."],
       ["Contactez en confiance", "Appelez, écrivez sur WhatsApp ou utilisez la messagerie. Les numéros sont vérifiés par code SMS."],
       ["Visitez et vérifiez", "Demandez les documents, visitez le bien et faites contrôler le titre avant tout paiement."],
     ].map(([t, p]) => h("article", { class: "rx-step" }, h("h3", null, t), h("p", null, p)))));
 
-  const trust = section("confiance", sectionHead("Confiance", "Pourquoi faire confiance à IKA SO ?", "Des repères concrets, et l'honnêteté sur leurs limites.", ["#/confiance", "Centre de confiance"]),
+  const trust = section("confiance", sectionHead("Confiance", "Pourquoi faire confiance à IKA SO ?", "Des repères concrets, et l'honnêteté sur leurs limites.", ["#/confiance", "Centre de confiance"], "trust"),
     h("div", { class: "rx-trust" }, [
       ["shield-check", "Annonces relues", "Chaque annonce est relue avant sa publication."],
       ["phone", "Numéro contrôlé", "Le téléphone de l'annonceur est vérifié par un code SMS."],
@@ -223,19 +226,20 @@ export async function renderHome() {
     ].map(([ic, t, p]) => h("article", null, icon(ic), h("h3", null, t), h("p", null, p)))));
 
   const cta = isAdvertiser ? null : h("section", { class: "rx-cta rx-reveal", id: "vendre" }, h("div", { class: "rx-cta-inner" },
-    h("div", null, h("span", { class: "rx-kicker" }, "Devenir annonceur"), h("h2", null, "Donnez à votre bien la visibilité qu'il mérite."),
-      h("p", null, "Propriétaire, agence ou démarcheur : publiez en quelques minutes, suivez vos demandes et mettez vos annonces en avant."),
+    (() => { const o = ov("cta", { kicker: "Devenir annonceur", title: "Donnez à votre bien la visibilité qu'il mérite.", text: "Propriétaire, agence ou démarcheur : publiez en quelques minutes, suivez vos demandes et mettez vos annonces en avant." });
+      return h("div", null, h("span", { class: "rx-kicker" }, o.kicker), h("h2", null, o.title),
+      h("p", null, o.text),
       h("div", { class: "row" },
         h("a", { class: "btn btn-gold", href: "#/publier" }, icon("plus"), "Publier une annonce"),
-        h("a", { class: "btn btn-glass", href: "#/devenir-annonceur" }, "Devenir annonceur professionnel"))),
+        h("a", { class: "btn btn-glass", href: "#/devenir-annonceur" }, "Devenir annonceur professionnel"))); })(),
     h("ul", null, ["Photos, prix et localisation du bien", "Numéro vérifié par code SMS", "Annonce relue avant publication", "Contact direct par appel, WhatsApp ou messagerie"].map((t) => h("li", null, icon("check"), t)))));
 
   const partners = section("partenaires", h("div", { class: "rx-partners-band" },
-    h("div", null, h("span", { class: "rx-kicker" }, "Partenaires et services"), h("h2", { class: "title" }, "Services immobiliers"),
-      h("p", null, "Mise à la une, espace agence, annuaire des agences : découvrez les services qui accélèrent vos projets.")),
+    (() => { const o = ov("partners", { kicker: "Partenaires et services", title: "Services immobiliers", text: "Mise à la une, espace agence, annuaire des agences : découvrez les services qui accélèrent vos projets." });
+      return h("div", null, h("span", { class: "rx-kicker" }, o.kicker), h("h2", { class: "title" }, o.title), h("p", null, o.text)); })(),
     h("a", { class: "btn btn-primary", href: "#/partenaires" }, "Découvrir les services")));
 
-  const guides = section("guides", sectionHead("Guides et conseils", "Acheter, vendre, louer sans se tromper", null, ["/guides", "Tous les guides"]),
+  const guides = section("guides", sectionHead("Guides et conseils", "Acheter, vendre, louer sans se tromper", null, ["/guides", "Tous les guides"], "guides"),
     h("div", { class: "rx-guides" }, GUIDES.map(([slug, title]) => h("a", { class: "rx-guide", href: `/guides/${slug}` }, h("strong", null, title), h("span", null, "Lire le guide →")))));
 
   const blocks = {
@@ -251,7 +255,7 @@ export async function renderHome() {
 
   // ---- Chargement des données réelles (une panne d'une source n'empêche jamais les autres) ----
   const skeleton = () => h("div", { class: "listing-grid" }, [0, 1, 2].map(() => h("div", { class: "skeleton", style: { height: "340px" } })));
-  mount(hosts.latest, sectionHead("Dernières annonces", "Les biens à découvrir", "Les annonces les plus récentes publiées sur la plateforme.", ["#/annonces", "Voir toutes les annonces"]), skeleton());
+  mount(hosts.latest, sectionHead("Dernières annonces", "Les biens à découvrir", "Les annonces les plus récentes publiées sur la plateforme.", ["#/annonces", "Voir toutes les annonces"], "latest"), skeleton());
   const get = (path, fallback) => api(path).catch(() => fallback);
   const [latest, lands, maisons, apparts, camps, ads, adv] = await Promise.all([
     get("/listings?limit=12", null), get("/listings?category=Terrain&limit=3", []), get("/listings?category=Maison&limit=2", []),
@@ -280,29 +284,29 @@ export async function renderHome() {
     ...featured.map((i) => post(i.agencyName || i.ownerName || "Annonceur", i.agencyVerified, `${i.category} ${i.transactionType === "Location" ? "à louer" : "à vendre"} à ${i.neighborhood || "Bamako"} — ${i.title}`,
       `#/annonce/${encodeURIComponent(i.id)}`, i.imageUrl, i.title, formatPrice(i.price, i.transactionType), "Découvrir", false)),
   ].slice(0, 3);
-  mount(hosts.sponsored, sectionHead("À la une", "Biens mis en avant", "Les annonces mises à la une par leurs annonceurs.", ["#/partenaires", "Mettre mon annonce à la une"]),
+  mount(hosts.sponsored, sectionHead("À la une", "Biens mis en avant", "Les annonces mises à la une par leurs annonceurs.", ["#/partenaires", "Mettre mon annonce à la une"], "sponsored"),
     posts.length ? h("div", { class: "sponsored-feed-list" }, posts)
       : h("div", { class: "empty-state" }, h("strong", null, "Aucune annonce à la une pour le moment."), "Propriétaires et agences : mettez une annonce à la une pour qu'elle apparaisse ici, avant les annonces classiques.",
         h("p", null, h("a", { class: "btn btn-small btn-outline", href: "#/mes-annonces" }, "Mettre mon annonce à la une"))));
 
   const fresh = items.filter((i) => !i.featured);
   const six = (fresh.length ? fresh : items).slice(0, 6);
-  mount(hosts.latest, sectionHead("Dernières annonces", "Les biens à découvrir", "Les annonces les plus récentes publiées sur la plateforme.", ["#/annonces", "Voir toutes les annonces"]),
+  mount(hosts.latest, sectionHead("Dernières annonces", "Les biens à découvrir", "Les annonces les plus récentes publiées sur la plateforme.", ["#/annonces", "Voir toutes les annonces"], "latest"),
     latest === null ? h("p", { class: "notice" }, "Les annonces ne peuvent pas être chargées pour le moment. Vérifiez votre connexion et réessayez.")
       : six.length ? grid(six) : h("div", { class: "empty-state" }, h("strong", null, "Aucune annonce publiée pour le moment."), "Revenez bientôt ou publiez la vôtre."));
 
-  const optional = (host, kicker, title, text, link, list) => {
+  const optional = (host, kicker, title, text, link, list, id) => {
     if (!Array.isArray(list) || !list.length) return mount(host);
-    mount(host, sectionHead(kicker, title, text, link), grid(list));
+    mount(host, sectionHead(kicker, title, text, link, id), grid(list));
   };
-  optional(hosts.lands, "Terrains", "Terrains disponibles", "Parcelles et terrains proposés par des propriétaires et des agences.", ["#/annonces?category=Terrain", "Tous les terrains"], lands);
+  optional(hosts.lands, "Terrains", "Terrains disponibles", "Parcelles et terrains proposés par des propriétaires et des agences.", ["#/annonces?category=Terrain", "Tous les terrains"], lands, "lands");
   const mm = Array.isArray(maisons) ? maisons : []; const aa = Array.isArray(apparts) ? apparts : [];
   const homes = [mm[0], aa[0], mm[1], aa[1]].filter(Boolean).slice(0, 3); // alternance maisons / appartements
-  optional(hosts.homes, "Habitat", "Villas et appartements", "Maisons, villas et appartements pour vivre ou investir.", ["#/annonces", "Toutes les annonces"], homes);
+  optional(hosts.homes, "Habitat", "Villas et appartements", "Maisons, villas et appartements pour vivre ou investir.", ["#/annonces", "Toutes les annonces"], homes, "homes");
 
   const agencies = Array.isArray(adv?.items) ? adv.items : [];
   if (agencies.length) {
-    mount(hosts.agencies, sectionHead("Annonceurs", "Agences et annonceurs recommandés", "Classés selon des critères publics (confiance, visibilité, réactivité).", ["#/annonceurs", "Tout l'annuaire"]),
+    mount(hosts.agencies, sectionHead("Annonceurs", "Agences et annonceurs recommandés", "Classés selon des critères publics (confiance, visibilité, réactivité).", ["#/annonceurs", "Tout l'annuaire"], "agencies"),
       h("div", { class: "rx-agencies" }, agencies.map((a) => h("a", { class: "rx-agency", href: `#/annonceur/${encodeURIComponent(a.id)}` },
         h("span", { class: "avatar av-0", "aria-hidden": "true" }, initials(a.name)),
         h("span", null, h("strong", null, a.name), h("small", null, [a.role, a.neighborhood, `${a.listings} annonce${a.listings > 1 ? "s" : ""}`].filter(Boolean).join(" · ")))))));
@@ -311,7 +315,7 @@ export async function renderHome() {
   // Espaces publicitaires réels (campagnes sidebar de la page d'accueil) : conservés, présentés en « partenaires ».
   const sideAds = Array.isArray(ads) ? ads : [];
   if (sideAds.length) {
-    mount(hosts.ads, sectionHead("Partenaires", "Offres de nos partenaires"),
+    mount(hosts.ads, sectionHead("Partenaires", "Offres de nos partenaires", null, null, "ads"),
       h("div", { class: "rx-guides" }, sideAds.map((ad) => {
         const ext = /^https:/i.test(ad.linkUrl);
         return h("a", { class: "rx-guide", href: ad.linkUrl, ...(ext ? { target: "_blank", rel: "noopener noreferrer sponsored" } : {}) },

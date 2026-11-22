@@ -121,3 +121,13 @@ test("sections de l'accueil : ordre, masquage, rien de perdu, refus des inconnue
   assert.equal((await svc.getLayout()).sections.length, 14);
   await assert.rejects(() => make(true).svc.saveLayout("u", { sections: [] }), /interdit/);
 });
+
+test("textes des sections : enregistrés en texte brut, vides ignorés, limites et sections inconnues refusées", async () => {
+  const { svc } = make();
+  const out = await svc.saveLayout("u", { sections: [], texts: { latest: { kicker: " Neuf ", title: "Nos biens <b>", text: "" }, how: { title: "" } } });
+  assert.deepEqual(out.texts, { latest: { kicker: "Neuf", title: "Nos biens <b>" } }); // stocké tel quel ; affiché comme texte
+  assert.deepEqual((await svc.getLayout()).texts, out.texts);
+  await assert.rejects(() => svc.saveLayout("u", { texts: { latest: { title: "x".repeat(121) } } }), /limité/);
+  await assert.rejects(() => svc.saveLayout("u", { texts: { pirate: { title: "x" } } }), /invalide/);
+  await assert.rejects(() => svc.saveLayout("u", { texts: { download: { title: "x" } } }), /invalide/);
+});

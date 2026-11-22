@@ -95,7 +95,20 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
       seen.add(x.id); sections.push({ id: x.id, visible: x.visible !== false });
     }
     for (const x of HOME_SECTIONS) if (!seen.has(x.id)) sections.push({ id: x.id, visible: true }); // une section oubliée n'est jamais perdue
-    return { sections };
+    // Textes d'en-tête de section (vide = texte d'origine). Texte brut uniquement : le site les affiche comme du texte, jamais comme du HTML.
+    const LIM = { kicker: 40, title: 120, text: 300 }, texts = {};
+    const rawTexts = input.texts && typeof input.texts === "object" && !Array.isArray(input.texts) ? input.texts : {};
+    for (const [id, t] of Object.entries(rawTexts)) {
+      if (!known.has(id) || id === "download") throw badRequest("Section invalide pour ces textes.");
+      const one = {};
+      for (const [k, max] of Object.entries(LIM)) {
+        const v = String(t?.[k] ?? "").trim();
+        if (v.length > max) throw badRequest(`Le texte « ${k} » est limité à ${max} caractères.`);
+        if (v) one[k] = v;
+      }
+      if (Object.keys(one).length) texts[id] = one;
+    }
+    return { sections, texts };
   }
   async function layout() {
     try { return sanitizeLayout(JSON.parse(await setting("home_layout") || "{}")); } catch { return sanitizeLayout({}); }
