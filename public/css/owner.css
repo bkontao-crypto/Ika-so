@@ -332,3 +332,8 @@ dialog .field .hint{color:var(--muted,#5b6b63);font-size:12px;margin-top:4px}
 .pstep-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
 .pstep{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px;align-items:flex-start}
 .pstep.done{background:color-mix(in srgb,var(--card) 90%,#087448)}
+/* Contrôle de lisibilité (en-tête, héros) */
+.lisib{border:1px solid var(--line,#ddd);border-radius:12px;padding:10px 12px;display:grid;gap:6px}
+.lisib-bad{border-color:#d9534f;background:color-mix(in srgb,#d9534f 8%,transparent)}
+.lisib-low{border-color:#e0a800;background:color-mix(in srgb,#e0a800 10%,transparent)}
+.lisib-sample{display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600}

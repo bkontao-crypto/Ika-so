@@ -1,5 +1,6 @@
 // Modules du Owner Control Center. Chaque vue lit les endpoints existants (/staff/owner/*, /staff/*) : le contrôle des droits reste côté serveur.
 import { api, h, ico, panel, empty, skeletons, errorBox, table, bars, pill, statusPill, nf, fcfa, dateTime, dateOnly, ago, initials, openDrawer, closeDrawer, formDialog, confirmDialog, act, fail, toast, CAT_COLORS } from "./ui.js";
+import { headerSection, legibilityRows } from "./v-header.js";
 import { previewDocument } from "./proof-viewer.js";
 import { proofHistoryPanel } from "./v-proof-history.js";
 
@@ -866,15 +867,25 @@ export function homepageSection(s, reload) {
   const fieldNodes = HOME_FIELDS.map(([key, label, placeholder]) => {
     const i = h("input", { class: "input", maxlength: "300", placeholder, value: draft[key] ?? "" });
     inputs[key] = i;
-    i.addEventListener("input", () => { draft[key] = i.value; });
+    i.addEventListener("input", () => { draft[key] = i.value; refreshLegi(); });
     return h("label", { class: "field" }, h("span", null, label), i);
   });
+  // Lisibilité du texte sur le voile (le serveur bloque l'enregistrement si le contraste est inférieur à 4,5:1 avec un voile d'au moins 50 %).
+  const legi = h("div", { class: "stack" });
+  function refreshLegi() {
+    const { rows } = legibilityRows([
+      { name: "Texte du héros sur le voile", fg: draft.textColor, bg: draft.overlayColor, apply: (v) => { draft.textColor = v; if (inputs.textColor) inputs.textColor.value = v; refreshLegi(); } },
+      { name: "Couleur d’accent sur le voile", fg: draft.accentColor, bg: draft.overlayColor, apply: (v) => { draft.accentColor = v; if (inputs.accentColor) inputs.accentColor.value = v; refreshLegi(); } }]);
+    legi.replaceChildren(...[...rows, Number(draft.overlayOpacity) < 0.5 ? h("p", { class: "small muted" }, "Voile sous 50 % : la photo domine, le contraste ne peut pas être calculé. Vérifiez à l’œil sur le site.") : null].filter(Boolean));
+  }
+  refreshLegi();
   const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/homepage-settings", { method: "PUT", body: draft }), "Page d’accueil enregistrée.", reload) }, "Enregistrer les modifications");
   const reset = h("button", { class: "btn", type: "button", onClick: () => { Object.keys(draft).forEach((k) => delete draft[k]); Object.assign(draft, original); for (const [k, el] of Object.entries(inputs)) el.value = original[k] ?? ""; uploadStatus.textContent = "Modifications locales annulées."; } }, "Annuler les modifications");
   return [panel("Photo d’arrière-plan", null, h("div", { class: "stack" },
       h("label", { class: "field" }, h("span", null, "Adresse de la photo (importée, ou fichier /media/… du site)"), imageInput),
       h("div", { class: "field" }, h("span", null, "Importer depuis mon téléphone"), fileInput, uploadStatus))),
     panel("Textes et couleurs", null, h("div", { class: "form two" }, ...fieldNodes)),
+    panel("Lisibilité", "Contrôle automatique du texte sur la photo.", legi),
     h("div", { class: "row" }, save, reset)];
 }
 
@@ -1005,23 +1016,25 @@ function countryFormFields(c = null, editing = false) {
 }
 
 // ---------- Personnalisation du site : une seule interface (identité, accueil, référencement, logo, pages légales, sécurité) ----------
-const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
+const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["header", "En-tête & onglets"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
 export const customizeView = (ctx, initial = "identity") => page(ctx, {
   eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
   load: async () => {
-    const [settings, sec, home, seo, logo, legal, main] = await Promise.all([
+    const [settings, sec, home, seo, logo, legal, main, header] = await Promise.all([
       api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
       api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal"),
-      api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null)]);
-    return { settings, sec, home, seo, logo, legal, main };
+      api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null),
+      api("/staff/site-header")]);
+    return { settings, sec, home, seo, logo, legal, main, header };
   },
   actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
-  build({ settings, sec, home, seo, logo, legal, main }, reload) {
+  build({ settings, sec, home, seo, logo, legal, main, header }, reload) {
     const parts = {
       identity: settingsSection({ s: settings, sec }, reload)[0],
       appearance: appearanceSection({ main }, reload),
       security: settingsSection({ s: settings, sec }, reload)[1],
       homepage: homepageSection(home, reload),
+      header: headerSection(header, reload),
       seo: seoSection({ seo, logo, legal }, reload).slice(0, 1),
       logo: seoSection({ seo, logo, legal }, reload).slice(1, 2),
       legal: seoSection({ seo, logo, legal }, reload).slice(2),

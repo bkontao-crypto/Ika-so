@@ -344,3 +344,8 @@ label.field .input:focus, label.field select:focus, label.field input:focus { bo
 
 /* Menu du centre de contrôle : masqué par défaut (l'attribut style en ligne est bloqué par la politique de sécurité) ; affiché sur petit écran plus haut. */
 #admin-burger{display:none}
+
+/* En-tête personnalisé (Owner Center > Personnalisation > En-tête) : couleurs choisies par le superadmin, lisibilité contrôlée à l'enregistrement. */
+html body .site-header[data-custom] { background: var(--header-bg); color: var(--header-ink); border-bottom-color: color-mix(in srgb, var(--header-ink) 18%, transparent); }
+html body .site-header[data-custom] .nav-link, html body .site-header[data-custom] .icon-btn { color: var(--header-ink); }
+html body .site-header[data-custom] .nav-link:hover, html body .site-header[data-custom] .nav-link.active, html body .site-header[data-custom] .nav-link[aria-current="page"] { color: var(--header-ink); background: color-mix(in srgb, var(--header-ink) 14%, transparent); }
