@@ -63,7 +63,7 @@ export async function alertesPage() {
     if (editing !== undefined) { root.replaceChildren(form(editing, data.maxDays, () => { editing = undefined; draw(); })); return; }
     const act = (path, body, msg) => async () => { try { await api(path, { method: "POST", body: body ?? {} }); if (msg) toast(msg); draw(); } catch (error) { fail(error); } };
     const stat = (n, label) => h("div", { class: "card pad" }, h("strong", null, String(n)), h("div", { class: "small muted" }, label));
-    root.replaceChildren(
+    root.replaceChildren(...[
       !data.enabled ? h("p", { class: "card pad" }, "Les alertes sont temporairement indisponibles.") : null,
       h("div", { class: "row" }, stat(data.stats.total, "Alertes"), stat(data.stats.active, "Actives"), stat(data.stats.paused, "En pause"), stat(data.stats.expired, "Expirées"), stat(data.stats.notified, "Notifications reçues")),
       h("button", { class: "btn btn-primary", type: "button", disabled: !data.enabled || data.stats.total >= data.maxAlerts, onClick: () => { editing = null; draw(); } }, "+ Programmer une nouvelle alerte"),
@@ -84,7 +84,7 @@ export async function alertesPage() {
       h("section", { class: "card pad stack" }, h("h2", null, "Booster ma demande"),
         h("p", { class: "muted" }, "Bientôt disponible : une priorité de notification supérieure, en option payante. Vos alertes gratuites continueront de fonctionner normalement."),
         data.boost.plans.length ? h("ul", null, data.boost.plans.map((p) => h("li", null, `${p.label} — ${money(p.priceXof)} · ${p.days} jours`))) : null),
-      h("p", { class: "small muted" }, "Vos notifications arrivent dans la boîte Alertes (#/boite)."));
+      h("p", { class: "small muted" }, "Vos notifications arrivent dans la boîte Alertes (#/boite).")].flat().filter(Boolean));
   }
   draw();
 }
