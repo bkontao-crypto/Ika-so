@@ -17,6 +17,7 @@ export const DEFAULT_RULES = Object.freeze({
   discoverPostsPerDay: 5,           // publications par compte et par 24 h (1 à 50)
   discoverRequirePhone: false,      // exiger un numéro confirmé pour publier
   discoverAutoBlockReports: 10,     // membres différents ayant signalé un même compte avant blocage automatique (0 = jamais)
+  advertiserApplicationRequired: true, // faux = tout compte peut publier sans demande « Devenir annonceur » (annonceur automatique, état conservé)
   alertsEnabled: true,              // alertes programmées ouvertes
   alertsMaxPerUser: 10,             // alertes par compte
   alertsMaxDays: 90,                // durée maximale d'une alerte (0 = illimitée)
@@ -51,6 +52,7 @@ export function normalizeRules(value) {
     discoverRequirePhone: v.discoverRequirePhone === undefined ? DEFAULT_RULES.discoverRequirePhone : v.discoverRequirePhone === true,
     discoverVideoLinks: v.discoverVideoLinks === true,
     whatsappDecisionEnabled: v.whatsappDecisionEnabled === true,
+    advertiserApplicationRequired: v.advertiserApplicationRequired === undefined ? DEFAULT_RULES.advertiserApplicationRequired : v.advertiserApplicationRequired === true,
     alertsEnabled: v.alertsEnabled === undefined ? DEFAULT_RULES.alertsEnabled : v.alertsEnabled === true,
     alertsMaxPerUser: bounded(v.alertsMaxPerUser, 1, 100, DEFAULT_RULES.alertsMaxPerUser),
     alertsMaxDays: bounded(v.alertsMaxDays, 0, 730, DEFAULT_RULES.alertsMaxDays),

@@ -265,6 +265,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   });
 
   // Boutons de connexion affichés selon la configuration (aucun secret).
+  router.get("/config/advertiser", async (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ applicationRequired: (await services.ruleExceptions.official()).advertiserApplicationRequired }); });
   router.get("/config/auth", (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json({ google: Boolean(config.google?.enabled) });

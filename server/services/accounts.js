@@ -98,6 +98,9 @@ export function createAccounts(ctx) {
     }
   }
 
+  // La demande « Devenir annonceur » est-elle exigée ? Réglage officiel du superadmin, branché après coup (setAdvertiserPolicy) ; exigée par défaut.
+  let applicationRequired = async () => true;
+
   async function assertCanPublishListing(userId) {
     const profile = await ensureProfile(userId);
     assertCanPublish(profile);
@@ -106,6 +109,18 @@ export function createAccounts(ctx) {
       "select 1 from ika_advertiser_applications where user_id = $1 and status = 'APPROVED' limit 1",
       [userId]
     );
+    if (!apps.length && !(await applicationRequired())) {
+      // Démarrage : pas de demande exigée. Le compte devient annonceur tout de suite ; l'état est enregistré (demande approuvée « automatique »)
+      // et reste acquis si le superadmin exige ensuite la demande.
+      await db.query(
+        `insert into ika_advertiser_applications (id, user_id, type, status, display_role_requested, data, admin_note, reviewed_at)
+         select $1, $2, 'PARTICULIER', 'APPROVED', 'Propriétaire direct', '{"auto":true}'::jsonb, 'Annonceur automatique : demande non exigée au moment de la première publication.', now()
+         where not exists (select 1 from ika_advertiser_applications where user_id = $2 and status = 'APPROVED')`,
+        [newId("aa"), userId]
+      );
+      await db.query("update ika_profiles set display_role = 'Propriétaire direct' where user_id = $1 and (display_role is null or display_role = '')", [userId]);
+      return profile;
+    }
     if (!apps.length) throw forbidden("Vous devez d'abord être approuvé comme annonceur pour publier. Rendez-vous dans Mon profil > Devenir annonceur.");
     return profile;
   }
@@ -210,6 +225,7 @@ export function createAccounts(ctx) {
     assertCanPublish,
     requireVerifiedPhone,
     assertCanPublishListing,
+    setAdvertiserPolicy(fn) { applicationRequired = fn; },
     requireActive,
     requireStaff,
     requirePermission,
