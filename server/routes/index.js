@@ -1161,8 +1161,13 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.post("/staff/owner/users/:id/premium-unlimited", async (req, res) => res.json(await services.ruleExceptions.setPremiumUnlimited(await requireOwnerGate(req, "users"), id(req), { on: req.body?.on === true, reason: clean(req.body?.reason, 500) })));
   router.post("/staff/rule-exceptions/:id/revoke", async (req, res) => res.json(await services.ruleExceptions.revoke(await requireOwnerGate(req, "users"), id(req), { reason: clean(req.body?.reason, 300) })));
   // Conditions officielles : lecture pour l'équipe, décision du superadmin seul (contrôle dans le service).
-  router.get("/staff/rules", async (req, res) => { await accounts.requireStaff(requireUser(req), "ADMIN"); res.setHeader("Cache-Control", "no-store"); res.json({ rules: await services.ruleExceptions.official(), criteria: Object.entries(CRITERIA).map(([code, label]) => ({ code, label })), catalogue: services.ruleExceptions.catalogue }); });
-  router.put("/staff/rules", async (req, res) => res.json(await services.ruleExceptions.saveOfficial(requireUser(req), req.body?.value ?? req.body)));
+  const whatsappState = () => { const w = config.whatsapp ?? {}; return { token: Boolean(w.token), phoneNumberId: Boolean(w.phoneNumberId), template: Boolean(w.templatePremium), ready: Boolean(w.token && w.phoneNumberId && w.templatePremium) }; };
+  router.get("/staff/rules", async (req, res) => { await accounts.requireStaff(requireUser(req), "ADMIN"); res.setHeader("Cache-Control", "no-store"); res.json({ rules: await services.ruleExceptions.official(), criteria: Object.entries(CRITERIA).map(([code, label]) => ({ code, label })), catalogue: services.ruleExceptions.catalogue, whatsapp: whatsappState() }); });
+  router.put("/staff/rules", async (req, res) => {
+    const value = req.body?.value ?? req.body;
+    if (value?.whatsappDecisionEnabled === true && !whatsappState().ready) throw new AppError(409, "WhatsApp ne peut pas être activé : jeton, identifiant du numéro et modèle de message ne sont pas tous installés sur le serveur.");
+    res.json(await services.ruleExceptions.saveOfficial(requireUser(req), value));
+  });
   router.get("/staff/owner/activity/catalog", async (req, res) => res.json(await ownerCenter.catalog(requireUser(req))));
   router.get("/staff/owner/activity/summary", async (req, res) => res.json(await ownerCenter.summary(requireUser(req), { days: Number(req.query.days) || 7 })));
   router.get("/staff/owner/activity/connections", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.connections(requireUser(req), { days: Number(req.query.days) || 30 })); });

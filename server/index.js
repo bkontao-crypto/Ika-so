@@ -33,7 +33,10 @@ const logger = createLogger({ level: process.env.LOG_LEVEL ?? "info", sinks: [cr
 const sendSms = createSmsSender(config);
 const sendEmail = createEmailSender(config);
 // Alertes hors du site : seulement si un canal est configuré ET si la personne les a activées (désactivées par défaut).
-const notifier = createNotifier({ db, config, sendEmail, sendSms: smsConfigured(config) ? sendSms : null, logger });
+const waReady = Boolean(config.whatsapp?.token && config.whatsapp?.phoneNumberId && config.whatsapp?.templatePremium);
+const notifier = createNotifier({ db, config, sendEmail, sendSms: smsConfigured(config) ? sendSms : null, logger,
+  sendWhatsapp: waReady ? (to) => services.whatsapp.sendTemplate(to, config.whatsapp.templatePremium, config.whatsapp.templateLanguage) : null,
+  whatsappOn: async () => (await services?.ruleExceptions.official().catch(() => null))?.whatsappDecisionEnabled === true });
 const services = createServices({ db, config, sendSms, notifiers: [notifier.deliver], notifier, logger, sendEmail });
 // Quartiers et pays : lus en base au démarrage, puis relus chaque minute (plusieurs instances voient ainsi les changements du Superadmin).
 if (!(await services.places.reload())) logger.warn("quartiers_pays_non_lus", { effet: "les 10 quartiers d'origine servent ; lancez « npm run migrate » (migration 058)" });
