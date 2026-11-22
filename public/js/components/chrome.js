@@ -17,14 +17,27 @@ const NAV = [
   { href: "#/annonceurs", label: "Annonceurs", icon: "users", match: (p) => p === "/annonceurs" || p.startsWith("/annonceur/") },
   { href: "#/partenaires", label: "Partenaires", icon: "building", match: (p) => p === "/partenaires" },
 ];
-// Barre du bas (mobile, accessible au pouce) : cinq accès, Publier au centre.
-const NAV_MOBILE = [
-  { href: "#/", label: "Accueil", icon: "home", match: (p) => p === "/" },
-  { href: "#/decouvrir", label: "Découvrir", icon: "sparkles", match: (p) => p === "/decouvrir" },
-  { href: "#/publier", label: "Publier", icon: "plus", match: (p) => p === "/publier" || p.startsWith("/modifier/"), publish: true },
-  { href: "#/carte", label: "Carte", icon: "pin", match: (p) => p === "/carte" || p.startsWith("/localiser") },
-  { href: "#/profil", label: "Compte", icon: "user", match: (p) => ["/profil", "/centre", "/favoris", "/connexion", "/paiements", "/agence"].includes(p) || p.startsWith("/boite"), loginHref: "#/connexion" },
-];
+// Barre du bas (mobile, accessible au pouce) : 3 à 5 accès choisis par le superadmin (Accueil, Découvrir, Publier au centre, Carte, Compte par défaut).
+const MOBILE_CATALOG = {
+  home: { href: "#/", label: "Accueil", icon: "home", match: (p) => p === "/" },
+  discover: { href: "#/decouvrir", label: "Découvrir", icon: "sparkles", match: (p) => p === "/decouvrir" },
+  publish: { href: "#/publier", label: "Publier", icon: "plus", match: (p) => p === "/publier" || p.startsWith("/modifier/"), publish: true },
+  map: { href: "#/carte", label: "Carte", icon: "pin", match: (p) => p === "/carte" || p.startsWith("/localiser") },
+  account: { href: "#/profil", label: "Compte", icon: "user", match: (p) => ["/profil", "/centre", "/favoris", "/connexion", "/paiements", "/agence"].includes(p) || p.startsWith("/boite"), loginHref: "#/connexion" },
+  buy: { href: "#/annonces?t=Vente", label: "Acheter", icon: "tag", match: (p, q) => onListings(p) && q?.get("t") === "Vente" },
+  rent: { href: "#/annonces?t=Location", label: "Louer", icon: "key", match: (p, q) => onListings(p) && q?.get("t") === "Location" },
+  land: { href: "#/annonces?category=Terrain", label: "Terrains", icon: "ruler", match: (p, q) => onListings(p) && q?.get("category") === "Terrain" },
+  advertisers: { href: "#/annonceurs", label: "Annonceurs", icon: "users", match: (p) => p === "/annonceurs" || p.startsWith("/annonceur/") },
+  partners: { href: "#/partenaires", label: "Partenaires", icon: "building", match: (p) => p === "/partenaires" },
+  alerts: { href: "#/alertes", label: "Alertes", icon: "bell-ring", match: (p) => p === "/alertes", loginHref: "#/connexion" },
+  inbox: { href: "#/boite", label: "Messages", icon: "message", match: (p) => p.startsWith("/boite"), loginHref: "#/connexion", count: true },
+};
+const MOBILE_DEFAULT = ["home", "discover", "publish", "map", "account"];
+const navMobileItems = () => {
+  const ids = Array.isArray(HEADER?.mobile) && HEADER.mobile.length ? HEADER.mobile : MOBILE_DEFAULT;
+  const items = ids.map((id) => MOBILE_CATALOG[id]).filter(Boolean);
+  return items.length ? items : MOBILE_DEFAULT.map((id) => MOBILE_CATALOG[id]);
+};
 
 // En-tête personnalisable par le superadmin (onglets, logo, couleurs, bouton Publier). Dernière version connue gardée en local :
 // le premier affichage ne clignote pas, et le site reste complet si l'API est lente ou en panne.
@@ -162,7 +175,7 @@ export function renderChrome() {
       item.count && S.unread ? h("span", { class: badgeCls }, String(S.unread)) : null);
   };
   mount(document.getElementById("nav-desktop"), navItems().map((item) => link(item, "nav-link", "notification")));
-  mount(document.getElementById("nav-bottom"), NAV_MOBILE.map((item) => link(item, "mobile-nav-link", "badge-count")));
+  mount(document.getElementById("nav-bottom"), navMobileItems().map((item) => link(item, "mobile-nav-link", "badge-count")));
 
   // Thème appliqué avant le dessin du bouton, pour que l'icône reflète le thème réel.
   const saved = localStorage.getItem("ika_theme") || "light";

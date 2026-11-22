@@ -151,3 +151,17 @@ test("pied de page : défaut = page d'origine ; modification validée ; liens da
   db.kv.set("site_footer", "{casse");
   assert.equal((await svc.getFooter()).columns.length, 3); // valeur altérée : page d'origine
 });
+
+test("barre du bas mobile : 3 à 5 accès du catalogue, « Compte » obligatoire", async () => {
+  const { svc } = make();
+  assert.deepEqual((await svc.get()).mobile, ["home", "discover", "publish", "map", "account"]);
+  const ok = await svc.save("u", { tabs: tabs(), mobile: ["alerts", "inbox", "account"] });
+  assert.deepEqual(ok.mobile, ["alerts", "inbox", "account"]);
+  const bad = (m) => assert.rejects(() => svc.save("u", { tabs: tabs(), mobile: m }), /Barre du bas/);
+  await bad(["home", "map"]);                                             // trop court
+  await bad(["home", "map", "buy", "rent", "land", "account"]);           // trop long
+  await bad(["home", "map", "buy"]);                                      // sans Compte
+  await bad(["home", "home", "account"]);                                 // doublon
+  await bad(["home", "pirate", "account"]);                               // inconnu
+  assert.ok((await svc.getForStaff("u")).mobileCatalog.length >= 12);
+});

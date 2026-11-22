@@ -29,11 +29,26 @@ export function legibilityRows(pairs) {
 
 export function headerSection(src, reload) {
   const d = {
-    tabs: src.tabs.map((t) => ({ ...t })), light: { ...src.light }, dark: { ...src.dark },
+    mobile: [...src.mobile], tabs: src.tabs.map((t) => ({ ...t })), light: { ...src.light }, dark: { ...src.dark },
     publishLabel: src.publishLabel, publishVisible: src.publishVisible, themeToggle: src.themeToggle, logoUrl: src.pendingLogo || src.logoUrl || "",
   };
   const tabsBox = h("div", { class: "stack" }), logoBox = h("div", { class: "stack" }), colorsBox = h("div", { class: "stack" });
   const previewBox = h("div", { class: "stack" }), lisibBox = h("div", { class: "stack" });
+  const mobileBox = h("div", { class: "stack" });
+  const labelOf = (id) => src.mobileCatalog.find((c) => c.id === id)?.label ?? id;
+  function drawMobile() {
+    const free = src.mobileCatalog.filter((c) => !d.mobile.includes(c.id));
+    const pick = h("select", { class: "input", "aria-label": "Ajouter un accès" }, h("option", { value: "" }, "+ Ajouter un accès…"), ...free.map((c) => h("option", { value: c.id }, c.label)));
+    pick.addEventListener("change", () => { if (pick.value && d.mobile.length < 5) { d.mobile.push(pick.value); drawMobile(); } });
+    fill(mobileBox, d.mobile.map((id, i) => h("div", { class: "row", style: { alignItems: "center", gap: "8px" } },
+      h("button", { type: "button", class: "btn", "aria-label": "Monter", disabled: i === 0, onClick: () => { [d.mobile[i - 1], d.mobile[i]] = [d.mobile[i], d.mobile[i - 1]]; drawMobile(); } }, "↑"),
+      h("button", { type: "button", class: "btn", "aria-label": "Descendre", disabled: i === d.mobile.length - 1, onClick: () => { [d.mobile[i + 1], d.mobile[i]] = [d.mobile[i], d.mobile[i + 1]]; drawMobile(); } }, "↓"),
+      h("b", null, labelOf(id)), id === "publish" ? h("span", { class: "small muted" }, "(bouton central mis en valeur)") : null,
+      id === "account" ? h("span", { class: "small muted" }, "(obligatoire)") : h("button", { type: "button", class: "btn", disabled: d.mobile.length <= 3, onClick: () => { d.mobile.splice(i, 1); drawMobile(); } }, "Retirer"))),
+      d.mobile.length < 5 && free.length ? pick : null,
+      h("p", { class: "small muted" }, "3 à 5 accès. « Compte » reste affiché pour que chacun puisse se connecter."));
+  }
+  drawMobile();
   const saveBtn = h("button", { class: "btn primary", type: "button" }, "Publier l'en-tête");
   const note = h("p", { class: "small muted", role: "status" });
 
@@ -120,6 +135,7 @@ export function headerSection(src, reload) {
     panel("Onglets", "Ajoutez, renommez, réordonnez ou masquez. Les onglets d'origine ne se suppriment pas : on les masque.", tabsBox),
     panel("Logo", "Lié au logo du site : il remplace celui de l'en-tête.", logoBox),
     panel("Couleurs de l'en-tête", "Le fond et le texte sont contrôlés : un texte illisible bloque la publication.", h("div", { class: "stack" }, colorsBox, lisibBox)),
+    panel("Barre du bas (téléphone)", "Les accès affichés en bas de l'écran sur mobile.", mobileBox),
     panel("Bouton principal", null, flags),
     panel("Aperçu", "Rendu approximatif de la barre, avant publication.", previewBox),
     h("div", { class: "row" }, saveBtn, h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications"), note),
