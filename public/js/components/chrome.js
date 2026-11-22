@@ -126,6 +126,7 @@ export function renderChrome() {
           h("a", { href: "#/favoris" }, "Mes favoris"),
           h("a", { href: "#/mes-annonces" }, "Mes annonces"),
           h("a", { href: "#/boite" }, "Mes conversations"),
+          h("a", { href: "#/alertes" }, "Mes alertes"),
           h("button", { type: "button", class: "profile-logout", onClick: async () => {
             try { await api("/auth/logout", { method: "POST", body: {} }); } catch (error) { fail(error); return; }
             clearSession(); toast("Déconnecté."); go("/");
