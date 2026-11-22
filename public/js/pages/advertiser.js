@@ -101,7 +101,7 @@ export async function advertiserPage(id) {
     } }, "＋ Inviter dans mon équipe"));
   }
   const actions = p.viewer.self
-    ? [h("a", { class: "btn btn-primary", href: "#/centre" }, "Mon espace"),
+    ? [h("a", { class: "btn btn-primary", href: "#/centre" }, "Mon espace premium"),
        h("a", { class: "btn", href: "#/mon-profil-public" }, "Modifier mon profil")]
     : [followControl(),
       h("button", { class: "btn btn-gold", type: "button", onClick: () => goTo("reviews") }, "★ Donner mon avis"),
