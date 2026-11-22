@@ -35,6 +35,13 @@ export function paletteProblem(name, pair) {
   return `${name} : texte illisible (contraste ${String(r).replace(".", ",")}:1, minimum 4,5:1). Utilisez ${suggestInk(ink, bg)} pour le texte.`;
 }
 
+// Sections de l'accueil (sous la recherche) : ordre et visibilité réglés par le superadmin. Le héros et la recherche restent en tête.
+export const HOME_SECTIONS = Object.freeze([
+  ["categories", "Catégories"], ["sponsored", "Biens mis en avant"], ["latest", "Dernières annonces"], ["lands", "Terrains"], ["homes", "Maisons"],
+  ["quartiers", "Quartiers"], ["agencies", "Annonceurs recommandés"], ["how", "Comment ça marche"], ["trust", "Confiance"],
+  ["cta", "Devenir annonceur"], ["ads", "Offres partenaires"], ["partners", "Partenaires et services"], ["guides", "Guides et conseils"], ["download", "Application mobile"],
+].map(([id, label]) => ({ id, label })));
+
 export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
   const setting = async (key) => (await db.query("select value from ika_settings where key = $1", [key]))[0]?.value ?? "";
   const put = (key, value) => db.query("insert into ika_settings (key, value) values ($1, $2) on conflict (key) do update set value = $2", [key, value]);
@@ -80,8 +87,33 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     return SAFE_LOGO.test(url) ? url : "";
   }
 
+  function sanitizeLayout(input = {}) {
+    const raw = Array.isArray(input.sections) ? input.sections : HOME_SECTIONS.map((x) => ({ id: x.id, visible: true }));
+    const known = new Set(HOME_SECTIONS.map((x) => x.id)), seen = new Set(), sections = [];
+    for (const x of raw) {
+      if (!known.has(x?.id) || seen.has(x.id)) throw badRequest("Section invalide ou en double.");
+      seen.add(x.id); sections.push({ id: x.id, visible: x.visible !== false });
+    }
+    for (const x of HOME_SECTIONS) if (!seen.has(x.id)) sections.push({ id: x.id, visible: true }); // une section oubliée n'est jamais perdue
+    return { sections };
+  }
+  async function layout() {
+    try { return sanitizeLayout(JSON.parse(await setting("home_layout") || "{}")); } catch { return sanitizeLayout({}); }
+  }
+
   return {
     sanitize,
+    /** Public : lu par l'accueil. */
+    getLayout: layout,
+    async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])) }; },
+    async saveLayout(userId, input) {
+      await accounts.requirePermission(userId, "contenu.gerer");
+      if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
+      const next = sanitizeLayout(input);
+      await put("home_layout", JSON.stringify(next));
+      await accounts.audit(userId, "HOME_LAYOUT_SAVE", null, `${next.sections.filter((x) => x.visible).length}/${next.sections.length} section(s) affichée(s)`);
+      return next;
+    },
     /** Public : lu par l'en-tête de chaque page. */
     async get() { return { ...(await config()), logoUrl: await logo() }; },
     /** Personnel : ajoute le logo importé en attente (visible seulement ici, publié à l'enregistrement). */

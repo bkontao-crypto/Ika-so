@@ -106,3 +106,18 @@ test("héros : texte illisible sur le voile = enregistrement bloqué ; voile lé
   assert.ok(saved);
   await svc.save("u", { ...base, overlayOpacity: "0.2", overlayColor: "#ffffff", textColor: "#ffffff" }); // photo dominante : non calculable
 });
+
+test("sections de l'accueil : ordre, masquage, rien de perdu, refus des inconnues", async () => {
+  const { svc, db } = make();
+  assert.equal((await svc.getLayout()).sections.length, 14);
+  const out = await svc.saveLayout("u", { sections: [{ id: "guides", visible: true }, { id: "latest", visible: false }] });
+  assert.equal(out.sections[0].id, "guides");
+  assert.equal(out.sections.find((x) => x.id === "latest").visible, false);
+  assert.equal(out.sections.length, 14); // les sections omises sont ajoutées, visibles
+  assert.equal(out.sections.find((x) => x.id === "partners").visible, true);
+  await assert.rejects(() => svc.saveLayout("u", { sections: [{ id: "pirate" }] }), /invalide/);
+  await assert.rejects(() => svc.saveLayout("u", { sections: [{ id: "how" }, { id: "how" }] }), /double/);
+  db.kv.set("home_layout", "{casse");
+  assert.equal((await svc.getLayout()).sections.length, 14);
+  await assert.rejects(() => make(true).svc.saveLayout("u", { sections: [] }), /interdit/);
+});

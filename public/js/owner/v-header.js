@@ -125,3 +125,25 @@ export function headerSection(src, reload) {
     h("div", { class: "row" }, saveBtn, h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications"), note),
   ];
 }
+
+/** Sections de l'accueil : ordre et visibilité (le héros et la recherche restent en tête). */
+export function layoutSection(src, reload) {
+  const d = { sections: src.sections.map((x) => ({ ...x })) };
+  const box = h("div", { class: "stack" });
+  const draw = () => fill(box, d.sections.map((x, i) => {
+    const vis = h("input", { type: "checkbox", checked: x.visible !== false, "aria-label": `Afficher ${src.labels[x.id]}` });
+    vis.addEventListener("change", () => { x.visible = vis.checked; });
+    const move = (dir) => { const j = i + dir; if (j < 0 || j >= d.sections.length) return; [d.sections[i], d.sections[j]] = [d.sections[j], d.sections[i]]; draw(); };
+    return h("div", { class: "row", style: { alignItems: "center", gap: "8px" } },
+      h("button", { type: "button", class: "btn", "aria-label": "Monter", disabled: i === 0, onClick: () => move(-1) }, "↑"),
+      h("button", { type: "button", class: "btn", "aria-label": "Descendre", disabled: i === d.sections.length - 1, onClick: () => move(1) }, "↓"),
+      h("b", null, src.labels[x.id] ?? x.id), h("label", { class: "small" }, vis, " Affichée"));
+  }));
+  draw();
+  return [
+    panel("Sections de l'accueil", "Sous la recherche : choisissez l'ordre et ce qui s'affiche. Une section sans données reste masquée automatiquement.", box),
+    h("div", { class: "row" },
+      h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/home-layout", { method: "PUT", body: d }), "Accueil enregistré.", reload) }, "Enregistrer l'accueil"),
+      h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
+  ];
+}

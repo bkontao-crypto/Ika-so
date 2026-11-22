@@ -143,6 +143,8 @@ export async function renderHome() {
     ? api("/me/advertiser-applications").then((apps) => Array.isArray(apps) && apps.some((a) => a.status === "APPROVED")).catch(() => false)
     : Promise.resolve(false);
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
+  let layout = null; // ordre et visibilité des sections choisis par le superadmin ; à défaut, ordre d'origine
+  try { layout = (await api("/home-layout")).sections; } catch { /* ordre d'origine */ }
   const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
   const isAdvertiser = !required || await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
@@ -236,11 +238,14 @@ export async function renderHome() {
   const guides = section("guides", sectionHead("Guides et conseils", "Acheter, vendre, louer sans se tromper", null, ["/guides", "Tous les guides"]),
     h("div", { class: "rx-guides" }, GUIDES.map(([slug, title]) => h("a", { class: "rx-guide", href: `/guides/${slug}` }, h("strong", null, title), h("span", null, "Lire le guide →")))));
 
-  mount(app, heroEl, searchEl, catsEl,
-    h("section", { class: "rx-sec" }, hosts.sponsored), h("section", { class: "rx-sec" }, hosts.latest),
-    h("section", { class: "rx-sec" }, hosts.lands), h("section", { class: "rx-sec" }, hosts.homes),
-    hoods, h("section", { class: "rx-sec" }, hosts.agencies), how, trust, ...(cta ? [cta] : []), h("section", { class: "rx-sec" }, 
-hosts.ads), partners, guides, downloadApp);
+  const blocks = {
+    categories: catsEl, sponsored: h("section", { class: "rx-sec" }, hosts.sponsored), latest: h("section", { class: "rx-sec" }, hosts.latest),
+    lands: h("section", { class: "rx-sec" }, hosts.lands), homes: h("section", { class: "rx-sec" }, hosts.homes), quartiers: hoods,
+    agencies: h("section", { class: "rx-sec" }, hosts.agencies), how, trust, cta, ads: h("section", { class: "rx-sec" }, hosts.ads),
+    partners, guides, download: downloadApp,
+  };
+  const order = layout ?? Object.keys(blocks).map((id) => ({ id, visible: true }));
+  mount(app, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => blocks[x.id]));
 
   reveal(app);
 
