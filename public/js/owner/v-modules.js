@@ -572,6 +572,7 @@ export const rulesView = (ctx) => page(ctx, {
     const wa = h("input", { type: "checkbox", id: "rl-wa", disabled: !canEdit || !whatsapp.ready }); wa.checked = rules.whatsappDecisionEnabled === true;
     const capInd = h("input", { class: "input", type: "number", min: "0", max: "10000", id: "rl-cap-ind", disabled: !canEdit, value: String(rules.listingCapIndividual ?? 0) });
     const capAg = h("input", { class: "input", type: "number", min: "0", max: "10000", id: "rl-cap-ag", disabled: !canEdit, value: String(rules.listingCapAgency ?? 0) });
+    const advReq = h("input", { type: "checkbox", id: "rl-adv-req", disabled: !canEdit }); advReq.checked = rules.advertiserApplicationRequired !== false;
     const alOn = h("input", { type: "checkbox", id: "rl-al-on", disabled: !canEdit }); alOn.checked = rules.alertsEnabled !== false;
     const alMax = h("input", { class: "input", type: "number", min: "1", max: "100", id: "rl-al-max", disabled: !canEdit, value: String(rules.alertsMaxPerUser ?? 10) });
     const alDays = h("input", { class: "input", type: "number", min: "0", max: "730", id: "rl-al-days", disabled: !canEdit, value: String(rules.alertsMaxDays ?? 90) });
@@ -579,7 +580,7 @@ export const rulesView = (ctx) => page(ctx, {
     const dPhotos = h("input", { class: "input", type: "number", min: "0", max: "6", id: "rl-d-photos", disabled: !canEdit, value: String(rules.discoverMaxPhotos ?? 4) });
     const dDay = h("input", { class: "input", type: "number", min: "1", max: "50", id: "rl-d-day", disabled: !canEdit, value: String(rules.discoverPostsPerDay ?? 5) });
     const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, certificationGroups: certValue(), requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
-      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, whatsappDecisionEnabled: wa.checked, alertsEnabled: alOn.checked, alertsMaxPerUser: Number(alMax.value), alertsMaxDays: Number(alDays.value), listingCapIndividual: Number(capInd.value), listingCapAgency: Number(capAg.value), discoverVideoLinks: dVideo.checked, discoverAutoBlockReports: Number(dAuto.value), discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
+      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, whatsappDecisionEnabled: wa.checked, advertiserApplicationRequired: advReq.checked, alertsEnabled: alOn.checked, alertsMaxPerUser: Number(alMax.value), alertsMaxDays: Number(alDays.value), listingCapIndividual: Number(capInd.value), listingCapAgency: Number(capAg.value), discoverVideoLinks: dVideo.checked, discoverAutoBlockReports: Number(dAuto.value), discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
     return [
       canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
       panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
@@ -598,6 +599,8 @@ export const rulesView = (ctx) => page(ctx, {
         h("label", { class: "field", for: "rl-d-auto" }, "Blocage automatique d'un compte après ce nombre de membres différents l'ayant signalé (0 = jamais)", dAuto),
         h("label", { class: "field", for: "rl-cap-ind" }, "Annonces actives (en attente ou publiées) par particulier — 0 = illimité", capInd),
         h("label", { class: "field", for: "rl-cap-ag" }, "Annonces actives (en attente ou publiées) par agence — 0 = illimité", capAg),
+        h("label", { class: "row", for: "rl-adv-req" }, advReq, h("span", null, "Exiger la demande « Devenir annonceur » avant de publier une annonce")),
+        h("small", { class: "muted" }, "Décoché (démarrage) : tout compte peut publier sans demande ; il devient annonceur à sa première publication et cet état est conservé. Coché : seuls les comptes déjà annonceurs (demande approuvée ou annonceur automatique) continuent de publier ; les autres doivent faire la demande."),
         h("label", { class: "row", for: "rl-al-on" }, alOn, h("span", null, "Alertes programmées ouvertes aux membres")),
         h("label", { class: "field", for: "rl-al-max" }, "Alertes par membre (1 à 100)", alMax),
         h("label", { class: "field", for: "rl-al-days" }, "Durée maximale d'une alerte en jours (0 = illimitée)", alDays),

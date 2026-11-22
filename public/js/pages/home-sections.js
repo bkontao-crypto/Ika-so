@@ -143,7 +143,8 @@ export async function renderHome() {
     ? api("/me/advertiser-applications").then((apps) => Array.isArray(apps) && apps.some((a) => a.status === "APPROVED")).catch(() => false)
     : Promise.resolve(false);
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
-  const isAdvertiser = await advertiserCheck;
+  const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
+  const isAdvertiser = !required || await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
 
   // ---- Héros + recherche avancée (envoie vers #/annonces avec les filtres déjà gérés par la page) ----

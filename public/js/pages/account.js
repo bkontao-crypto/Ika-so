@@ -141,7 +141,8 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
   const access = await api("/me/center/access").catch(() => null);
   // Compte déjà annonceur (demande approuvée, même règle que la publication côté serveur) : la carte « Devenir annonceur » disparaît.
   const apps = await api("/me/advertiser-applications").catch(() => []);
-  const isAdvertiser = Array.isArray(apps) && apps.some((a) => a.status === "APPROVED");
+  const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
+  const isAdvertiser = !required || (Array.isArray(apps) && apps.some((a) => a.status === "APPROVED"));
   let premiumBlock = null;
   if (access && !embedded) { const ui = await import("/js/components/espace.js"); ui.loadCss(); premiumBlock = ui.premiumCard(access, "compte"); }
   const stats = await api("/me/analytics-consent").catch(() => null);
