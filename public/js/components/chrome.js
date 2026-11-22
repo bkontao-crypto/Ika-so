@@ -125,7 +125,11 @@ export function renderChrome() {
           h("a", { href: "#/centre" }, "Mon espace"),
           h("a", { href: "#/favoris" }, "Mes favoris"),
           h("a", { href: "#/mes-annonces" }, "Mes annonces"),
-          h("a", { href: "#/boite" }, "Mes conversations")))
+          h("a", { href: "#/boite" }, "Mes conversations"),
+          h("button", { type: "button", class: "profile-logout", onClick: async () => {
+            try { await api("/auth/logout", { method: "POST", body: {} }); } catch (error) { fail(error); return; }
+            clearSession(); toast("Déconnecté."); go("/");
+          } }, "Se déconnecter")))
     : h("a", { href: "#/connexion", class: "btn btn-small", id: "loginLink" }, "Connexion");
   // Menu complet sur mobile et tablette : toutes les entrées de navigation dans un tiroir latéral.
   const menuBtn = h("button", { class: "icon-btn rx-menu-btn", type: "button", "aria-label": "Ouvrir le menu", "aria-haspopup": "dialog", onClick: (e) => openMenu(e.currentTarget) }, icon("list"));
