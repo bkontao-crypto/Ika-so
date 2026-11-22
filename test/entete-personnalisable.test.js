@@ -131,3 +131,23 @@ test("textes des sections : enregistrés en texte brut, vides ignorés, limites 
   await assert.rejects(() => svc.saveLayout("u", { texts: { pirate: { title: "x" } } }), /invalide/);
   await assert.rejects(() => svc.saveLayout("u", { texts: { download: { title: "x" } } }), /invalide/);
 });
+
+test("pied de page : défaut = page d'origine ; modification validée ; liens dangereux refusés", async () => {
+  const { svc, db } = make();
+  const g = await svc.getFooter();
+  assert.equal(g.columns.length, 3); assert.equal(g.columns[0].links[0].href, "#/annonces?t=Vente");
+  const out = await svc.saveFooter("u", { intro: "Bienvenue", copyright: "Ika", columns: [{ title: "Liens", links: [{ label: "Blog", href: "https://exemple.ml/blog" }, { label: "Guides", href: "/guides" }, { label: "Carte", href: "#/carte" }] }] });
+  assert.equal(out.columns.length, 1); assert.equal((await svc.getFooter()).intro, "Bienvenue");
+  const bad = (f) => assert.rejects(() => svc.saveFooter("u", f), /./);
+  const col = (links) => ({ intro: "x", copyright: "y", columns: [{ title: "T", links }] });
+  await bad(col([{ label: "X", href: "javascript:alert(1)" }]));
+  await bad(col([{ label: "X", href: "//evil.ml" }]));
+  await bad(col([{ label: "X", href: "http://pas-https.ml" }]));
+  await bad(col([{ label: "", href: "#/" }]));
+  await bad(col(Array.from({ length: 11 }, () => ({ label: "L", href: "#/" }))));
+  await bad({ intro: "x", copyright: "y", columns: Array.from({ length: 5 }, () => ({ title: "T", links: [] })) });
+  await bad({ intro: "", copyright: "y", columns: [] });
+  await assert.rejects(() => make(true).svc.saveFooter("u", g), /interdit/);
+  db.kv.set("site_footer", "{casse");
+  assert.equal((await svc.getFooter()).columns.length, 3); // valeur altérée : page d'origine
+});

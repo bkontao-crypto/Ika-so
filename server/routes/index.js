@@ -1095,6 +1095,9 @@ router.get("/listings/:id", async (req, res) => {
   // ---------- Personnalisation de la page d’accueil ----------
   // En-tête du site : onglets, logo, couleurs (lecture publique ; modification réservée à « contenu.gerer »).
   router.get("/site-header", async (_req, res) => res.json(await siteHeader.get()));
+  router.get("/site-footer", async (_req, res) => res.json(await siteHeader.getFooter()));
+  router.get("/staff/site-footer", async (req, res) => { await accounts.requirePermission(requireUser(req), "contenu.gerer"); res.json(await siteHeader.getFooter()); });
+  router.put("/staff/site-footer", async (req, res) => res.json(await siteHeader.saveFooter(requireUser(req), req.body ?? {})));
   router.get("/home-layout", async (_req, res) => res.json(await siteHeader.getLayout()));
   router.get("/staff/home-layout", async (req, res) => res.json(await siteHeader.getLayoutForStaff(requireUser(req))));
   router.put("/staff/home-layout", async (req, res) => res.json(await siteHeader.saveLayout(requireUser(req), req.body ?? {})));

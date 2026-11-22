@@ -1,6 +1,6 @@
 // Modules du Owner Control Center. Chaque vue lit les endpoints existants (/staff/owner/*, /staff/*) : le contrôle des droits reste côté serveur.
 import { api, h, ico, panel, empty, skeletons, errorBox, table, bars, pill, statusPill, nf, fcfa, dateTime, dateOnly, ago, initials, openDrawer, closeDrawer, formDialog, confirmDialog, act, fail, toast, CAT_COLORS } from "./ui.js";
-import { headerSection, layoutSection, legibilityRows } from "./v-header.js";
+import { headerSection, layoutSection, footerSection, legibilityRows } from "./v-header.js";
 import { previewDocument } from "./proof-viewer.js";
 import { proofHistoryPanel } from "./v-proof-history.js";
 
@@ -1016,19 +1016,19 @@ function countryFormFields(c = null, editing = false) {
 }
 
 // ---------- Personnalisation du site : une seule interface (identité, accueil, référencement, logo, pages légales, sécurité) ----------
-const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["header", "En-tête & onglets"], ["layout", "Sections de l’accueil"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
+const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["header", "En-tête & onglets"], ["layout", "Sections de l’accueil"], ["footer", "Pied de page"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
 export const customizeView = (ctx, initial = "identity") => page(ctx, {
   eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
   load: async () => {
-    const [settings, sec, home, seo, logo, legal, main, header, layout] = await Promise.all([
+    const [settings, sec, home, seo, logo, legal, main, header, layout, footer] = await Promise.all([
       api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
       api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal"),
       api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null),
-      api("/staff/site-header"), api("/staff/home-layout")]);
-    return { settings, sec, home, seo, logo, legal, main, header, layout };
+      api("/staff/site-header"), api("/staff/home-layout"), api("/staff/site-footer")]);
+    return { settings, sec, home, seo, logo, legal, main, header, layout, footer };
   },
   actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
-  build({ settings, sec, home, seo, logo, legal, main, header, layout }, reload) {
+  build({ settings, sec, home, seo, logo, legal, main, header, layout, footer }, reload) {
     const parts = {
       identity: settingsSection({ s: settings, sec }, reload)[0],
       appearance: appearanceSection({ main }, reload),
@@ -1036,6 +1036,7 @@ export const customizeView = (ctx, initial = "identity") => page(ctx, {
       homepage: homepageSection(home, reload),
       header: headerSection(header, reload),
       layout: layoutSection(layout, reload),
+      footer: footerSection(footer, reload),
       seo: seoSection({ seo, logo, legal }, reload).slice(0, 1),
       logo: seoSection({ seo, logo, legal }, reload).slice(1, 2),
       legal: seoSection({ seo, logo, legal }, reload).slice(2),

@@ -154,3 +154,36 @@ export function layoutSection(src, reload) {
       h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
   ];
 }
+
+/** Pied de page : texte de présentation, colonnes de liens, mention de droits (les liens légaux et le choix des cookies restent fixes). */
+export function footerSection(src, reload) {
+  const d = JSON.parse(JSON.stringify(src));
+  const box = h("div", { class: "stack" });
+  const bind = (el, obj, key) => { el.addEventListener("input", () => { obj[key] = el.value; }); return el; };
+  const swap = (arr, i, dir) => { const j = i + dir; if (j < 0 || j >= arr.length) return false; [arr[i], arr[j]] = [arr[j], arr[i]]; return true; };
+  const draw = () => fill(box, d.columns.map((c, ci) => h("article", { class: "card panel stack" },
+    h("div", { class: "row", style: { alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+      h("button", { type: "button", class: "btn", "aria-label": "Colonne à gauche", disabled: ci === 0, onClick: () => { swap(d.columns, ci, -1) && draw(); } }, "←"),
+      h("button", { type: "button", class: "btn", "aria-label": "Colonne à droite", disabled: ci === d.columns.length - 1, onClick: () => { swap(d.columns, ci, 1) && draw(); } }, "→"),
+      bind(h("input", { class: "input", maxlength: "30", value: c.title, "aria-label": "Titre de la colonne" }), c, "title"),
+      h("button", { type: "button", class: "btn", onClick: () => { d.columns.splice(ci, 1); draw(); } }, "Supprimer la colonne")),
+    ...c.links.map((l, li) => h("div", { class: "row", style: { alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+      h("button", { type: "button", class: "btn", "aria-label": "Monter", disabled: li === 0, onClick: () => { swap(c.links, li, -1) && draw(); } }, "↑"),
+      h("button", { type: "button", class: "btn", "aria-label": "Descendre", disabled: li === c.links.length - 1, onClick: () => { swap(c.links, li, 1) && draw(); } }, "↓"),
+      bind(h("input", { class: "input", maxlength: "40", value: l.label, "aria-label": "Nom du lien" }), l, "label"),
+      bind(h("input", { class: "input", maxlength: "300", value: l.href, placeholder: "#/page, /page ou https://…", "aria-label": "Adresse du lien" }), l, "href"),
+      h("button", { type: "button", class: "btn", onClick: () => { c.links.splice(li, 1); draw(); } }, "Retirer"))),
+    h("div", null, h("button", { type: "button", class: "btn", disabled: c.links.length >= 10, onClick: () => { c.links.push({ label: "Nouveau lien", href: "#/" }); draw(); } }, "+ Ajouter un lien")))));
+  draw();
+  const intro = bind(h("textarea", { class: "input", maxlength: "400", rows: "3" }), d, "intro"); intro.value = d.intro;
+  const copy = bind(h("input", { class: "input", maxlength: "120", value: d.copyright }), d, "copyright");
+  return [
+    panel("Présentation", "Texte sous le logo, en bas de page.", h("div", { class: "stack" }, h("label", { class: "field" }, h("span", null, "Texte de présentation"), intro), h("label", { class: "field" }, h("span", null, "Mention de droits (après « © année »)"), copy))),
+    panel("Colonnes de liens", "Jusqu'à 4 colonnes de 10 liens. « Mentions légales » et « Gérer mes choix » restent toujours affichés en bas de page.", h("div", { class: "stack" }, box,
+      h("div", null, h("button", { type: "button", class: "btn", disabled: false, onClick: () => { if (d.columns.length >= 4) return toastMax(); d.columns.push({ title: "Nouvelle colonne", links: [] }); draw(); } }, "+ Ajouter une colonne")))),
+    h("div", { class: "row" },
+      h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/site-footer", { method: "PUT", body: d }), "Pied de page enregistré.", reload) }, "Enregistrer le pied de page"),
+      h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
+  ];
+  function toastMax() { box.append(h("p", { class: "small muted" }, "Maximum : 4 colonnes.")); }
+}

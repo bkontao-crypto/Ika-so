@@ -110,12 +110,57 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     }
     return { sections, texts };
   }
+  // Pied de page : texte de présentation, colonnes de liens, mention de droits. Les liens légaux et le choix des cookies restent fixes dans la page.
+  const FOOTER_DEFAULT = Object.freeze({
+    intro: "La plateforme immobilière du Mali : terrains, maisons, appartements, studios, locaux commerciaux et bureaux, avec des numéros vérifiés par code et des annonces relues avant publication.",
+    copyright: "IKA SO Immobilier. Tous droits réservés.",
+    columns: [
+      { title: "Rechercher", links: [["Acheter", "#/annonces?t=Vente"], ["Louer", "#/annonces?t=Location"], ["Terrains", "#/annonces?category=Terrain"], ["Carte immobilière", "#/carte"], ["Quartiers", "/quartiers"]] },
+      { title: "Professionnels", links: [["Publier une annonce", "#/publier"], ["Annonceurs", "#/annonceurs"], ["Agences vérifiées", "/agences"], ["Devenir annonceur", "#/devenir-annonceur"], ["Partenaires", "#/partenaires"]] },
+      { title: "Confiance", links: [["Centre de confiance", "#/confiance"], ["Guides et conseils", "/guides"], ["Réclamations", "#/reclamations"], ["Messages", "#/boite"]] },
+    ].map((c) => ({ title: c.title, links: c.links.map(([label, href]) => ({ label, href })) })),
+  });
+  const SITE_PATH = /^\/(?!\/)[\w\-/]*$/; // page du site (/guides, /quartiers…)
+  function sanitizeFooter(input = {}) {
+    const intro = String(input.intro ?? FOOTER_DEFAULT.intro).trim(), copyright = String(input.copyright ?? FOOTER_DEFAULT.copyright).trim();
+    if (!intro || intro.length > 400) throw badRequest("Le texte de présentation est obligatoire (400 caractères maximum).");
+    if (!copyright || copyright.length > 120) throw badRequest("La mention de droits est obligatoire (120 caractères maximum).");
+    const rawCols = Array.isArray(input.columns) ? input.columns : FOOTER_DEFAULT.columns;
+    if (rawCols.length > 4) throw badRequest("Pas plus de 4 colonnes.");
+    const columns = rawCols.map((c) => {
+      const title = String(c?.title ?? "").trim();
+      if (!title || title.length > 30) throw badRequest("Le titre d'une colonne est obligatoire (30 caractères maximum).");
+      const rawLinks = Array.isArray(c.links) ? c.links : [];
+      if (rawLinks.length > 10) throw badRequest("Pas plus de 10 liens par colonne.");
+      const links = rawLinks.map((l) => {
+        const label = String(l?.label ?? "").trim(), href = String(l?.href ?? "").trim();
+        if (!label || label.length > 40) throw badRequest("Le nom d'un lien est obligatoire (40 caractères maximum).");
+        if (!(INTERNAL.test(href) || SITE_PATH.test(href) || EXTERNAL.test(href))) throw badRequest(`Lien invalide pour « ${label} » : une page du site (#/… ou /…) ou une adresse https.`);
+        return { label, href };
+      });
+      return { title, links };
+    });
+    return { intro, copyright, columns };
+  }
+  async function footer() {
+    try { return sanitizeFooter(JSON.parse(await setting("site_footer") || "{}")); } catch { return sanitizeFooter({}); }
+  }
+
   async function layout() {
     try { return sanitizeLayout(JSON.parse(await setting("home_layout") || "{}")); } catch { return sanitizeLayout({}); }
   }
 
   return {
     sanitize,
+    getFooter: footer,
+    async saveFooter(userId, input) {
+      await accounts.requirePermission(userId, "contenu.gerer");
+      if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
+      const next = sanitizeFooter(input);
+      await put("site_footer", JSON.stringify(next));
+      await accounts.audit(userId, "SITE_FOOTER_SAVE", null, `${next.columns.length} colonne(s), ${next.columns.reduce((n, c) => n + c.links.length, 0)} lien(s)`);
+      return next;
+    },
     /** Public : lu par l'accueil. */
     getLayout: layout,
     async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])) }; },
