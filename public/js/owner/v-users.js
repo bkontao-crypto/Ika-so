@@ -113,6 +113,15 @@ export function userCenterView(ctx, userId) {
     act(() => api(`/staff/accounts/${encodeURIComponent(u.userId)}/status`, { method: "POST", body: { status: v.status, reason: v.reason, until } }), "Décision enregistrée.", reload);
   }
 
+  async function profileImages(u, hidden) {
+    const v = await formDialog(hidden ? "Masquer les photos du profil" : "Réafficher les photos du profil", [{ name: "reason", label: "Motif (obligatoire, conservé dans le journal)", type: "textarea", required: true, max: 300 }], { submit: hidden ? "Masquer" : "Réafficher", intro: `${u.fullName} · ${u.userId}` });
+    if (v) act(() => api(`/staff/profiles/${encodeURIComponent(u.userId)}/images`, { method: "POST", body: { hidden, reason: v.reason } }), hidden ? "Photos masquées." : "Photos réaffichées.", reload);
+  }
+  async function revokeAgencyBadge(u) {
+    const v = await formDialog("Retirer le badge « agence vérifiée »", [{ name: "reason", label: "Motif (obligatoire, conservé dans le journal)", type: "textarea", required: true, max: 500 }], { submit: "Retirer le badge", intro: `${u.fullName} · ${u.userId}. Le nom d'agence vérifié est aussi retiré du profil.` });
+    if (v) act(() => api("/staff/badges/revoke", { method: "POST", body: { userId: u.userId, reason: v.reason } }), "Badge retiré.", reload);
+  }
+
   function build(a) {
     const u = a.user; const c = a.contactsReceived; const e = a.engagement;
     const [stTone, stLabel] = ST[u.accountStatus];
@@ -123,6 +132,9 @@ export function userCenterView(ctx, userId) {
       u.statusReason ? h("p", { class: "note bad" }, `Motif de la sanction : ${u.statusReason}`) : null,
       h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => sanction(u) }, ico("shield"), "Sanction / réactivation"),
         h("button", { class: "btn", type: "button", onClick: () => ctx.go(`#/trace/user/${encodeURIComponent(u.userId)}`) }, ico("route"), "Dossier de traçage complet"),
+        h("button", { class: "btn", type: "button", onClick: () => profileImages(u, true) }, "Masquer les photos"),
+        h("button", { class: "btn", type: "button", onClick: () => profileImages(u, false) }, "Réafficher les photos"),
+        h("button", { class: "btn", type: "button", onClick: () => revokeAgencyBadge(u) }, "Retirer le badge agence"),
         h("button", { class: "btn", type: "button", title: "Lien valable 30 minutes, usage unique, à transmettre à la personne", onClick: async () => {
           try { const l = await api(`/staff/accounts/${encodeURIComponent(u.userId)}/reset-link`, { method: "POST", body: {} }); await formDialog("Lien de réinitialisation", [{ name: "link", label: `À transmettre uniquement à ${u.fullName} (${l.validMinutes} min, usage unique)`, value: l.link, max: 500 }], { submit: "Fermer" }); } catch (err) { fail(err); }
         } }, "Lien mot de passe"),

@@ -879,9 +879,33 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
          from ika_contact_events where created_at > now() - ($1 || ' days')::interval
          group by 1 order by 1`, [days]
       ).catch(() => []);
+      // Fréquentation : lit UNIQUEMENT les agrégats (ika_agg_daily / ika_agg_hourly), alimentés par l'agrégation manuelle.
+      const span = String(Math.min(365, Math.max(1, Number(days) || 30)));
+      const daily = await db.query(
+        `select day::text as day,
+                coalesce(sum(value) filter (where metric like 'event.%'), 0)::float as actions,
+                coalesce(sum(value) filter (where metric = 'users.active'), 0)::float as active_users,
+                coalesce(sum(value) filter (where metric = 'visitors.unique'), 0)::float as unique_visitors
+           from ika_agg_daily
+          where method_version = $1 and dim_type = '' and day > current_date - ($2 || ' days')::interval
+          group by day order by day`, [METHOD_VERSION, span]).catch(() => []);
+      const hourly = await db.query(
+        `select extract(hour from hour_start)::int as hour, sum(value)::float as actions
+           from ika_agg_hourly
+          where method_version = $1 and metric like 'event.%' and hour_start > now() - ($2 || ' days')::interval
+          group by 1 order by 1`, [METHOD_VERSION, span]).catch(() => []);
+      const last = await db.query("select max(day)::text as day from ika_agg_daily where method_version = $1", [METHOD_VERSION]).catch(() => []);
+      const peak = new Map(hourly.map((r) => [r.hour, r.actions]));
       return {
         listings: listings.map(r => ({ day: r.day, n: r.n })),
         contacts: contacts.map(r => ({ day: r.day, n: r.n })),
+        traffic: {
+          lastAggregatedDay: last[0]?.day ?? null,
+          daily: daily.map((r) => ({ day: r.day, actions: r.actions, activeUsers: r.active_users, uniqueVisitors: r.unique_visitors })),
+          byHour: Array.from({ length: 24 }, (_, hour) => ({ hour, actions: peak.get(hour) ?? 0 })),
+          // Vrai tant qu'aucun identifiant de visiteur n'est collecté : les « visiteurs uniques » sont alors indisponibles (jamais estimés).
+          uniqueVisitorsAvailable: daily.some((r) => r.unique_visitors > 0),
+        },
       };
     },
     /** Pipeline CRM : mise à jour du statut d'une visite. */

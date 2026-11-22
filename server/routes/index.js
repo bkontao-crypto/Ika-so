@@ -481,6 +481,16 @@ router.get("/listings/:id", async (req, res) => {
     const userId = requireUser(req);
     const lead = await crm.get(userId, id(req));
     if (!lead) return res.status(404).json({ error: "Lead introuvable" });
+    if (!lead.contact_phone) return res.status(400).json({ error: "Pas de téléphone sur ce lead" });
+    if (!whatsapp.isConfigured()) return res.status(503).json({ error: "WhatsApp Business non configuré" });
+    const text = clean(req.body?.text, 1000) || "Bonjour, suite à votre intérêt sur Ika So.";
+    const out = await whatsapp.sendText(lead.contact_phone, text);
+    // Journaliser dans les notes du lead
+    await crm.update(userId, id(req), {
+      notes: (lead.notes ? lead.notes + "\n" : "") + `[WhatsApp envoyé] ${text.slice(0, 200)}`,
+    }).catch(() => {});
+    res.json({ ok: true, messageId: out.messages?.[0]?.id });
+  });
 
   router.get("/me/whatsapp/templates", async (req, res) => {
     requireUser(req);
@@ -504,17 +514,6 @@ router.get("/listings/:id", async (req, res) => {
     const out = await whatsapp.sendTemplate(lead.contact_phone, name, clean(req.body?.language, 10) || "fr", req.body?.components || []);
     await crm.update(userId, id(req), {
       notes: (lead.notes ? lead.notes + "\n" : "") + `[Template WhatsApp] ${name}`,
-    }).catch(() => {});
-    res.json({ ok: true, messageId: out.messages?.[0]?.id });
-  });
-
-    if (!lead.contact_phone) return res.status(400).json({ error: "Pas de téléphone sur ce lead" });
-    if (!whatsapp.isConfigured()) return res.status(503).json({ error: "WhatsApp Business non configuré" });
-    const text = clean(req.body?.text, 1000) || "Bonjour, suite à votre intérêt sur Ika So.";
-    const out = await whatsapp.sendText(lead.contact_phone, text);
-    // Journaliser dans les notes du lead
-    await crm.update(userId, id(req), {
-      notes: (lead.notes ? lead.notes + "\n" : "") + `[WhatsApp envoyé] ${text.slice(0, 200)}`,
     }).catch(() => {});
     res.json({ ok: true, messageId: out.messages?.[0]?.id });
   });
