@@ -24,6 +24,7 @@ const routes = [
   [/^\/partenaires$/, "partners", "partnersPage"],
   [/^\/annonceurs$/, "annonceurs", "annonceursPage"],
   [/^\/decouvrir$/, "decouvrir", "decouvrirPage"],
+  [/^\/alertes$/, "alertes", "alertesPage"],
   [/^\/centre$/, "centre", "centrePage"],
   [/^\/devenir-annonceur$/, "advertiser-apply", "advertiserApplyPage"],
   [/^\/premium$/, "premium", "premiumPage"],

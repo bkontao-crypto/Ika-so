@@ -17,6 +17,9 @@ export const DEFAULT_RULES = Object.freeze({
   discoverPostsPerDay: 5,           // publications par compte et par 24 h (1 à 50)
   discoverRequirePhone: false,      // exiger un numéro confirmé pour publier
   discoverAutoBlockReports: 10,     // membres différents ayant signalé un même compte avant blocage automatique (0 = jamais)
+  alertsEnabled: true,              // alertes programmées ouvertes
+  alertsMaxPerUser: 10,             // alertes par compte
+  alertsMaxDays: 90,                // durée maximale d'une alerte (0 = illimitée)
   listingCapIndividual: 0,          // annonces actives (en attente ou publiées) par particulier ; 0 = illimité (comportement actuel)
   listingCapAgency: 0,              // idem pour une agence ; 0 = illimité
   whatsappDecisionEnabled: false,   // WhatsApp à la décision finale Premium (activable seulement si jetons et modèle sont installés)
@@ -48,6 +51,9 @@ export function normalizeRules(value) {
     discoverRequirePhone: v.discoverRequirePhone === undefined ? DEFAULT_RULES.discoverRequirePhone : v.discoverRequirePhone === true,
     discoverVideoLinks: v.discoverVideoLinks === true,
     whatsappDecisionEnabled: v.whatsappDecisionEnabled === true,
+    alertsEnabled: v.alertsEnabled === undefined ? DEFAULT_RULES.alertsEnabled : v.alertsEnabled === true,
+    alertsMaxPerUser: bounded(v.alertsMaxPerUser, 1, 100, DEFAULT_RULES.alertsMaxPerUser),
+    alertsMaxDays: bounded(v.alertsMaxDays, 0, 730, DEFAULT_RULES.alertsMaxDays),
     listingCapIndividual: bounded(v.listingCapIndividual, 0, 10000, DEFAULT_RULES.listingCapIndividual),
     listingCapAgency: bounded(v.listingCapAgency, 0, 10000, DEFAULT_RULES.listingCapAgency),
     discoverAutoBlockReports: bounded(v.discoverAutoBlockReports, 0, 100, DEFAULT_RULES.discoverAutoBlockReports),
