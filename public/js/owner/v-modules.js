@@ -494,6 +494,30 @@ export const paymentSettingsView = (ctx) => page(ctx, {
 });
 
 // ---------- Découvrir : publications signalées ou masquées ----------
+const ALERT_ST = { ACTIVE: "Active", SCHEDULED: "Programmée", PAUSED: "En pause", SUSPENDED: "Suspendue", EXPIRED: "Expirée" };
+export const alertsView = (ctx) => page(ctx, {
+  eyebrow: "MODÉRATION", title: "Alertes programmées",
+  desc: "Alertes des membres (recherches surveillées). Une suspension exige un motif, reste tracée et ne peut pas être levée par le membre. Les formules de Boost sont préparées mais l'achat reste fermé : aucun paiement n'est branché.",
+  load: async () => ({ items: await api("/staff/alerts"), plans: await api("/staff/boost-plans").catch(() => []) }),
+  build({ items, plans }, reload) {
+    const plansPanel = panel("Formules de Boost (achat fermé)", "Prix, durée, priorité et ordre modifiables ; chaque changement est tracé. Une formule activée n'est qu'affichée tant que le paiement n'est pas branché.", h("div", { class: "stack" }, plans.map((p) => h("div", { class: "row" },
+      h("strong", null, p.label), h("small", { class: "muted" }, `${new Intl.NumberFormat("fr-FR").format(p.priceXof)} FCFA · ${p.days} j · priorité ${p.priority}`), pill(p.active ? "ok" : "neutral", p.active ? "Affichée" : "Masquée"),
+      h("button", { class: "btn sm", type: "button", onClick: async () => {
+        const v = await formDialog(`Formule ${p.label}`, [{ name: "label", label: "Nom", value: p.label, required: true }, { name: "priceXof", label: "Prix (FCFA)", type: "number", value: p.priceXof }, { name: "days", label: "Durée (jours)", type: "number", value: p.days }, { name: "priority", label: "Priorité (plus grand = plus prioritaire)", type: "number", value: p.priority }, { name: "sort", label: "Ordre d'affichage", type: "number", value: p.sort }, { name: "active", label: "Affichage aux membres (achat toujours fermé)", type: "select", options: [{ value: "no", label: "Masquée" }, { value: "yes", label: "Affichée" }], value: p.active ? "yes" : "no" }], { submit: "Enregistrer" });
+        if (v) act(() => api(`/staff/boost-plans/${encodeURIComponent(p.code)}`, { method: "PUT", body: { label: v.label, priceXof: Number(v.priceXof), days: Number(v.days), priority: Number(v.priority), sort: Number(v.sort), active: v.active === "yes", description: p.description } }), "Formule enregistrée.", reload);
+      } }, "Modifier")))));
+    const list = items.length ? items.map((a) => panel(`${a.label} · ${a.userName ?? a.userId}`, `${a.startsOn ?? "—"} → ${a.endsOn ?? "—"} · ${a.notified} notification(s)`, h("div", { class: "row" },
+      pill(a.status === "ACTIVE" ? "ok" : a.status === "SUSPENDED" ? "bad" : "neutral", ALERT_ST[a.status] ?? a.status), a.reason ? h("small", { class: "muted" }, a.reason) : null,
+      a.status === "SUSPENDED"
+        ? h("button", { class: "btn sm", type: "button", onClick: () => act(() => api(`/staff/alerts/${encodeURIComponent(a.id)}/suspend`, { method: "POST", body: { suspend: false } }), "Alerte rétablie.", reload) }, "Rétablir")
+        : h("button", { class: "btn sm", type: "button", onClick: async () => {
+          const v = await formDialog("Suspendre l'alerte", [{ name: "reason", label: "Motif (obligatoire)", type: "textarea", required: true, max: 300 }], { submit: "Suspendre" });
+          if (v) act(() => api(`/staff/alerts/${encodeURIComponent(a.id)}/suspend`, { method: "POST", body: { reason: v.reason } }), "Alerte suspendue.", reload);
+        } }, "Suspendre")))) : [empty("Aucune alerte.")];
+    return [plansPanel, ...list];
+  },
+});
+
 export const discoverView = (ctx) => page(ctx, {
   eyebrow: "MODÉRATION", title: "Publications Découvrir",
   desc: "Publications de la communauté signalées par les membres ou masquées. Masquer retire la publication du fil sans la supprimer ; le motif et votre nom sont conservés dans l'historique.",
@@ -547,11 +571,14 @@ export const rulesView = (ctx) => page(ctx, {
     const wa = h("input", { type: "checkbox", id: "rl-wa", disabled: !canEdit || !whatsapp.ready }); wa.checked = rules.whatsappDecisionEnabled === true;
     const capInd = h("input", { class: "input", type: "number", min: "0", max: "10000", id: "rl-cap-ind", disabled: !canEdit, value: String(rules.listingCapIndividual ?? 0) });
     const capAg = h("input", { class: "input", type: "number", min: "0", max: "10000", id: "rl-cap-ag", disabled: !canEdit, value: String(rules.listingCapAgency ?? 0) });
+    const alOn = h("input", { type: "checkbox", id: "rl-al-on", disabled: !canEdit }); alOn.checked = rules.alertsEnabled !== false;
+    const alMax = h("input", { class: "input", type: "number", min: "1", max: "100", id: "rl-al-max", disabled: !canEdit, value: String(rules.alertsMaxPerUser ?? 10) });
+    const alDays = h("input", { class: "input", type: "number", min: "0", max: "730", id: "rl-al-days", disabled: !canEdit, value: String(rules.alertsMaxDays ?? 90) });
     const dVideo = h("input", { type: "checkbox", id: "rl-d-video", disabled: !canEdit }); dVideo.checked = rules.discoverVideoLinks === true;
     const dPhotos = h("input", { class: "input", type: "number", min: "0", max: "6", id: "rl-d-photos", disabled: !canEdit, value: String(rules.discoverMaxPhotos ?? 4) });
     const dDay = h("input", { class: "input", type: "number", min: "1", max: "50", id: "rl-d-day", disabled: !canEdit, value: String(rules.discoverPostsPerDay ?? 5) });
     const save = h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/rules", { method: "PUT", body: { value: { phoneConfirmedForPremium: phone.checked, certificationGroups: certValue(), requiredSteps: stepBoxes.filter(([, b]) => b.checked).map(([n]) => n), exceptionGrantedBy: granter.value,
-      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, whatsappDecisionEnabled: wa.checked, listingCapIndividual: Number(capInd.value), listingCapAgency: Number(capAg.value), discoverVideoLinks: dVideo.checked, discoverAutoBlockReports: Number(dAuto.value), discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
+      discoverEnabled: dOpen.checked, discoverRequirePhone: dPhone.checked, whatsappDecisionEnabled: wa.checked, alertsEnabled: alOn.checked, alertsMaxPerUser: Number(alMax.value), alertsMaxDays: Number(alDays.value), listingCapIndividual: Number(capInd.value), listingCapAgency: Number(capAg.value), discoverVideoLinks: dVideo.checked, discoverAutoBlockReports: Number(dAuto.value), discoverMaxPhotos: Number(dPhotos.value), discoverPostsPerDay: Number(dDay.value) } } }), "Conditions enregistrées.", reload) }, "Enregistrer les conditions");
     return [
       canEdit ? null : h("p", { class: "note" }, "Lecture seule : seul le superadmin modifie les conditions officielles."),
       panel("Dossier Premium : numéro de téléphone", null, h("div", { class: "stack" },
@@ -570,6 +597,9 @@ export const rulesView = (ctx) => page(ctx, {
         h("label", { class: "field", for: "rl-d-auto" }, "Blocage automatique d'un compte après ce nombre de membres différents l'ayant signalé (0 = jamais)", dAuto),
         h("label", { class: "field", for: "rl-cap-ind" }, "Annonces actives (en attente ou publiées) par particulier — 0 = illimité", capInd),
         h("label", { class: "field", for: "rl-cap-ag" }, "Annonces actives (en attente ou publiées) par agence — 0 = illimité", capAg),
+        h("label", { class: "row", for: "rl-al-on" }, alOn, h("span", null, "Alertes programmées ouvertes aux membres")),
+        h("label", { class: "field", for: "rl-al-max" }, "Alertes par membre (1 à 100)", alMax),
+        h("label", { class: "field", for: "rl-al-days" }, "Durée maximale d'une alerte en jours (0 = illimitée)", alDays),
         h("label", { class: "row", for: "rl-wa" }, wa, h("span", null, "Envoyer un message WhatsApp à la décision finale d'un dossier Premium (aux personnes qui l'ont accepté)")),
         h("small", { class: "muted" }, whatsapp.ready ? "WhatsApp est installé sur le serveur : vous pouvez l'activer." : `WhatsApp n'est pas encore installé sur le serveur (manquant : ${[!whatsapp.token && "jeton", !whatsapp.phoneNumberId && "identifiant du numéro", !whatsapp.template && "modèle de message"].filter(Boolean).join(", ")}). L'interrupteur se débloquera dès que les variables seront en place.`),
         h("label", { class: "row", for: "rl-d-video" }, dVideo, h("span", null, "Autoriser les liens vidéo YouTube / Facebook (l'envoi de fichiers vidéo reste fermé)")),

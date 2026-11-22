@@ -9,6 +9,7 @@ import { createAdvertiserCenter } from "./advertiser-center.js";
 import { createAdvertiserApplications } from "./advertiser-applications.js";
 import { createFeaturedRequests } from "./featured-requests.js";
 import { createEngagement } from "./engagement.js";
+import { createAlerts } from "./alerts.js";
 import { createGeo } from "./geo.js";
 import { createImports } from "./imports.js";
 import { createListings } from "./listings.js";
@@ -52,7 +53,7 @@ export function createServices({ db, config, sendSms, paymentProvider, notifiers
   };
   const listings = createListings(ctx, accounts, trust, listingCap);
   const properties = createProperties(ctx);
-  const engagement = createEngagement(ctx, accounts);
+  const engagement = createEngagement(ctx, accounts, { alertsEnabled: async () => (await ruleExceptions.official()).alertsEnabled });
   const imports = createImports(ctx, accounts, listings);
   const moderation = createModeration(ctx, accounts, engagement);
 const moderationAudit = createModerationAudit(ctx);
@@ -72,6 +73,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
   const ownerDelegations = createOwnerDelegations({ db, accounts });
   const requestsHub = createRequestsHub({ db, ownerDelegations, notify: (userId, note) => engagement.notify(userId, note) });
+  const alerts = createAlerts({ db, accounts, rules: ruleExceptions, moderationAudit, engagement });
   const discover = createDiscover({ db, accounts, rules: ruleExceptions, engagement, moderationAudit, requestsHub });
   const premiumRequests = createPremiumRequests({ requestsHub, db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments, rules: ruleExceptions });
   // Sauvegarde réelle (pg_dump) : injectable dans les tests ; absente sans DATABASE_URL (le journal indique alors « non configurée »).
@@ -86,7 +88,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

@@ -876,6 +876,22 @@ router.get("/listings/:id", async (req, res) => {
     limiter.hit(`alertprefs:${userId}`, 20, 60 * 60_000);
     res.json(await engagement.setAlertPrefs(userId, clean(req.body?.mode, 20)));
   });
+  // ---------- Alertes programmées (recherches enregistrées étendues) ----------
+  router.get("/me/alerts", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.alerts.list(requireUser(req))); });
+  router.post("/me/alerts", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`alert:${userId}`, 20, 60 * 60_000);
+    res.status(201).json(await services.alerts.create(userId, { label: clean(req.body?.label, 80), filters: req.body?.filters ?? {}, startsOn: clean(req.body?.startsOn, 10), endsOn: clean(req.body?.endsOn, 10) }));
+  });
+  router.put("/me/alerts/:id", async (req, res) => res.json(await services.alerts.update(requireUser(req), id(req), { label: clean(req.body?.label, 80), filters: req.body?.filters ?? {}, startsOn: clean(req.body?.startsOn, 10), endsOn: clean(req.body?.endsOn, 10) })));
+  router.post("/me/alerts/:id/pause", async (req, res) => res.json(await services.alerts.setPaused(requireUser(req), id(req), req.body?.paused !== false)));
+  router.post("/me/alerts/:id/extend", async (req, res) => res.json(await services.alerts.extend(requireUser(req), id(req), clean(req.body?.endsOn, 10))));
+  router.post("/me/alerts/:id/delete", async (req, res) => res.json(await services.alerts.remove(requireUser(req), id(req))));
+  router.get("/me/alerts/:id/history", async (req, res) => res.json(await services.alerts.history(requireUser(req), id(req))));
+  router.get("/staff/alerts", async (req, res) => res.json(await services.alerts.listAll(requireUser(req), { status: clean(req.query?.status, 20) || undefined })));
+  router.post("/staff/alerts/:id/suspend", async (req, res) => res.json(await services.alerts.suspend(requireUser(req), id(req), clean(req.body?.reason, 300), req.body?.suspend !== false)));
+  router.get("/staff/boost-plans", async (req, res) => res.json(await services.alerts.plans(requireUser(req))));
+  router.put("/staff/boost-plans/:id", async (req, res) => res.json(await services.alerts.savePlan(requireUser(req), id(req), req.body ?? {})));
   router.post("/me/searches/:id/delete", async (req, res) => res.json(await engagement.deleteSearch(requireUser(req), id(req))));
   router.get("/me/notifications", async (req, res) => res.json(await engagement.notifications(requireUser(req))));
   router.get("/me/unread", async (req, res) => res.json(await engagement.unreadCounts(requireUser(req))));

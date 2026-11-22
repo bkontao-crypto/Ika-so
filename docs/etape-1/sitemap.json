@@ -405,5 +405,16 @@
   "source": "decouvrir.js, post-composer.js · GET /discover, POST /me/discover, /discover/:id/contact, /discover/:id/report ; discover.js",
   "rights": "Lecture publique ; publier, écrire et signaler avec un compte ; modération : équipe (module modération)",
   "step": "E04"
+  },
+ {
+  "id": "S44",
+  "title": "Alerte (alertes programmées)",
+  "route": "#/alertes",
+  "status": "Existant",
+  "need": "Programmer une recherche surveillée sur une période (type, quartier, prix), la suspendre, la prolonger, la modifier et consulter son historique ; être prévenu des annonces correspondantes.",
+  "journey": "Tableau de bord (compteurs) → programmer (dates, filtres facultatifs) → liste : modifier, suspendre/réactiver, prolonger, historique, supprimer ; formules Boost affichées, achat fermé.",
+  "source": "alertes.js · GET/POST /me/alerts, PUT /me/alerts/:id, /pause, /extend, /delete, /history ; alerts.js, engagement.js (moteur)",
+  "rights": "Compte connecté, ses propres alertes ; équipe : suspension (module modération), formules Boost (superadmin)",
+  "step": "E04"
  }
 ]

@@ -10,7 +10,8 @@ const MAX_MESSAGES_PER_HOUR = 30;
 const MAX_PENDING_VISITS = 3;
 const DAY = 24 * 3600 * 1000;
 
-export function createEngagement(ctx, accounts) {
+/** `hooks.alertsEnabled()` : les alertes sont-elles ouvertes (réglage superadmin) ? Faux = aucune détection. */
+export function createEngagement(ctx, accounts, hooks = {}) {
   const { db } = ctx;
   // Canaux supplémentaires (SMS, e-mail, WhatsApp, push) : fonctions (userId, notification) branchées plus tard. Aucune par défaut.
   const channels = ctx.notifiers ?? [];
@@ -87,29 +88,34 @@ export function createEngagement(ctx, accounts) {
     async onPublished(listingId) {
       const rows = await db.query(`select ${LISTING_COLUMNS} from ika_listings where id = $1 and status = 'PUBLISHED'`, [listingId]);
       if (!rows[0]) return { notified: 0 };
+      if (hooks.alertsEnabled && !(await hooks.alertsEnabled())) return { notified: 0 };
       const card = toCard(rows[0]);
       const searches = await db.query(
-        `select s.user_id, s.label, s.filters from ika_saved_searches s
+        `select s.id, s.user_id, s.label, s.filters from ika_saved_searches s
          join ika_profiles p on p.user_id = s.user_id and p.account_status <> 'BANNED'
-         where s.user_id <> $1 limit 5000`,
+         where s.user_id <> $1 and s.status = 'ACTIVE'
+           and (s.starts_on is null or s.starts_on <= current_date) and (s.ends_on is null or s.ends_on >= current_date) limit 5000`,
         [rows[0].owner_id],
       );
       const hit = new Map();
-      for (const s of searches) if (!hit.has(s.user_id) && matchesSearch(s.filters, card)) hit.set(s.user_id, s.label);
+      for (const s of searches) if (!hit.has(s.user_id) && matchesSearch(s.filters, card)) hit.set(s.user_id, { label: s.label, searchId: s.id });
       // Les comptes qui ont choisi le résumé quotidien : l'annonce est mise en attente au lieu d'être notifiée tout de suite.
       const daily = new Set(hit.size
         ? (await db.query("select user_id from ika_alert_prefs where mode = 'DAILY' and user_id = any($1::text[])", [[...hit.keys()]])).map((r) => r.user_id)
         : []);
       let notified = 0;
       let queued = 0;
-      for (const [userId, label] of hit) {
+      for (const [userId, { label, searchId }] of hit) {
         if (daily.has(userId)) {
           const q = await db.query(
             "insert into ika_alert_pending (user_id, listing_id, label) values ($1,$2,$3) on conflict do nothing returning 1",
             [userId, card.id, String(label).slice(0, 80)],
           );
           if (q[0]) queued += 1;
-        } else if (await notify(userId, { kind: "SEARCH_MATCH", title: `Nouvelle annonce : ${card.title}`, body: `Correspond à « ${label} » · ${card.neighborhood}`, link: `#/annonce/${card.id}` })) notified += 1;
+        } else if (await notify(userId, { kind: "SEARCH_MATCH", title: `Nouvelle annonce : ${card.title}`, body: `Correspond à « ${label} » · ${card.neighborhood}`, link: `#/annonce/${card.id}` })) {
+          notified += 1;
+          await db.query("insert into ika_alert_history (id, search_id, user_id, action, details) values ($1,$2,$3,'NOTIFIED',$4::jsonb)", [newId("ah"), searchId, userId, JSON.stringify({ listingId: card.id })]).catch(() => {});
+        }
       }
       return { notified, queued };
     },
