@@ -72,16 +72,19 @@ export async function inboxPage() {
       const inv = n.kind === "TEAM_REQUEST" ? (team.received ?? []).find((r) => r.name && String(n.title).startsWith(r.name)) : null;
       const tid = n.kind === "MESSAGE" ? threadIdOf(n.link) : null;
       let action = null;
+      let go = null; // même effet que le bouton, déclenché par le clic sur toute la ligne
       if (inv) {
         const reply = (ok) => async (e) => { e.stopPropagation(); try { await api(`/me/team-requests/${encodeURIComponent(inv.linkId)}/${ok ? "accept" : "decline"}`, { method: "POST", body: {} }); bxToast(ok ? "Invitation acceptée." : "Invitation déclinée."); reload(); } catch (error) { fail(error); } };
         action = h("div", { class: "bx-acts" }, h("button", { type: "button", class: "bx-a is-go", onClick: reply(true) }, "Accepter"), h("button", { type: "button", class: "bx-a is-no", onClick: reply(false) }, "Refuser"));
       } else if (tid) {
-        action = h("button", { type: "button", class: "bx-a is-mint", onClick: (e) => { e.stopPropagation(); markRead(n); tab = "messages"; activeId = tid; active = null; draw(); } }, h("span", null, "Répondre"), icon("arrow-right"));
+        go = () => { markRead(n); tab = "messages"; activeId = tid; active = null; draw(); };
+        action = h("button", { type: "button", class: "bx-a is-mint", onClick: (e) => { e.stopPropagation(); go(); } }, h("span", null, "Répondre"), icon("arrow-right"));
       } else if (n.link && n.link !== "#/boite") {
         const visit = n.kind === "VISIT_REQUEST" || n.kind === "VISIT_ANSWER";
-        action = h("button", { type: "button", class: "bx-a is-line", onClick: (e) => { e.stopPropagation(); markRead(n); if (visit) { tab = "visites"; draw(); } else if (n.link.startsWith("/")) location.assign(n.link); else location.hash = n.link; } }, icon("sparkles"), h("span", null, n.kind === "TEAM_REQUEST" ? "Voir l'équipe" : visit ? "Voir la visite" : n.kind === "SEARCH_MATCH" || n.kind === "SEARCH_DIGEST" || n.kind.startsWith("LISTING") ? "Voir l'annonce" : n.link.startsWith("/owner") ? "Traiter la demande" : "Ouvrir"));
+        go = () => { markRead(n); if (visit) { tab = "visites"; draw(); } else if (n.link.startsWith("/")) location.assign(n.link); else location.hash = n.link; };
+        action = h("button", { type: "button", class: "bx-a is-line", onClick: (e) => { e.stopPropagation(); go(); } }, icon("sparkles"), h("span", null, n.kind === "TEAM_REQUEST" ? "Voir l'équipe" : visit ? "Voir la visite" : n.kind === "SEARCH_MATCH" || n.kind === "SEARCH_DIGEST" || n.kind.startsWith("LISTING") ? "Voir l'annonce" : n.link.startsWith("/owner") ? "Traiter la demande" : "Ouvrir"));
       }
-      return h("li", null, h("article", { class: `bx-card ${n.read ? "" : "is-new"}`, onClick: () => markRead(n) },
+      return h("li", null, h("article", { class: `bx-card ${n.read ? "" : "is-new"}${go ? " is-click" : ""}`, onClick: () => { if (go) go(); else markRead(n); } },
         h("div", { class: "bx-bar-l" }),
         h("div", { class: "bx-row" },
           h("div", { class: "bx-main" },
