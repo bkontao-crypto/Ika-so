@@ -5,15 +5,16 @@ import { overviewView } from "./v-overview.js";
 import { activityView, traceView } from "./v-activity.js";
 import * as M from "./v-modules.js";
 import { usersView, userCenterView } from "./v-users.js";
+import { chartsView, healthView, premiumFunnelView } from "./v-trafic.js";
 
 // Menu rangé par fonction : chaque groupe se replie (celui de la page en cours reste ouvert). Les adresses « #/… » ne changent pas.
 const NAV = [
   ["Pilotage", "grid", [
-    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["regions", "pin", "Régions & tendances"], ["reports", "file", "Rapports & exports"]]],
+    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["charts", "pulse", "Graphiques & fréquentation"], ["regions", "pin", "Régions & tendances"], ["reports", "file", "Rapports & exports"]]],
   ["Utilisateurs & comptes", "users", [
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }], ["permissions", "shield", "Permissions du personnel"], ["delegations", "users", "Délégations de modules"]]],
   ["Paiements & Premium", "wallet", [
-    ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"], ["payment-settings", "gear", "Réglages paiement"]]],
+    ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"], ["premium-funnel", "funnel", "Entonnoir Premium"], ["payment-settings", "gear", "Réglages paiement"]]],
   ["Annonces & modération", "list", [
     ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["discover", "flag", "Publications Découvrir"], ["alerts", "bell", "Alertes programmées"], ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }]]],
   ["Clients & croissance", "funnel", [
@@ -21,11 +22,11 @@ const NAV = [
   ["Paramètres du site", "gear", [
     ["rules", "gear", "Conditions & exceptions"], ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["ai", "sparkles", "Assistance IA"]]],
   ["Système & sécurité", "database", [
-    ["monitoring", "flag", "Surveillance & incidents", { count: "openIncidents" }], ["backups", "database", "Sauvegardes & restaurations"], ["audit", "scroll", "Journal d'audit"]]],
+    ["monitoring", "flag", "Surveillance & incidents", { count: "openIncidents" }], ["health", "database", "Santé du système"], ["backups", "database", "Sauvegardes & restaurations"], ["audit", "scroll", "Journal d'audit"]]],
 ];
 const FLAT = NAV.flatMap(([, , items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView };
 
@@ -36,7 +37,7 @@ let badges = {}; let alerts = []; let me = null;
 let access = { all: false, modules: [] };
 // Correspondance entre une entrée du menu et le module délégable. Sans correspondance : réservé au SUPERADMIN.
 const MODULE_OF = { overview: "overview", activity: "activity", listings: "moderation", discover: "moderation", alerts: "moderation", agencies: "agencies", trust: "trust", complaints: "complaints",
-  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", stats: "report", users: "users", payments: "payments" };
+  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", charts: "charts", health: "health", "premium-funnel": "premium-funnel", stats: "report", users: "users", payments: "payments" };
 const allowed = (id) => id === "requests" || access.all || (MODULE_OF[id] !== undefined && access.modules.includes(MODULE_OF[id]));
 const firstAllowed = () => FLAT.find((m) => allowed(m.id))?.id ?? "overview";
 let content; let side; let scrim; let navEl; let crumb; let bell; let bellBadge;
