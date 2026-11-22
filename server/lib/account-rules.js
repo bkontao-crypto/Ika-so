@@ -17,6 +17,8 @@ export const DEFAULT_RULES = Object.freeze({
   discoverPostsPerDay: 5,           // publications par compte et par 24 h (1 à 50)
   discoverRequirePhone: false,      // exiger un numéro confirmé pour publier
   discoverAutoBlockReports: 10,     // membres différents ayant signalé un même compte avant blocage automatique (0 = jamais)
+  listingCapIndividual: 0,          // annonces actives (en attente ou publiées) par particulier ; 0 = illimité (comportement actuel)
+  listingCapAgency: 0,              // idem pour une agence ; 0 = illimité
   whatsappDecisionEnabled: false,   // WhatsApp à la décision finale Premium (activable seulement si jetons et modèle sont installés)
   discoverVideoLinks: false,        // liens vidéo YouTube / Facebook (éteint tant que le superadmin ne l'active pas)
 });
@@ -46,6 +48,8 @@ export function normalizeRules(value) {
     discoverRequirePhone: v.discoverRequirePhone === undefined ? DEFAULT_RULES.discoverRequirePhone : v.discoverRequirePhone === true,
     discoverVideoLinks: v.discoverVideoLinks === true,
     whatsappDecisionEnabled: v.whatsappDecisionEnabled === true,
+    listingCapIndividual: bounded(v.listingCapIndividual, 0, 10000, DEFAULT_RULES.listingCapIndividual),
+    listingCapAgency: bounded(v.listingCapAgency, 0, 10000, DEFAULT_RULES.listingCapAgency),
     discoverAutoBlockReports: bounded(v.discoverAutoBlockReports, 0, 100, DEFAULT_RULES.discoverAutoBlockReports),
   };
 }

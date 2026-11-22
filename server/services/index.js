@@ -44,7 +44,13 @@ export function createServices({ db, config, sendSms, paymentProvider, notifiers
   const ctx = { db, config, sendSms, sendEmail, paymentProvider, notifiers };
   const accounts = createAccounts(ctx);
   const trust = createTrust(ctx, accounts);
-  const listings = createListings(ctx, accounts, trust);
+  const listingCap = async (userId) => {
+    const r = await ruleExceptions.official();
+    if (!r.listingCapIndividual && !r.listingCapAgency) return 0;
+    const type = (await db.query("select type from ika_advertiser_applications where user_id = $1 and status = 'APPROVED' order by created_at desc limit 1", [userId]))[0]?.type;
+    return type === "AGENCE" ? r.listingCapAgency : r.listingCapIndividual;
+  };
+  const listings = createListings(ctx, accounts, trust, listingCap);
   const properties = createProperties(ctx);
   const engagement = createEngagement(ctx, accounts);
   const imports = createImports(ctx, accounts, listings);

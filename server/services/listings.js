@@ -1,4 +1,4 @@
-import { asBadRequest, badRequest, conflict, notFound } from "../lib/errors.js";
+import { asBadRequest, badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { resolveCountry, zonePoint } from "../lib/places.js";
 import {
   CATEGORIES,
@@ -19,7 +19,8 @@ import { LISTING_COLUMNS, listingColumns, toCard } from "./cards.js";
 
 const OUTCOMES = ["SOLD", "RENTED", "ARCHIVED", "RESUBMIT", "RENEW"];
 
-export function createListings(ctx, accounts, trust) {
+/** `listingCap(userId)` : plafond d'annonces actives du compte, 0 = illimité (réglage officiel du superadmin). */
+export function createListings(ctx, accounts, trust, listingCap = async () => 0) {
   const { db } = ctx;
 
   async function photoUrls(listingId, cover) {
@@ -130,6 +131,11 @@ export function createListings(ctx, accounts, trust) {
         assertPhotoList(input.imageUrls?.length ? input.imageUrls : [input.imageUrl]),
       );
       await trust.assertNotBlacklisted("PHONE", profile.phone);
+      const cap = profile.staff_role === "USER" ? await listingCap(userId) : 0;
+      if (cap > 0) {
+        const used = Number((await db.query("select count(*)::int as n from ika_listings where owner_id = $1 and status in ('PENDING', 'PUBLISHED')", [userId]))[0]?.n ?? 0);
+        if (used >= cap) throw forbidden(`Plafond atteint : ${cap} annonce${cap > 1 ? "s" : ""} active${cap > 1 ? "s" : ""} au maximum pour votre type de compte. Retirez ou clôturez une annonce, ou contactez l'équipe.`);
+      }
       // Vérifier les règles métier avant de créer le moindre binaire : pas de fichier orphelin
       // si l'annonce est refusée pour doublon ou si la recherche de similarité échoue.
       if (await sameOwnerTitle(db, userId, input.title)) throw conflict("Vous avez déjà une annonce avec ce titre. Modifiez-la plutôt que d'en créer une seconde.");
