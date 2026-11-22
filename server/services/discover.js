@@ -33,6 +33,22 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
     photos: r.photos ?? [], video: r.video_url ? { provider: r.video_provider, url: r.video_url } : null, createdAt: iso(r.created_at), mine: Boolean(viewerId) && r.user_id === viewerId, hidden: r.status === "HIDDEN",
     author: { id: r.user_id, name: r.name || "Utilisateur", advertiser: Boolean(r.advertiser), avatarUrl: r.avatar_url && !r.images_hidden ? r.avatar_url : null },
   });
+  /** Joint la carte de l'original aux republications : annonce (titre, prix, photo) ou publication (auteur, extrait). Absent si l'original a disparu. */
+  async function withShared(items, rows) {
+    const ids = (t) => [...new Set(rows.filter((r) => r.shared_type === t).map((r) => r.shared_id))];
+    const listings = ids("LISTING").length ? await db.query("select id, title, price, neighborhood, image_url from ika_listings where id = any($1::text[]) and status = 'PUBLISHED' and visibility <> 'HIDDEN'", [ids("LISTING")]) : [];
+    const pubs = ids("PUBLICATION").length ? await db.query(`select pb.id, left(pb.content, 240) as content, coalesce(nullif(pr.full_name, ''), u.name) as name, (select ph.url from ika_publication_photos ph where ph.publication_id = pb.id order by ph.position limit 1) as photo
+        from ika_publications pb join ika_users u on u.id = pb.user_id join ika_profiles pr on pr.user_id = pb.user_id where pb.id = any($1::text[]) and pb.status = 'PUBLISHED'`, [ids("PUBLICATION")]) : [];
+    const L = new Map(listings.map((l) => [l.id, l])), P = new Map(pubs.map((p) => [p.id, p]));
+    return items.map((it, i) => {
+      const r = rows[i];
+      if (!r.shared_type) return it;
+      const l = r.shared_type === "LISTING" ? L.get(r.shared_id) : null, p = r.shared_type === "PUBLICATION" ? P.get(r.shared_id) : null;
+      const shared = l ? { type: "LISTING", id: l.id, title: l.title, price: l.price, place: l.neighborhood, photo: l.image_url, href: `#/annonce/${l.id}` }
+        : p ? { type: "PUBLICATION", id: p.id, title: p.name, excerpt: p.content, photo: p.photo, href: `#/decouvrir?p=${p.id}` } : { type: r.shared_type, gone: true };
+      return { ...it, shared };
+    });
+  }
   const PHOTOS = "(select coalesce(array_agg(ph.url order by ph.position), '{}') from ika_publication_photos ph where ph.publication_id = pb.id) as photos";
   const AUTHOR = `coalesce(nullif(pr.full_name, ''), u.name) as name, ap.avatar_url, ap.images_hidden, (ap.user_id is not null) as advertiser`;
   const AUTHOR_JOINS = `join ika_users u on u.id = pb.user_id and u.deleted_at is null join ika_profiles pr on pr.user_id = pb.user_id and pr.account_status <> 'BANNED'
@@ -40,6 +56,15 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
 
   return {
     settings,
+
+    /** Une publication (lien partagé #/decouvrir?p=…). */
+    async get(viewerId, publicationId) {
+      const rows = await db.query(
+        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.shared_type, pb.shared_id, pb.created_at, ${AUTHOR}, ${PHOTOS}
+           from ika_publications pb ${AUTHOR_JOINS} where pb.id = $1 and pb.status = 'PUBLISHED'`, [String(publicationId ?? "").slice(0, 80)]);
+      if (!rows[0]) throw notFound("Publication introuvable.");
+      return (await withShared([view(rows[0], viewerId)], rows))[0];
+    },
 
     /** Fil public, du plus récent au plus ancien. Les publications masquées, les comptes bloqués et les personnes que vous avez bloquées (ou qui vous ont bloqué) n'y figurent pas. */
     async feed(viewerId, { kind, category, before } = {}) {
@@ -49,7 +74,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       const c = CATEGORIES.includes(category) ? category : null;
       const b = before && Number.isFinite(Date.parse(before)) ? new Date(before).toISOString() : null;
       const rows = await db.query(
-        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.created_at, ${AUTHOR}, ${PHOTOS}
+        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.shared_type, pb.shared_id, pb.created_at, ${AUTHOR}, ${PHOTOS}
            from ika_publications pb ${AUTHOR_JOINS}
           where pb.status = 'PUBLISHED'
             and ($2::text is null or pb.kind = $2) and ($3::text is null or pb.category = $3) and ($4::timestamptz is null or pb.created_at < $4)
@@ -57,18 +82,28 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
           order by pb.created_at desc limit ${PAGE + 1}`,
         [viewerId ?? null, k, c, b]);
       const page = rows.slice(0, PAGE);
-      return { items: page.map((r) => view(r, viewerId)), next: rows.length > PAGE ? iso(page[page.length - 1].created_at) : null, settings: s };
+      return { items: await withShared(page.map((r) => view(r, viewerId)), page), next: rows.length > PAGE ? iso(page[page.length - 1].created_at) : null, settings: s };
     },
 
     /** Publie. Texte obligatoire (pas de numéro de téléphone), photos facultatives (envoyées déjà réduites par le navigateur). */
-    async create(userId, { content, kind, category, zone, photos, videoUrl } = {}) {
+    async create(userId, { content, kind, category, zone, photos, videoUrl, shared } = {}) {
       const profile = await accounts.ensureProfile(userId);
       accounts.assertCanPublish(profile);
       const s = await settings();
       if (!s.enabled) throw forbidden("Découvrir est fermé pour le moment.");
       if (s.requirePhone) await accounts.requireVerifiedPhone(userId);
-      const text = String(content ?? "").trim().slice(0, TEXT_MAX);
-      if (text.length < TEXT_MIN) throw badRequest("Le texte de la publication est trop court.");
+      // Republication : référence vers une annonce ou une publication existante ; le commentaire est facultatif.
+      let ref = null;
+      if (shared?.id) {
+        if (!["LISTING", "PUBLICATION"].includes(shared.type)) throw badRequest("Contenu à republier inconnu.");
+        const ok = shared.type === "LISTING"
+          ? await db.query("select 1 from ika_listings where id = $1 and status = 'PUBLISHED' and visibility <> 'HIDDEN'", [String(shared.id).slice(0, 80)])
+          : await db.query("select 1 from ika_publications where id = $1 and status = 'PUBLISHED'", [String(shared.id).slice(0, 80)]);
+        if (!ok[0]) throw notFound("Le contenu à republier n'est plus disponible.");
+        ref = { type: shared.type, id: String(shared.id).slice(0, 80) };
+      }
+      const text = String(content ?? "").trim().slice(0, TEXT_MAX) || (ref ? "À découvrir sur Ika Sô." : "");
+      if (text.length < (ref ? 1 : TEXT_MIN)) throw badRequest("Le texte de la publication est trop court.");
       if (containsPhone(text)) throw badRequest("Pas de numéro de téléphone dans une publication : les personnes intéressées vous écrivent par la messagerie du site. Écrivez les prix avec des espaces (25 000 000).");
       const k = kind === undefined || kind === null || kind === "" ? "ACTUALITE" : kind;
       if (!KINDS[k]) throw badRequest("Type de publication inconnu.");
@@ -93,7 +128,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
       }
       const id = `pub_${randomUUID()}`;
       await db.transaction(async (tx) => {
-        await tx.query("insert into ika_publications (id, user_id, content, kind, category, zone, video_url, video_provider) values ($1, $2, $3, $4, $5, $6, $7, $8)", [id, userId, text, k, cat, place, video?.url ?? null, video?.provider ?? null]);
+        await tx.query("insert into ika_publications (id, user_id, content, kind, category, zone, video_url, video_provider, shared_type, shared_id) values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)", [id, userId, text, k, cat, place, video?.url ?? null, video?.provider ?? null, ref?.type ?? null, ref?.id ?? null]);
         for (const [i, url] of urls.entries()) await tx.query("insert into ika_publication_photos (publication_id, position, url) values ($1, $2, $3)", [id, i, url]);
       });
       return { id };

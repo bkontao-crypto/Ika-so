@@ -727,6 +727,25 @@ router.get("/listings/:id", async (req, res) => {
     res.setHeader("Cache-Control", "no-store");
     res.json(await services.discover.feed(req.user?.id ?? null, { kind: clean(req.query?.kind, 20), category: clean(req.query?.category, 40), before: clean(req.query?.before, 40) }));
   });
+  router.get("/discover/:id", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.discover.get(req.user?.id ?? null, id(req))); });
+  // ---------- Réactions : j'aime, commentaires, républication ----------
+  router.post("/social/stats", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.social.stats(req.user?.id ?? null, req.body?.items)); });
+  router.post("/social/:type/:id/like", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`like:${userId}`, 120, 60 * 60_000);
+    res.json(await services.social.toggleLike(userId, String(req.params.type).toUpperCase(), id(req)));
+  });
+  router.get("/social/:type/:id/comments", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.social.listComments(req.user?.id ?? null, String(req.params.type).toUpperCase(), id(req))); });
+  router.post("/social/:type/:id/comments", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`comment:${userId}`, 10, 10 * 60_000);
+    res.status(201).json(await services.social.addComment(userId, String(req.params.type).toUpperCase(), id(req), clean(req.body?.body, 1000)));
+  });
+  router.post("/social/:type/:id/repost", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`repost:${userId}`, 20, 60 * 60_000);
+    res.status(201).json(await services.discover.create(userId, { content: clean(req.body?.comment, 2000), kind: "ACTUALITE", photos: [], shared: { type: String(req.params.type).toUpperCase(), id: id(req) } }));
+  });
   router.post("/me/discover", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`disc:${userId}`, 20, 60 * 60_000);

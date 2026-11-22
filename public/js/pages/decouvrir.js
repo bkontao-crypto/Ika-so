@@ -4,7 +4,8 @@ import { app } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
 import { ago, avatar } from "/js/components/espace.js";
-import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer, videoCard } from "/js/components/post-composer.js";
+import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer, sharedCard, videoCard } from "/js/components/post-composer.js";
+import { socialBar } from "/js/components/social.js";
 
 const REASONS = ["Annonce déguisée ou publicité", "Arnaque ou demande d'argent", "Contenu choquant ou insultant", "Numéro de téléphone ou contact direct", "Autre"];
 
@@ -33,7 +34,7 @@ function reportDialog(item) {
   return dialog;
 }
 
-function card(item, onChange) {
+function card(item, onChange, highlight = false) {
   const dialogs = [];
   const open = (make) => { if (needLogin()) return; const d = make(item); dialogs.push(d); article.append(d); d.addEventListener("close", () => d.remove()); d.showModal(); };
   const name = item.author.advertiser ? h("a", { href: `#/annonceur/${encodeURIComponent(item.author.id)}` }, h("strong", null, item.author.name)) : h("strong", null, item.author.name);
@@ -41,7 +42,8 @@ function card(item, onChange) {
   const article = h("article", { class: `card pad stack dc-post kind-${item.kind.toLowerCase()}` },
     h("header", { class: "dc-head" }, avatar(item.author.name, item.author.avatarUrl),
       h("div", { class: "dc-who" }, h("div", { class: "row" }, name, h("span", { class: "pill" }, item.kindLabel), item.author.advertiser ? h("span", { class: "pill pill-green" }, "Annonceur") : null), h("small", { class: "muted" }, meta))),
-    h("p", { class: "dc-text" }, item.content), photoGrid(item.photos), videoCard(item.video),
+    h("p", { class: "dc-text" }, item.content), sharedCard(item.shared), photoGrid(item.photos, { id: item.id, title: item.author.name }), videoCard(item.video),
+    socialBar("PUBLICATION", item.id, { openComments: highlight }),
     h("footer", { class: "row dc-actions" },
       item.mine
         ? h("button", { class: "btn btn-quiet", type: "button", onClick: async () => { if (!window.confirm("Supprimer cette publication ?")) return; try { await api(`/me/publications/${encodeURIComponent(item.id)}/delete`, { method: "POST", body: {} }); toast("Publication supprimée."); onChange(); } catch (error) { fail(error); } } }, icon("trash"), "Supprimer")
@@ -53,6 +55,7 @@ function card(item, onChange) {
 export async function decouvrirPage() {
   loadDiscoverCss();
   let kind = ""; let category = ""; let before = null; let loading = false;
+  const linked = new URLSearchParams((location.hash.split("?")[1] ?? "")).get("p"); // lien partagé #/decouvrir?p=…
   const list = h("div", { class: "stack", "aria-live": "polite" });
   const more = h("button", { class: "btn", type: "button", hidden: true, onClick: () => load(false) }, "Voir plus de publications");
   const chips = h("div", { class: "row", role: "group", "aria-label": "Filtrer les publications" });
@@ -67,7 +70,8 @@ export async function decouvrirPage() {
       const qs = new URLSearchParams({ ...(kind ? { kind } : {}), ...(category ? { category } : {}), ...(!reset && before ? { before } : {}) });
       const r = await api(`/discover?${qs}`);
       if (reset) list.replaceChildren();
-      list.append(...r.items.map((it) => card(it, () => load(true))));
+      if (reset && linked) { try { list.append(card(await api(`/discover/${encodeURIComponent(linked)}`), () => load(true), true)); } catch { /* publication supprimée : on affiche le fil */ } }
+      list.append(...r.items.filter((it) => it.id !== linked || !reset).map((it) => card(it, () => load(true))));
       if (reset && !r.items.length) list.append(h("div", { class: "card pad muted dc-empty" }, r.settings?.enabled === false ? "Découvrir est fermé pour le moment." : "Aucune publication pour le moment. Soyez la première personne à publier !"));
       before = r.next; more.hidden = !r.next;
     } catch (error) { fail(error); } finally { loading = false; }

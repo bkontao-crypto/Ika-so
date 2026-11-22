@@ -5,6 +5,7 @@ import { S, app, refreshSession } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { field } from "/js/components/ui.js";
 import { KIND_LABELS, photoGrid, postComposer, videoCard } from "/js/components/post-composer.js";
+import { socialBar } from "/js/components/social.js";
 import { stars } from "/js/components/stars.js";
 import { bulkImportBlock } from "/js/components/bulk-import.js";
 import { accountSettings } from "/js/pages/account.js";
@@ -193,7 +194,7 @@ export async function profilePage() {
       postComposer({ onPosted: () => reload() }),
       h("p", { class: "mp-hint" }, "Vos publications apparaissent aussi dans l'onglet « Découvrir » du site, séparées des annonces."),
       posts.length
-        ? posts.map((p) => h("article", { class: "mp-card" }, p.kind && p.kind !== "ACTUALITE" ? h("span", { class: "pill" }, KIND_LABELS[p.kind] ?? p.kind) : null, h("p", { class: "mp-post" }, p.content), photoGrid(p.photos), videoCard(p.video),
+        ? posts.map((p) => h("article", { class: "mp-card" }, p.kind && p.kind !== "ACTUALITE" ? h("span", { class: "pill" }, KIND_LABELS[p.kind] ?? p.kind) : null, h("p", { class: "mp-post" }, p.content), photoGrid(p.photos, { id: p.id, title: name }), videoCard(p.video), socialBar("PUBLICATION", p.id),
             h("div", { class: "mp-row between" }, h("small", null, dateFr(p.createdAt)),
               h("button", { class: "mp-link danger", type: "button", onClick: () => { if (window.confirm("Supprimer cette publication ?")) run(() => api(`/me/publications/${encodeURIComponent(p.id)}/delete`, { method: "POST", body: {} }), "Publication supprimée."); } }, "Supprimer"))))
         : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "📝"), h("h3", null, "Aucune publication récente"),

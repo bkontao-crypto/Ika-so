@@ -4,6 +4,7 @@ import { watchDwell } from "/js/core/analytics.js";
 import { needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 import { initials } from "/js/components/espace.js";
+import { socialBar } from "/js/components/social.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
@@ -138,22 +139,11 @@ export async function listingPage(id) {
           h("button", { class: "btn btn-primary", type: "button", onClick: () => contact("WHATSAPP") }, "WhatsApp"),
           h("button", { class: "btn", type: "button", onClick: () => { if (!needLogin()) msgDialog.showModal(); } }, "Écrire"),
           h("button", { class: "btn", type: "button", onClick: () => { if (!needLogin()) visitDialog.showModal(); } }, "Demander une visite"),
-          h("button", { class: "btn", type: "button", onClick: share }, "Partager"),
           h("button", { class: "btn", type: "button", onClick: () => dialog.showModal() }, "Signaler")),
         S.user ? null : h("p", { class: "small muted" }, "Connectez-vous pour afficher le numéro : chaque contact est compté."),
         h("section", { class: "stack" },
-          h("h2", null, "Commentaires"),
-          h("div", { class: "row" }, body,
-            h("button", { class: "btn btn-primary", type: "button", onClick: async () => {
-              if (needLogin()) return;
-              try {
-                await api(`/listings/${encodeURIComponent(id)}/comments`, { method: "POST", body: { body: body.value } });
-                body.value = "";
-                drawComments(await api(`/listings/${encodeURIComponent(id)}/comments`));
-                toast("Commentaire publié.");
-              } catch (error) { fail(error); }
-            } }, "Envoyer")),
-          commentList))),
+          h("h2", null, "Réactions et commentaires"),
+          socialBar("LISTING", id, { openComments: true })))),
     similar.length ? h("section", { class: "stack" }, h("h2", null, "Annonces similaires"),
       h("div", { class: "listing-grid" }, similar.map((i) => h("article", { class: "card pad" },
         h("p", { class: "small muted" }, `${i.neighborhood} · ${i.surfaceLabel}`), h("h3", null, h("a", { href: `#/annonce/${encodeURIComponent(i.id)}` }, i.title)), h("p", { class: "price" }, formatPrice(i.price, i.transactionType)))))) : null,
