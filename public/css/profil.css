@@ -112,3 +112,18 @@
 @media (max-width:800px){.pa-layout>.pa-main{order:-1}}
 
 .pa-svc{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.pa-svc>div:first-child{flex:1;min-width:0;display:flex;gap:10px;align-items:flex-start}
+
+/* Profil style Facebook : le nom commence toujours sous la couverture (jamais masqué), à côté de la photo ronde qui chevauche. */
+.pa-identity{align-items:flex-start;gap:20px}
+.pa-who{padding:0 0 8px;margin-top:72px}
+.pa-who h1{overflow-wrap:anywhere}
+.pa-actions{margin-top:72px}
+.pa-avatar{box-shadow:0 0 0 3px #1877f2,0 4px 16px rgba(0,0,0,.18)}
+@media (max-width:800px){
+  .pa-who{margin-top:52px}
+  .pa-actions{margin-top:0}
+}
+@media (max-width:520px){
+  .pa-identity{gap:12px}
+  .pa-who{margin-top:50px;min-width:0;flex:1 1 0}
+}
