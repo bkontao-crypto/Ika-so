@@ -14,7 +14,6 @@ const NAV = [
   { href: "#/annonces?category=Terrain", label: "Terrains", icon: "ruler", match: (p, q) => onListings(p) && q?.get("category") === "Terrain" },
   { href: "#/carte", label: "Carte", icon: "pin", match: (p) => p === "/carte" || p.startsWith("/localiser") },
   { href: "#/decouvrir", label: "Découvrir", icon: "sparkles", match: (p) => p === "/decouvrir" },
-  { href: "#/alertes", label: "Alerte", icon: "bell", match: (p) => p === "/alertes" },
   { href: "#/annonceurs", label: "Annonceurs", icon: "users", match: (p) => p === "/annonceurs" || p.startsWith("/annonceur/") },
   { href: "#/partenaires", label: "Partenaires", icon: "building", match: (p) => p === "/partenaires" },
 ];
