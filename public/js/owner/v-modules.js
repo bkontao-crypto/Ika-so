@@ -186,9 +186,10 @@ const applicationsPanel = (reload) => {
   const decide = (a, body, ok) => act(() => api(`/staff/advertiser-applications/${encodeURIComponent(a.id)}/decide`, { method: "POST", body }), ok, reload);
   async function fill() {
     try {
-      const apps = await api("/staff/advertiser-applications?status=PENDING");
+      const apps = await api("/staff/advertiser-applications?status=OPEN");
       box.replaceChildren(...(apps.length ? apps.map((a) => h("article", { class: "card panel stack" },
-        h("div", { class: "row" }, h("b", null, a.full_name || a.user_name || a.user_id), pill("neutral", a.type)),
+        h("div", { class: "row" }, h("b", null, a.full_name || a.user_name || a.user_id), pill("neutral", a.type), a.status === "ADDITIONAL_INFO_REQUIRED" ? pill("warn", "En attente de la réponse du candidat") : a.status === "UNDER_REVIEW" ? pill("info", "Réponse reçue / en cours d'examen") : null),
+        (a.messages ?? []).map((m) => h("p", { class: "small", style: { margin: 0 } }, h("b", null, m.side === "STAFF" ? "Équipe : " : "Candidat : "), m.body, h("span", { class: "muted" }, ` · ${dateTime(m.at)}`))),
         h("p", { class: "muted small" }, a.data?.description || "Aucune description."),
         h("p", { class: "muted small" }, `Demandé : ${a.display_role_requested || "—"} · ${dateOnly(a.created_at)}`),
         (a.documents || []).length ? h("div", { class: "row" }, a.documents.map((d) => h("button", { class: "btn sm", type: "button", onClick: () => openAppDoc(a.id, d) }, ico("external"), `Voir : ${APP_DOC(d.label)}`))) : h("p", { class: "muted small" }, "Aucune pièce jointe (facultatif)."),
@@ -199,7 +200,7 @@ const applicationsPanel = (reload) => {
     } catch (error) { box.replaceChildren(errorBox(error.message || "Chargement impossible.", fill)); }
   }
   fill();
-  return panel("Demandes annonceurs en attente", "Approuver, demander des informations ou refuser. Les pièces se consultent sans être téléchargées.", box);
+  return panel("Demandes annonceurs en cours", "Approuver, demander des informations ou refuser. Les pièces se consultent sans être téléchargées.", box);
 };
 
 export const agenciesView = (ctx) => page(ctx, {

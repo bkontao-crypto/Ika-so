@@ -28,9 +28,30 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
     async listMine(userId) {
       await requireActive(userId);
       return db.query(
-        "select id, type, status, display_role_requested, admin_note, created_at, updated_at, jsonb_array_length(documents)::int as documents_count, documents_expire_at from ika_advertiser_applications where user_id = $1 order by created_at desc",
+        "select a.id, a.type, a.status, a.display_role_requested, a.admin_note, a.created_at, a.updated_at, jsonb_array_length(a.documents)::int as documents_count, a.documents_expire_at, (select coalesce(jsonb_agg(jsonb_build_object('side', m.side, 'body', m.body, 'at', m.created_at) order by m.created_at), '[]'::jsonb) from ika_advertiser_app_messages m where m.application_id = a.id) as messages from ika_advertiser_applications a where a.user_id = $1 order by a.created_at desc",
         [userId]
       );
+    },
+
+    /** Le candidat répond à une demande d'informations : la réponse rejoint le fil, la demande repasse « en cours d'examen » et l'équipe est prévenue. */
+    async reply(userId, applicationId, message) {
+      await requireActive(userId);
+      const text = String(message ?? "").trim();
+      if (text.length < 2) throw badRequest("Écrivez votre réponse.");
+      const row = (await db.query("select id, status from ika_advertiser_applications where id = $1 and user_id = $2", [String(applicationId ?? ""), userId]))[0];
+      if (!row) throw notFound("Demande introuvable.");
+      if (row.status !== "ADDITIONAL_INFO_REQUIRED") throw conflict("L'équipe ne vous demande pas d'information pour le moment.");
+      await db.transaction(async (tx) => {
+        await tx.query("insert into ika_advertiser_app_messages (id, application_id, author_id, side, body) values ($1, $2, $3, 'USER', $4)", [`am_${randomUUID()}`, row.id, userId, text.slice(0, 1000)]);
+        await tx.query("update ika_advertiser_applications set status = 'UNDER_REVIEW', updated_at = now() where id = $1", [row.id]);
+      });
+      if (notify) {
+        try {
+          const staff = await db.query("select user_id from ika_profiles where staff_role in ('MODERATOR', 'ADMIN', 'SUPERADMIN') and account_status <> 'BANNED' and user_id <> $1", [userId]);
+          await Promise.all(staff.map((r) => notify(r.user_id, { kind: "ADVERTISER_APPLICATION", title: "Réponse d'un candidat annonceur", body: text.slice(0, 200), link: "/owner#/requests" }).catch(() => undefined)));
+        } catch { /* confort */ }
+      }
+      return { ok: true, status: "UNDER_REVIEW" };
     },
 
     async submit(userId, input) {
@@ -157,14 +178,15 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
       return db.query(
         `select a.id, a.user_id, a.type, a.status, a.display_role_requested, a.data, a.admin_note, a.created_at,
                 u.name as user_name, p.full_name,
+                (select coalesce(jsonb_agg(jsonb_build_object('side', m.side, 'body', m.body, 'at', m.created_at) order by m.created_at), '[]'::jsonb) from ika_advertiser_app_messages m where m.application_id = a.id) as messages,
                 (select coalesce(jsonb_agg(jsonb_build_object('id', d->>'id', 'label', d->>'label', 'type', d->>'type')), '[]'::jsonb) from jsonb_array_elements(a.documents) d) as documents,
                 (select pr.status from ika_proofs pr where pr.owner_id = a.user_id and pr.kind = 'AGENCE' order by pr.created_at desc limit 1) as agency_proof_status,
                 (select pr.id from ika_proofs pr where pr.owner_id = a.user_id and pr.kind = 'AGENCE' order by pr.created_at desc limit 1) as agency_proof_id
          from ika_advertiser_applications a
          join ika_users u on u.id = a.user_id
          left join ika_profiles p on p.user_id = a.user_id
-         where a.status = $1 order by a.created_at desc limit 100`,
-        [status]
+         where (($1 = 'OPEN' and a.status = any($2::text[])) or a.status = $1) order by a.created_at desc limit 100`,
+        [status, OPEN_STATUSES]
       );
     },
 
@@ -188,6 +210,7 @@ export function createAdvertiserApplications({ db, accounts, notify = null }) {
       if (action === "APPROVE") {
         await db.query("update ika_profiles set display_role = $1 where user_id = $2", [app.display_role_requested || "Propriétaire direct", app.user_id]);
       }
+      if (action === "NEED_INFO") await db.query("insert into ika_advertiser_app_messages (id, application_id, author_id, side, body) values ($1, $2, $3, 'STAFF', $4)", [`am_${randomUUID()}`, applicationId, userId, cleanNote]);
       await accounts.audit(userId, "ADVERTISER_APPLICATION_" + action, null, `${app.user_id} -> ${newStatus}`);
       if (notify) {
         await notify(app.user_id, { kind: decision.kind, title: decision.title, body: cleanNote, link: action === "APPROVE" ? "#/publier" : "#/devenir-annonceur" }).catch(() => undefined);

@@ -669,6 +669,11 @@ router.get("/listings/:id", async (req, res) => {
   router.post("/staff/featured-requests/:id/decision", async (req, res) => res.json(await featuredRequests.decide(await requireOwnerGate(req, "moderation"), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 500), months: req.body?.months })));
   router.get("/me/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listMine(requireUser(req))));
   router.post("/me/advertiser-applications", async (req, res) => res.status(201).json(await advertiserApplications.submit(requireUser(req), req.body ?? {})));
+  router.post("/me/advertiser-applications/:id/reply", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`appreply:${userId}`, 10, 60 * 60_000);
+    res.json(await advertiserApplications.reply(userId, id(req), clean(req.body?.message, 1000)));
+  });
   router.post("/me/advertiser-applications/:id/documents", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`appdoc:${userId}`, 10, 60 * 60_000);
