@@ -59,6 +59,33 @@ function applyHeaderStyle() {
   header.style.setProperty("--header-bg", custom ? pair.bg : "");
   header.style.setProperty("--header-ink", custom ? pair.ink : "");
 }
+// Pied de page personnalisable : le HTML d'origine (index.html) reste le repli si l'API est lente ou en panne.
+let FOOTER = null;
+try { FOOTER = JSON.parse(localStorage.getItem("ika_footer") || "null"); } catch { FOOTER = null; }
+function applyFooter() {
+  const f = FOOTER;
+  const grid = document.querySelector(".site-footer .foot-grid");
+  if (!f || !grid || !Array.isArray(f.columns)) return;
+  const intro = grid.querySelector(".foot-brand p");
+  if (intro && typeof f.intro === "string") intro.textContent = f.intro;
+  grid.querySelectorAll(".foot-col").forEach((n) => n.remove());
+  grid.append(...f.columns.map((c) => h("nav", { class: "foot-col", "aria-label": c.title },
+    h("h3", null, c.title),
+    h("ul", null, c.links.map((l) => h("li", null, h("a", { href: l.href, target: /^https:/i.test(l.href) ? "_blank" : null, rel: /^https:/i.test(l.href) ? "noopener noreferrer" : null }, l.label)))))));
+  const copy = document.querySelector(".site-footer .foot-copy");
+  if (copy && typeof f.copyright === "string") {
+    const year = copy.querySelector("#year")?.textContent || String(new Date().getFullYear());
+    copy.replaceChildren("© ", h("span", { id: "year" }, year), ` ${f.copyright}`);
+  }
+}
+export async function loadFooter() {
+  try {
+    FOOTER = await api("/site-footer");
+    try { localStorage.setItem("ika_footer", JSON.stringify(FOOTER)); } catch { /* stockage indisponible */ }
+    applyFooter();
+  } catch { /* on garde la dernière version connue */ }
+}
+
 /** Charge la configuration publiée puis redessine l'en-tête. Silencieux en cas d'échec. */
 export async function loadHeader() {
   try {
@@ -178,4 +205,5 @@ export function renderChrome() {
   const menuBtn = h("button", { class: "icon-btn rx-menu-btn", type: "button", "aria-label": "Ouvrir le menu", "aria-haspopup": "dialog", onClick: (e) => openMenu(e.currentTarget) }, icon("list"));
   mount(actions, publish, HEADER?.themeToggle === false ? null : themeBtn, inbox, account, menuBtn);
   applyHeaderStyle();
+  applyFooter();
 }

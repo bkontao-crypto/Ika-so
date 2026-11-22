@@ -2,7 +2,7 @@
 import { api, h, loadPlaces, mount, replaceTextIn } from "/js/dom.js";
 import { app, onSession, refreshSession, refreshUnread } from "/js/core/state.js";
 import { currentRoute } from "/js/core/router.js";
-import { renderChrome, loadHeader } from "/js/components/chrome.js";
+import { renderChrome, loadHeader, loadFooter } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
 import { openConsentPanel } from "/js/components/consent-panel.js";
 import { trackPageView } from "/js/core/analytics.js";
@@ -91,7 +91,7 @@ window.addEventListener("unhandledrejection", (e) => report(e.reason?.message ??
 
 // Hors connexion léger : le site garde ses fichiers et les dernières annonces vues (voir /sw.js).
 if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => undefined);
-loadHeader(); // onglets, logo et couleurs choisis par le superadmin
+loadHeader(); loadFooter(); // onglets, logo et couleurs choisis par le superadmin
 window.addEventListener("online", () => { renderChrome(); refreshUnread(); });
 window.addEventListener("offline", () => renderChrome());
 
