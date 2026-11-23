@@ -7,6 +7,8 @@ import { h } from "/js/dom.js";
 
 const links = () => [h("a", { href: "/conditions", target: "_blank", rel: "noopener" }, "conditions d'utilisation"), " et la ", h("a", { href: "/confidentialite", target: "_blank", rel: "noopener" }, "politique de confidentialité")];
 
+const opened = new Set(); // documents déjà ouverts pendant cette visite : inutile de les rouvrir si la fenêtre se ferme puis revient
+
 export function askDataConsent() {
   return new Promise((resolve) => {
     const previous = document.activeElement;
@@ -15,14 +17,37 @@ export function askDataConsent() {
     const box = h("div", { class: "consent-panel", role: "dialog", "aria-modal": "true", "aria-labelledby": "dc-title" });
     const overlay = h("div", { class: "consent-overlay", id: "data-consent-dialog" }, box);
 
-    const step1 = () => box.replaceChildren(
-      h("h2", { id: "dc-title" }, "Avant de créer votre compte"),
-      h("p", { class: "small" }, "En continuant, vous acceptez les ", ...links(), " et confirmez avoir 18 ans ou plus."),
-      h("p", { class: "small" }, "Ika So a besoin de vos données pour fonctionner : compte, connexion et sécurité, annonces et messages, paiements, modération. Avec votre accord, elles incluent aussi vos données d'usage : pages consultées, annonces vues, appels et contacts WhatsApp lancés, fréquence de connexion. Elles servent à améliorer le service, protéger la plateforme et fournir des statistiques aux annonceurs."),
-      h("p", { class: "small muted" }, "Vous pourrez modifier ce choix à tout moment dans Mon profil > Paramètres."),
-      h("div", { class: "consent-actions" },
-        h("button", { class: "btn", type: "button", onClick: step2 }, "Refuser"),
-        h("button", { class: "btn btn-primary", type: "button", onClick: () => finish("all") }, "Tout accepter")));
+    // Les deux documents doivent être ouverts avant de pouvoir accepter : on invite à les lire, on ne les « donne » pas à la chaîne.
+    // Seule l'ouverture peut être constatée (pas la lecture) : l'écran dit « ouvert », jamais « lu ».
+    const DOCS = [["conditions", "/conditions", "Conditions d'utilisation"], ["privacy", "/confidentialite", "Politique de confidentialité"]];
+    const step1 = () => {
+      const accept = h("button", { class: "btn btn-primary", type: "button", disabled: true, "aria-describedby": "dc-hint", onClick: () => finish("all") }, "Tout accepter");
+      const hint = h("p", { class: "small muted", id: "dc-hint", role: "status" });
+      const marks = {};
+      const refresh = () => {
+        for (const [key] of DOCS) marks[key].textContent = opened.has(key) ? "✓ Ouvert" : "À ouvrir";
+        const ready = opened.size === DOCS.length;
+        accept.disabled = !ready;
+        hint.textContent = ready ? "Merci. Vous pouvez maintenant accepter ou refuser." : "Ouvrez et lisez les deux documents : le bouton « Tout accepter » s'activera ensuite.";
+      };
+      const doc = ([key, href, label]) => {
+        marks[key] = h("span", { class: "small consent-doc-mark" });
+        const open = () => { opened.add(key); refresh(); };
+        return h("li", { class: "consent-doc" }, h("a", { href, target: "_blank", rel: "noopener", onClick: open, onAuxclick: open }, label), marks[key]);
+      };
+      box.replaceChildren(
+        h("h2", { id: "dc-title" }, "Avant de créer votre compte"),
+        h("p", { class: "small" }, "Prenez le temps de lire nos documents. Ils s'ouvrent dans un nouvel onglet : revenez ensuite ici pour continuer."),
+        h("ul", { class: "consent-docs" }, DOCS.map(doc)),
+        h("p", { class: "small" }, "En cliquant sur « Tout accepter », vous acceptez nos ", ...links(), ". Vous confirmez aussi avoir 18 ans ou plus."),
+        h("p", { class: "small" }, "Ika So a besoin de vos données pour fonctionner : compte, connexion et sécurité, annonces et messages, paiements, modération. Avec votre accord, elles incluent aussi vos données d'usage : pages consultées, annonces vues, appels et contacts WhatsApp lancés, fréquence de connexion. Elles servent à améliorer le service, protéger la plateforme et fournir des statistiques aux annonceurs."),
+        h("p", { class: "small muted" }, "Vous pourrez modifier ce choix à tout moment dans Mon profil > Paramètres."),
+        hint,
+        h("div", { class: "consent-actions" },
+          h("button", { class: "btn", type: "button", onClick: step2 }, "Refuser"),
+          accept));
+      refresh();
+    };
 
     const step2 = () => box.replaceChildren(
       h("h2", { id: "dc-title" }, "Données indispensables"),
