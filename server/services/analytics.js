@@ -67,7 +67,13 @@ export function createAnalytics({ db, config, logger = null, clock = () => new D
     /** Choix du titulaire. Refus : ses actions passées perdent leur identifiant de compte (elles restent comptées, anonymes). */
     async getConsent(userId) {
       const rows = await db.query("select accepted, text_version, decided_at from ika_analytics_consent where user_id = $1", [userId]);
-      return { accepted: rows[0] ? rows[0].accepted === true : null, textVersion: CONSENT_TEXT_VERSION, collecting: Boolean(config?.analytics?.enabled) };
+      // Traces visibles dans Mon profil : acceptation des conditions (date, version) et dernier choix sur les données (date, version du texte).
+      const terms = (await db.query("select terms_version, terms_accepted_at from ika_users where id = $1", [userId]))[0];
+      return {
+        accepted: rows[0] ? rows[0].accepted === true : null, textVersion: CONSENT_TEXT_VERSION, collecting: Boolean(config?.analytics?.enabled),
+        decidedAt: rows[0]?.decided_at ?? null, decidedTextVersion: rows[0]?.text_version ?? null,
+        terms: { version: terms?.terms_version ?? null, acceptedAt: terms?.terms_accepted_at ?? null },
+      };
     },
     async setConsent(userId, accepted) {
       const yes = accepted === true;

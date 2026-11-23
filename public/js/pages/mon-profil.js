@@ -14,6 +14,7 @@ const TABS = [["publications", "Publications"], ["annonces", "Mes annonces"], ["
 const STATUS = { PENDING: ["amber", "⏳ En attente de validation"], REJECTED: ["red", "✕ Refusée"], EXPIRED: ["neutral", "Expirée"], SOLD: ["neutral", "Vendue"], RENTED: ["neutral", "Louée"], DRAFT: ["neutral", "Brouillon"] };
 const FILTERS = [["all", "🏠", "Toutes mes annonces"], ["PUBLISHED", "🟢", "En ligne"], ["PENDING", "🟡", "En attente"], ["REJECTED", "🔴", "Refusées"]];
 const monthYear = (iso) => (iso ? new Date(iso).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : "");
+const fmtDateTime = (iso) => (iso ? new Date(iso).toLocaleString("fr-FR", { day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "");
 const dateFr = (iso) => (iso ? new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "");
 const initials = (name) => (String(name || "?").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "?").toUpperCase();
 const badge = (kind, text, title) => h("span", { class: `mp-badge mp-badge-${kind}`, title: title ?? null }, text);
@@ -329,8 +330,12 @@ export async function profilePage() {
           toggle(pr.showWhatsapp, "Afficher WhatsApp", () => edit.hasPhone && run(() => api("/me/public-profile", { method: "PUT", body: { showWhatsapp: !pr.showWhatsapp } }), "Préférence enregistrée."))),
         setting("Suivre anonymement", "Quand je suis un compte, mon nom reste caché par défaut (modifiable à chaque abonnement, et pour chaque compte dans l'onglet Abonnés).",
           toggle(followSettings.anonymousByDefault, "Suivre anonymement par défaut", () => run(() => api("/me/follow-settings", { method: "PUT", body: { anonymousByDefault: !followSettings.anonymousByDefault, applyToExisting: !followSettings.anonymousByDefault } }), followSettings.anonymousByDefault ? "Vos prochains abonnements montreront votre nom." : "Vous êtes maintenant anonyme pour tous vos abonnements."))),
-        consent ? setting("Statistiques d'annonces", "Partager mes vues anonymes",
-          toggle(consent.accepted === true, "Statistiques d'annonces", () => run(() => api("/me/analytics-consent", { method: "PUT", body: { accepted: consent.accepted !== true } }), "Préférence enregistrée."))) : null)),
+        consent?.terms?.acceptedAt ? setting("Conditions et confidentialité",
+          `Acceptées le ${fmtDateTime(consent.terms.acceptedAt)} (version ${consent.terms.version ?? "—"}).`) : null,
+        consent ? setting("Collecte de mes données", consent.decidedAt
+          ? `${consent.accepted === true ? "Acceptée" : "Désactivée"} le ${fmtDateTime(consent.decidedAt)} (texte ${consent.decidedTextVersion ?? "—"}). Vous pouvez la modifier ici à tout moment.`
+          : "Aucun choix enregistré. Vous pouvez l'activer ici.",
+          toggle(consent.accepted === true, "Collecte de mes données", () => run(() => api("/me/analytics-consent", { method: "PUT", body: { accepted: consent.accepted !== true } }), "Préférence enregistrée."))) : null)),
     h("div", { class: "mp-col" },
       h("div", { class: "mp-card" },
         h("div", { class: "mp-group" }, h("h4", null, "Vérification"),

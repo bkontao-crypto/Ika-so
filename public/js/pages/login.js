@@ -41,7 +41,7 @@ export async function loginPage() {
           let body = { email: form.email, password: form.password };
           if (reg) {
             const choice = await askDataConsent();
-            if (!choice) return toast("Inscription annulée : les données indispensables sont nécessaires.", true);
+            if (!choice) return toast("Inscription annulée.", true);
             body = { ...form, acceptTerms: true, dataConsent: choice };
           }
           await api(reg ? "/auth/register" : "/auth/login", { method: "POST", body });
@@ -60,7 +60,7 @@ export async function loginPage() {
         h("div", { class: "auth-sep", role: "separator" }, h("span", null, "ou")),
         h("button", { class: "btn-google", type: "button", onClick: async () => {
           const choice = await askDataConsent();
-          if (!choice) return toast("Connexion annulée : les données indispensables sont nécessaires.", true);
+          if (!choice) return toast("Connexion annulée.", true);
           location.href = `/api/auth/google?terms=1&consent=${choice}&next=${encodeURIComponent(next)}`;
         } }, googleLogo(), h("span", null, "Continuer avec Google"))) : null,
       h("p", { class: "small muted" }, "Votre numéro de téléphone est vérifié par un code SMS au moment de publier.")));
