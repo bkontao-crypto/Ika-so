@@ -1,7 +1,7 @@
 /**
  * Nettoyage des fichiers orphelins de `stored_files` — COMMANDE MANUELLE UNIQUEMENT (jamais de minuterie, jamais au démarrage).
  * Un fichier est orphelin s'il n'est référencé ni par une annonce (image_url), ni par une galerie (ika_listing_photos.url),
- * ni par un justificatif (ika_proofs.file_id), ni par une pièce jointe à une demande annonceur (ika_advertiser_applications.documents), ni par une photo de profil (ika_advertiser_profiles), ni par la photo de la page d'accueil (ika_homepage_settings, photo publique ou en attente), et s'il est assez ancien pour ne pas être un téléversement en cours.
+ * ni par un justificatif (ika_proofs.file_id), ni par une pièce jointe à une demande annonceur (ika_advertiser_applications.documents), ni par une photo de profil (ika_advertiser_profiles), ni par une pièce du badge Étoile (ika_star_documents), ni par la photo de la page d'accueil (ika_homepage_settings, photo publique ou en attente), et s'il est assez ancien pour ne pas être un téléversement en cours.
  * Par défaut : simulation. Suppression seulement avec --apply ET --confirm=SUPPRIMER.
  */
 import { newId } from "./security.js";
@@ -21,7 +21,8 @@ const UNREFERENCED = `
   and not exists (select 1 from ika_advertiser_profiles ap where lower(ap.cover_url) = '/api/media/' || f.id::text or lower(ap.avatar_url) = '/api/media/' || f.id::text)
   and not exists (select 1 from ika_homepage_settings hs where lower(hs.config->>'image') = '/api/media/' || f.id::text or lower(hs.config->>'pending_image') = '/api/media/' || f.id::text)
   and not exists (select 1 from ika_partners pt where lower(pt.logo_url) = '/api/media/' || f.id::text)
-  and not exists (select 1 from ika_publication_photos pp where lower(pp.url) = '/api/media/' || f.id::text)`;
+  and not exists (select 1 from ika_publication_photos pp where lower(pp.url) = '/api/media/' || f.id::text)
+  and not exists (select 1 from ika_star_documents sd where sd.file_id = f.id)`;
 
 export function parseCleanupArgs(argv) {
   const opts = { apply: false, confirm: "", minAgeHours: ORPHAN_DEFAULT_MIN_AGE_HOURS, limit: ORPHAN_DEFAULT_LIMIT };

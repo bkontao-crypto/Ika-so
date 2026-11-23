@@ -524,6 +524,54 @@ export const paymentSettingsView = (ctx) => page(ctx, {
   },
 });
 
+// ---------- Badge Étoile : réglages (activation, prix, durée, pièces, textes) ----------
+const STAR_DOCS = { ID_CARD: "Carte d'identité", PHOTO: "Photo d'identité récente", SELFIE: "Selfie avec la pièce d'identité", RESIDENCE: "Certificat de résidence", COMPANY_REGISTER: "Registre de commerce (RCCM)", HQ_PROOF: "Justificatif de siège" };
+const STAR_TYPES = { INDIVIDUAL: "Particulier / propriétaire", AGENCY: "Agence immobilière", OTHER: "Autre professionnel" };
+export const starBadgeSettingsView = (ctx) => page(ctx, {
+  eyebrow: "PILOTAGE", title: "Badge Étoile",
+  desc: "Compte identifié, indépendant du Premium. Éteint tant que vous ne l'activez pas : les annonceurs ne voient alors aucun formulaire.",
+  load: () => api("/staff/star-badge-settings"),
+  build(s, reload) {
+    const num = (v, min, max, label) => h("input", { class: "input", type: "number", min: String(min), max: String(max), value: String(v), "aria-label": label });
+    const on = h("input", { type: "checkbox", id: "sb-on" }); on.checked = s.enabled === true;
+    const phone = h("input", { type: "checkbox", id: "sb-phone" }); phone.checked = s.requirePhone === true;
+    const pay = h("input", { type: "checkbox", id: "sb-pay" }); pay.checked = s.paymentRequired === true;
+    const price = num(s.priceXof, 0, 100000000, "Prix en FCFA"), months = num(s.durationMonths, 1, 60, "Durée en mois"), delay = num(s.reviewDelayDays, 1, 60, "Délai en jours"), keep = num(s.retentionDays, 0, 3650, "Conservation en jours");
+    const title = h("input", { class: "input", maxlength: "80", value: s.infoTitle, "aria-label": "Titre" });
+    const body = h("textarea", { class: "input", rows: "4", maxlength: "1200", "aria-label": "Texte explicatif" }, s.infoBody);
+    const warn = h("textarea", { class: "input", rows: "3", maxlength: "600", "aria-label": "Avertissement" }, s.warningText);
+    const boxes = {};
+    const reqPanel = Object.entries(STAR_TYPES).map(([t, tl]) => h("div", { class: "stack" }, h("strong", null, tl),
+      ...Object.entries(STAR_DOCS).map(([k, kl]) => {
+        const sel = h("select", { "aria-label": `${tl} : ${kl}` }, h("option", { value: "no" }, "Non demandée"), h("option", { value: "optional" }, "Demandée (facultative)"), h("option", { value: "required" }, "Obligatoire"));
+        sel.value = s.requirements[t].required.includes(k) ? "required" : s.requirements[t].optional.includes(k) ? "optional" : "no";
+        boxes[`${t}.${k}`] = sel;
+        return h("label", { class: "row" }, h("span", null, kl), sel);
+      })));
+    const collect = () => {
+      const requirements = {};
+      for (const t of Object.keys(STAR_TYPES)) requirements[t] = { required: Object.keys(STAR_DOCS).filter((k) => boxes[`${t}.${k}`].value === "required"), optional: Object.keys(STAR_DOCS).filter((k) => boxes[`${t}.${k}`].value === "optional") };
+      return { enabled: on.checked, requirePhone: phone.checked, paymentRequired: pay.checked, priceXof: Number(price.value), durationMonths: Number(months.value), reviewDelayDays: Number(delay.value), retentionDays: Number(keep.value), requirements, infoTitle: title.value, infoBody: body.value, warningText: warn.value };
+    };
+    return [
+      panel("Activation", null, h("div", { class: "stack" },
+        h("label", { class: "row", for: "sb-on" }, on, h("strong", null, "Badge Étoile ouvert aux annonceurs (formulaire dans Paramètres & Confidentialité)")),
+        h("label", { class: "row", for: "sb-phone" }, phone, h("span", null, "Numéro de téléphone confirmé obligatoire")),
+        h("label", { class: "row", for: "sb-pay" }, pay, h("span", null, "Badge payant (le paiement en ligne sera branché à une prochaine étape ; le prix se règle déjà)")))),
+      panel("Prix, durée et délai", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, "Prix du badge (FCFA, 0 = gratuit)", price), h("label", { class: "field" }, "Validité du badge (mois)", months),
+        h("label", { class: "field" }, "Délai d'étude annoncé (jours)", delay))),
+      panel("Pièces demandées par type de compte", "Obligatoire, facultative ou non demandée", h("div", { class: "stack" }, ...reqPanel)),
+      panel("Conservation des pièces", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, "Durée de conservation après la décision (jours, 0 = jusqu'à suppression manuelle)", keep),
+        h("p", { class: "small muted" }, "À fixer selon la loi en vigueur. Les pièces ne sont jamais publiques ; chaque ouverture par l'équipe est tracée."))),
+      panel("Textes affichés (bouton « C'est quoi un compte certifié ? »)", null, h("div", { class: "stack" },
+        h("label", { class: "field" }, "Titre", title), h("label", { class: "field" }, "Explication", body), h("label", { class: "field" }, "Avertissement aux utilisateurs", warn))),
+      h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/star-badge-settings", { method: "PUT", body: { value: collect() } }), "Réglages enregistrés.", reload) }, "Enregistrer")),
+    ];
+  },
+});
+
 // ---------- Découvrir : publications signalées ou masquées ----------
 const ALERT_ST = { ACTIVE: "Active", SCHEDULED: "Programmée", PAUSED: "En pause", SUSPENDED: "Suspendue", EXPIRED: "Expirée" };
 export const alertsView = (ctx) => page(ctx, {
