@@ -2,6 +2,7 @@ import { CRITERIA } from "../lib/certification-criteria.js";
 import { premiumOrigin } from "../lib/analytics-events.js";
 import { leadsToPdf, moderationAuditToPdf } from "../lib/table-pdfs.js";
 import { POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
+import { STAR_POLICY_KEY, normalizeStarPolicy } from "../lib/star-badge-policy.js";
 import { Router } from "express";
 import { AppError, forbidden } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
@@ -28,7 +29,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { userCenter, featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { userCenter, featuredRequests, premiumRequests, starBadge, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -1002,7 +1003,7 @@ router.get("/listings/:id", async (req, res) => {
     const staffId = requireUser(req);
     await accounts.requireStaff(staffId, "SUPERADMIN");
     const raw = req.body?.value ?? req.body;
-    const value = req.params.key === POLICY_KEY ? normalizePolicy(raw) : raw;
+    const value = req.params.key === POLICY_KEY ? normalizePolicy(raw) : req.params.key === STAR_POLICY_KEY ? normalizeStarPolicy(raw) : raw;
     const out = await superadminSettings.set(staffId, req.params.key, value);
     await moderationAudit.log(staffId, {
       action: "superadmin_settings_update",
@@ -1028,6 +1029,26 @@ router.get("/listings/:id", async (req, res) => {
   router.post("/premium/requests", async (req, res) => res.status(201).json(await premiumRequests.create(requireUser(req), { months: req.body?.months, accountType: req.body?.accountType, phone: req.body?.phone, message: req.body?.message, acceptTerms: req.body?.acceptTerms })));
   router.post("/premium/requests/:id/cancel", async (req, res) => res.json(await premiumRequests.cancel(requireUser(req), id(req))));
   router.get("/staff/requests-hub", async (req, res) => { res.setHeader("Cache-Control", "no-store"); const userId = requireUser(req); await services.accounts.requireStaff(userId, "MODERATOR"); res.json(await services.requestsHub.summary(userId)); });
+  // ---------- Badge Étoile (compte identifié) : indépendant du Premium ----------
+  router.get("/star-badge/info", async (_req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.publicInfo()); });
+  router.get("/star-badge/mine", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.mine(requireUser(req))); });
+  router.post("/star-badge/documents", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`star-doc:${userId}`, 30, 60 * 60_000);
+    res.status(201).json(await starBadge.addDocument(userId, { accountType: clean(req.body?.accountType, 20), kind: clean(req.body?.kind, 30), fileData: String(req.body?.fileData ?? "").slice(0, 1_000_000) }));
+  });
+  router.post("/star-badge/submit", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`star-submit:${userId}`, 10, 60 * 60_000);
+    res.status(201).json(await starBadge.submit(userId, { phone: req.body?.phone, message: req.body?.message, acceptTerms: req.body?.acceptTerms }));
+  });
+  router.post("/star-badge/cancel", async (req, res) => res.json(await starBadge.cancel(requireUser(req))));
+  // Réglages du badge : superadmin, ou administrateur auquel le module « Confiance » a été délégué.
+  router.get("/staff/star-badge-settings", async (req, res) => { await requireOwnerGate(req, "trust"); res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.settings()); });
+  router.put("/staff/star-badge-settings", async (req, res) => res.json(await starBadge.saveSettings(await requireOwnerGate(req, "trust"), req.body?.value ?? req.body)));
+  router.get("/staff/star-badge-requests", async (req, res) => { await requireOwnerGate(req, "trust"); res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.listForStaff()); });
+  router.get("/staff/star-badge-requests/:id/documents/:docId", async (req, res) => { const staffId = await requireOwnerGate(req, "trust"); res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.viewDocument(staffId, id(req), clean(req.params.docId, 80))); });
+
   router.get("/staff/premium-requests", async (req, res) => res.json(await premiumRequests.listForStaff(await requireOwnerGate(req, "payments"))));
   router.post("/staff/premium-requests/:id/steps/:step", async (req, res) => res.json(await premiumRequests.completeStep(await requireOwnerGate(req, "payments"), id(req), req.params.step, { note: clean(req.body?.note, 300) })));
   router.post("/staff/premium-requests/:id/steps/:step/undo", async (req, res) => res.json(await premiumRequests.undoStep(await requireOwnerGate(req, "payments"), id(req), req.params.step, { note: clean(req.body?.note, 300) })));

@@ -14,7 +14,7 @@ const NAV = [
   ["Utilisateurs & comptes", "users", [
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }], ["permissions", "shield", "Permissions du personnel"], ["delegations", "users", "Délégations de modules"]]],
   ["Paiements & Premium", "wallet", [
-    ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"], ["premium-funnel", "funnel", "Entonnoir Premium"], ["payment-settings", "gear", "Réglages paiement"]]],
+    ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"], ["premium-funnel", "funnel", "Entonnoir Premium"], ["payment-settings", "gear", "Réglages paiement"], ["star-settings", "shield", "Badge Étoile"]]],
   ["Annonces & modération", "list", [
     ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["discover", "flag", "Publications Découvrir"], ["alerts", "bell", "Alertes programmées"], ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }]]],
   ["Clients & croissance", "funnel", [
@@ -26,7 +26,7 @@ const NAV = [
 ];
 const FLAT = NAV.flatMap(([, , items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView };
 
@@ -37,7 +37,7 @@ let badges = {}; let alerts = []; let me = null;
 let access = { all: false, modules: [] };
 // Correspondance entre une entrée du menu et le module délégable. Sans correspondance : réservé au SUPERADMIN.
 const MODULE_OF = { overview: "overview", activity: "activity", listings: "moderation", discover: "moderation", alerts: "moderation", agencies: "agencies", trust: "trust", complaints: "complaints",
-  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", charts: "charts", health: "health", "premium-funnel": "premium-funnel", stats: "report", users: "users", payments: "payments" };
+  subscriptions: "subscriptions", crm: "crm", marketing: "marketing", regions: "regions", reports: "report", monitoring: "monitoring", charts: "charts", health: "health", "premium-funnel": "premium-funnel", stats: "report", users: "users", payments: "payments", "star-settings": "trust" };
 const allowed = (id) => id === "requests" || access.all || (MODULE_OF[id] !== undefined && access.modules.includes(MODULE_OF[id]));
 const firstAllowed = () => FLAT.find((m) => allowed(m.id))?.id ?? "overview";
 let content; let side; let scrim; let navEl; let crumb; let bell; let bellBadge;

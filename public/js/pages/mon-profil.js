@@ -9,6 +9,7 @@ import { socialBar } from "/js/components/social.js";
 import { stars } from "/js/components/stars.js";
 import { bulkImportBlock } from "/js/components/bulk-import.js";
 import { accountSettings } from "/js/pages/account.js";
+import { starBadgeCard } from "/js/components/star-badge-form.js";
 
 const TABS = [["publications", "Publications"], ["annonces", "Mes annonces"], ["avis", "Avis"], ["abonnes", "Abonnés"], ["equipe", "Équipe"], ["parametres", "Paramètres & Confidentialité"]];
 const STATUS = { PENDING: ["amber", "⏳ En attente de validation"], REJECTED: ["red", "✕ Refusée"], EXPIRED: ["neutral", "Expirée"], SOLD: ["neutral", "Vendue"], RENTED: ["neutral", "Louée"], DRAFT: ["neutral", "Brouillon"] };
@@ -359,7 +360,10 @@ export async function profilePage() {
           setting("Supprimer mon compte", "Action irréversible : voir « Mes données » plus bas", h("button", { class: "mp-btn mp-btn-outline danger", type: "button", onClick: () => { const d = settingsHost.querySelector("details"); d?.setAttribute("open", ""); (d ?? settingsHost).scrollIntoView({ behavior: "smooth", block: "center" }); } }, "Supprimer"))))));
   const settingsHost = h("div", { class: "mp-more" }, h("h3", null, "Autres réglages du compte"));
   accountSettings(reload, { embedded: true }).then((node) => settingsHost.append(node)).catch(() => {});
-  const parametres = h("div", { class: "mp-stack" }, parametresTab, settingsHost);
+  // Badge Étoile : le formulaire n'apparaît que si le superadmin a ouvert le badge.
+  const starHost = h("div");
+  starBadgeCard().then((node) => node && starHost.append(node)).catch(() => {});
+  const parametres = h("div", { class: "mp-stack" }, parametresTab, starHost, settingsHost);
 
   /* ---------- Assemblage et onglets ---------- */
   const panels = { publications: publicationsTab, annonces: annoncesTab, avis: avisTab, abonnes, equipe: teamTab, parametres };
