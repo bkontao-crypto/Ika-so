@@ -138,6 +138,7 @@ function customBlock(b) {
   return h("section", { class: ["rx-sec", "rx-cblock", `rx-cblock-${b.type}`, b.bg && b.ink ? "is-colored" : "", ...hide].filter(Boolean).join(" "), style: colors },
     h("div", { class: "rx-cblock-in" },
       b.imageUrl ? h("img", { class: "rx-cblock-img", src: b.imageUrl, alt: b.alt || "", loading: "lazy" }) : null,
+      b.type === "gallery" && b.images?.length ? h("div", { class: "rx-cblock-gallery" }, b.images.map((im) => h("img", { src: im.url, alt: im.alt || "", loading: "lazy" }))) : null,
       h("div", { class: "rx-cblock-body" },
         b.title ? h("h2", null, b.title) : null,
         b.text ? h("p", null, b.text) : null,
@@ -163,7 +164,8 @@ export async function renderHome() {
     : Promise.resolve(false);
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
   let layout = null; // ordre et visibilité des sections choisis par le superadmin ; à défaut, ordre d'origine
-  try { const l = await api("/home-layout"); layout = l.sections; TEXTS = l.texts ?? {}; CARDS = l.cards ?? {}; } catch { /* ordre d'origine */ }
+  const preview = /[?&]apercu=1(&|$)/.test(location.hash); // aperçu du brouillon (réservé au personnel connecté)
+  try { const l = await api(preview ? "/staff/home-layout-preview" : "/home-layout"); layout = l.sections; TEXTS = l.texts ?? {}; CARDS = l.cards ?? {}; } catch { /* ordre d'origine */ }
   const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
   const isAdvertiser = !required || await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
@@ -265,7 +267,7 @@ export async function renderHome() {
     partners, guides, download: downloadApp,
   };
   const order = layout ?? Object.keys(blocks).map((id) => ({ id, visible: true }));
-  mount(app, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => (x.custom && x.block ? customBlock(x.block) : blocks[x.id])));
+  mount(app, preview ? h("div", { class: "rx-preview-bar", role: "status" }, "Aperçu du brouillon : non publié, visible de vous seulement.") : null, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => (x.custom && x.block ? customBlock(x.block) : blocks[x.id])));
 
   reveal(app);
 

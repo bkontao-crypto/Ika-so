@@ -144,26 +144,66 @@ export function headerSection(src, reload) {
 
 /** Sections de l'accueil : ordre et visibilité (le héros et la recherche restent en tête). */
 export function layoutSection(src, reload) {
-  const d = { sections: src.sections.map((x) => ({ ...x })), texts: JSON.parse(JSON.stringify(src.texts ?? {})), cards: JSON.parse(JSON.stringify(src.cards ?? {})) };
+  const base = src.draft ?? src; // un brouillon existant est repris tel quel
+  const d = { sections: JSON.parse(JSON.stringify(base.sections)), texts: JSON.parse(JSON.stringify(base.texts ?? {})), cards: JSON.parse(JSON.stringify(base.cards ?? {})) };
   const FIELDS = [["kicker", "Petit titre (au-dessus)", 40], ["title", "Titre", 120], ["text", "Texte d'introduction", 300]];
   const box = h("div", { class: "stack" });
-  const TYPES = { text: "Texte", image: "Texte + image", cta: "Appel à l'action" };
+  const TYPES = { text: "Texte", image: "Texte + image", gallery: "Galerie", cta: "Appel à l'action" };
   const lisib = h("div", { class: "stack" });
-  const saveBtn = h("button", { class: "btn primary", type: "button" }, "Enregistrer l'accueil");
+  const saveBtn = h("button", { class: "btn primary", type: "button" }, "Publier l'accueil");
+  const draftBtn = h("button", { class: "btn", type: "button" }, "Enregistrer le brouillon");
+  const previewBtn = h("button", { class: "btn", type: "button" }, "Aperçu (nouvel onglet)");
+  const discardBtn = h("button", { class: "btn", type: "button" }, "Abandonner le brouillon");
+  const status = h("span", { class: "small muted", role: "status" });
   function refreshLisib() {
     const pairs = d.sections.filter((x) => x.custom && (x.block.bg || x.block.ink)).map((x) => ({
       name: `Bloc « ${x.block.title || TYPES[x.block.type]} »`, fg: x.block.ink, bg: x.block.bg, apply: (v) => { x.block.ink = v; draw(); },
     }));
     const { rows, blocking } = legibilityRows(pairs);
     fill(lisib, rows);
-    saveBtn.disabled = blocking > 0;
+    saveBtn.disabled = blocking > 0; draftBtn.disabled = blocking > 0; previewBtn.disabled = blocking > 0;
   }
   const newId = () => `b_${Math.random().toString(36).slice(2, 10).padEnd(8, "0")}`;
   const addBlock = (type) => {
     if (d.sections.filter((x) => x.custom).length >= 12) return;
-    d.sections.push({ id: newId(), visible: true, custom: true, block: { type, title: type === "cta" ? "Votre titre" : "Titre du bloc", text: "", imageUrl: "", alt: "", buttonLabel: "", buttonHref: "", bg: "", ink: "", devices: { desktop: true, tablet: true, mobile: true } } });
+    d.sections.push({ id: newId(), visible: true, custom: true, block: { type, title: type === "cta" ? "Votre titre" : "Titre du bloc", text: "", imageUrl: "", alt: "", images: [], buttonLabel: "", buttonHref: "", bg: "", ink: "", devices: { desktop: true, tablet: true, mobile: true } } });
     draw();
   };
+  function galleryEditor(b) {
+    b.images ??= [];
+    const status = h("span", { class: "small muted", role: "status" }, `${b.images.length}/6 images · PNG, JPEG ou WebP, 2 Mo maximum chacune.`);
+    const file = h("input", { class: "input", type: "file", accept: "image/png,image/jpeg,image/webp", multiple: true, "aria-label": "Ajouter des images" });
+    file.addEventListener("change", async () => {
+      for (const f of [...(file.files ?? [])]) {
+        if (b.images.length >= 6) break;
+        if (!/^image\/(png|jpeg|webp)$/.test(f.type) || f.size > 2 * 1024 * 1024) { status.textContent = `« ${f.name} » : format non accepté ou supérieur à 2 Mo.`; continue; }
+        try { status.textContent = "Envoi…"; b.images.push({ url: (await api("/staff/home-block-image", { method: "POST", body: { dataUrl: await readDataUrl(f) } })).imageUrl, alt: "" }); }
+        catch (error) { status.textContent = error.message || "Envoi impossible."; }
+      }
+      draw();
+    });
+    return h("div", { class: "stack" }, file, status, ...b.images.map((im, n) => h("div", { class: "row", style: { alignItems: "center", gap: "8px" } },
+      h("img", { src: im.url, alt: "", style: { height: "48px", borderRadius: "6px" } }),
+      (() => { const a = h("input", { class: "input", maxlength: "120", placeholder: "Description de l'image", value: im.alt, "aria-label": "Description de l'image" }); a.addEventListener("input", () => { im.alt = a.value; }); return a; })(),
+      h("button", { type: "button", class: "btn", onClick: () => { b.images.splice(n, 1); draw(); } }, "Retirer"))));
+  }
+  // Glisser-déposer : on saisit la poignée ⠿ et on dépose sur une autre ligne (les boutons ↑↓ restent disponibles, y compris au clavier).
+  let dragFrom = null;
+  function dragRow(el, i) {
+    const handle = h("span", { class: "small muted", title: "Glisser pour déplacer", "aria-hidden": "true", style: { cursor: "grab", userSelect: "none", padding: "0 6px" } }, "⠿");
+    handle.setAttribute("draggable", "true"); // h() écrit un attribut vide pour true : le navigateur veut la valeur "true"
+    handle.addEventListener("dragstart", (e) => { dragFrom = i; e.dataTransfer?.setData("text/plain", String(i)); if (e.dataTransfer) e.dataTransfer.effectAllowed = "move"; });
+    el.addEventListener("dragover", (e) => { if (dragFrom !== null) { e.preventDefault(); el.style.outline = "2px dashed #0b6b4f"; } });
+    el.addEventListener("dragleave", () => { el.style.outline = ""; });
+    el.addEventListener("drop", (e) => {
+      e.preventDefault(); el.style.outline = "";
+      if (dragFrom === null || dragFrom === i) { dragFrom = null; return; }
+      const [moved] = d.sections.splice(dragFrom, 1); d.sections.splice(i, 0, moved); dragFrom = null; draw();
+    });
+    el.addEventListener("dragend", () => { dragFrom = null; });
+    el.prepend(handle);
+    return el;
+  }
   function blockRow(x, i, vis, move) {
     const b = x.block;
     const bind = (el, key) => { el.addEventListener("input", () => { b[key] = el.value; refreshLisib(); }); return el; };
@@ -187,7 +227,8 @@ export function layoutSection(src, reload) {
         h("div", { class: "form" },
           field("Titre", bind(h("input", { class: "input", maxlength: "120", value: b.title }), "title")),
           field("Texte", text),
-          b.type === "cta" ? null : h("div", { class: "stack" },
+          b.type === "gallery" ? galleryEditor(b) : null,
+          b.type === "cta" || b.type === "gallery" ? null : h("div", { class: "stack" },
             b.imageUrl ? h("img", { src: b.imageUrl, alt: "", style: { maxHeight: "90px", borderRadius: "8px" } }) : null,
             file, status,
             b.imageUrl ? h("button", { type: "button", class: "btn", onClick: () => { b.imageUrl = ""; draw(); } }, "Retirer l'image") : null,
@@ -204,8 +245,9 @@ export function layoutSection(src, reload) {
     const vis = h("input", { type: "checkbox", checked: x.visible !== false, "aria-label": `Afficher ${src.labels[x.id]}` });
     vis.addEventListener("change", () => { x.visible = vis.checked; });
     const move = (dir) => { const j = i + dir; if (j < 0 || j >= d.sections.length) return; [d.sections[i], d.sections[j]] = [d.sections[j], d.sections[i]]; draw(); };
-    if (x.custom) return blockRow(x, i, vis, move);
-    return h("div", { class: "row", style: { alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+    const row = (el) => dragRow(el, i);
+    if (x.custom) return row(blockRow(x, i, vis, move));
+    return row(h("div", { class: "row", style: { alignItems: "center", gap: "8px", flexWrap: "wrap" } },
       h("button", { type: "button", class: "btn", "aria-label": "Monter", disabled: i === 0, onClick: () => move(-1) }, "↑"),
       h("button", { type: "button", class: "btn", "aria-label": "Descendre", disabled: i === d.sections.length - 1, onClick: () => move(1) }, "↓"),
       h("b", null, src.labels[x.id] ?? x.id), h("label", { class: "small" }, vis, " Affichée"),
@@ -220,16 +262,23 @@ export function layoutSection(src, reload) {
             const i = h("input", { class: "input", maxlength: String(max), placeholder: "Vide = texte d'origine", value: d.cards[x.id]?.[n]?.[k] ?? "" });
             i.addEventListener("input", () => { const list = (d.cards[x.id] ??= []); while (list.length <= n) list.push({ title: "", text: "" }); list[n][k] = i.value; });
             return h("label", { class: "field" }, h("span", null, label), i);
-          })))));
+          }))))));
   })); };
   draw();
-  saveBtn.addEventListener("click", () => act(() => api("/staff/home-layout", { method: "PUT", body: d }), "Accueil enregistré.", reload));
+  saveBtn.addEventListener("click", () => act(() => api("/staff/home-layout", { method: "PUT", body: d }), "Accueil publié.", reload));
+  draftBtn.addEventListener("click", () => act(() => api("/staff/home-layout/draft", { method: "PUT", body: d }), "Brouillon enregistré (non publié).", reload));
+  discardBtn.addEventListener("click", () => act(() => api("/staff/home-layout/draft", { method: "DELETE" }), "Brouillon abandonné.", reload));
+  previewBtn.addEventListener("click", async () => { // l'aperçu montre le brouillon : on l'enregistre d'abord
+    try { status.textContent = "Préparation de l'aperçu…"; await api("/staff/home-layout/draft", { method: "PUT", body: d }); window.open("/#/?apercu=1", "_blank", "noopener"); status.textContent = "Aperçu ouvert. Le brouillon est enregistré, rien n'est publié."; }
+    catch (error) { status.textContent = error.message || "Aperçu impossible."; }
+  });
   return [
     panel("Sections de l'accueil", "Sous la recherche : choisissez l'ordre, ce qui s'affiche et les textes des titres. Une section sans données reste masquée automatiquement.", box),
     panel("Blocs libres", "Ajoutez vos propres blocs (jusqu'à 12) : ils se placent et se masquent comme les autres sections, appareil par appareil. Un texte illisible sur sa couleur de fond bloque l'enregistrement.", h("div", { class: "stack" },
       h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap" } }, ...Object.entries(TYPES).map(([t, label]) => h("button", { type: "button", class: "btn", onClick: () => addBlock(t) }, `+ ${label}`))), lisib)),
-    h("div", { class: "row" }, saveBtn, h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
-  ];
+    src.draft ? h("p", { class: "small", role: "status" }, "Un brouillon non publié est en cours : vous le modifiez. Les visiteurs voient toujours la version publiée.") : null,
+    h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap", alignItems: "center" } }, draftBtn, previewBtn, saveBtn, src.draft ? discardBtn : null, h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications"), status),
+  ].filter(Boolean); // replaceChildren natif écrirait « null » pour un élément absent
 }
 
 /** Pied de page : texte de présentation, colonnes de liens, mention de droits (les liens légaux et le choix des cookies restent fixes). */
