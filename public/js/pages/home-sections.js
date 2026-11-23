@@ -130,6 +130,19 @@ function reveal(root) {
 let TEXTS = {};
 let CARDS = {};
 /** Titre/texte d'une carte : valeur du superadmin si renseignée, sinon texte d'origine. */
+/** Bloc libre ajouté par le superadmin (texte, texte + image, appel à l'action) : texte brut, masquable par appareil. */
+function customBlock(b) {
+  const hide = [["desktop", "hide-d"], ["tablet", "hide-t"], ["mobile", "hide-m"]].filter(([k]) => b.devices?.[k] === false).map(([, c]) => c);
+  const external = /^https:/i.test(b.buttonHref || "");
+  const colors = b.bg && b.ink ? { background: b.bg, color: b.ink } : null;
+  return h("section", { class: ["rx-sec", "rx-cblock", `rx-cblock-${b.type}`, b.bg && b.ink ? "is-colored" : "", ...hide].filter(Boolean).join(" "), style: colors },
+    h("div", { class: "rx-cblock-in" },
+      b.imageUrl ? h("img", { class: "rx-cblock-img", src: b.imageUrl, alt: b.alt || "", loading: "lazy" }) : null,
+      h("div", { class: "rx-cblock-body" },
+        b.title ? h("h2", null, b.title) : null,
+        b.text ? h("p", null, b.text) : null,
+        b.buttonLabel ? h("a", { class: "btn", href: b.buttonHref, target: external ? "_blank" : null, rel: external ? "noopener noreferrer" : null }, b.buttonLabel) : null)));
+}
 const card = (id, i, t, p) => { const c = CARDS[id]?.[i]; return [c?.title?.trim() || t, c?.text?.trim() || p]; };
 const ov = (id, d) => ({ ...d, ...Object.fromEntries(Object.entries(TEXTS[id] ?? {}).filter(([, v]) => typeof v === "string" && v.trim())) });
 const sectionHead = (kicker, title, text, link, id) => { const o = ov(id, { kicker, title, text }); return h("div", { class: "rx-sec-head" },
@@ -252,7 +265,7 @@ export async function renderHome() {
     partners, guides, download: downloadApp,
   };
   const order = layout ?? Object.keys(blocks).map((id) => ({ id, visible: true }));
-  mount(app, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => blocks[x.id]));
+  mount(app, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => (x.custom && x.block ? customBlock(x.block) : blocks[x.id])));
 
   reveal(app);
 

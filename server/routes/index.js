@@ -1100,6 +1100,7 @@ router.get("/listings/:id", async (req, res) => {
   router.put("/staff/site-footer", async (req, res) => res.json(await siteHeader.saveFooter(requireUser(req), req.body ?? {})));
   router.get("/home-layout", async (_req, res) => res.json(await siteHeader.getLayout()));
   router.get("/staff/home-layout", async (req, res) => res.json(await siteHeader.getLayoutForStaff(requireUser(req))));
+  router.post("/staff/home-block-image", async (req, res) => res.status(201).json(await siteHeader.uploadBlockImage(requireUser(req), req.body?.dataUrl)));
   router.put("/staff/home-layout", async (req, res) => res.json(await siteHeader.saveLayout(requireUser(req), req.body ?? {})));
   router.get("/staff/site-header", async (req, res) => res.json(await siteHeader.getForStaff(requireUser(req))));
   router.put("/staff/site-header", async (req, res) => res.json(await siteHeader.save(requireUser(req), req.body ?? {})));

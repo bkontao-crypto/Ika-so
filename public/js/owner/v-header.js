@@ -147,10 +147,64 @@ export function layoutSection(src, reload) {
   const d = { sections: src.sections.map((x) => ({ ...x })), texts: JSON.parse(JSON.stringify(src.texts ?? {})), cards: JSON.parse(JSON.stringify(src.cards ?? {})) };
   const FIELDS = [["kicker", "Petit titre (au-dessus)", 40], ["title", "Titre", 120], ["text", "Texte d'introduction", 300]];
   const box = h("div", { class: "stack" });
-  const draw = () => fill(box, d.sections.map((x, i) => {
+  const TYPES = { text: "Texte", image: "Texte + image", cta: "Appel à l'action" };
+  const lisib = h("div", { class: "stack" });
+  const saveBtn = h("button", { class: "btn primary", type: "button" }, "Enregistrer l'accueil");
+  function refreshLisib() {
+    const pairs = d.sections.filter((x) => x.custom && (x.block.bg || x.block.ink)).map((x) => ({
+      name: `Bloc « ${x.block.title || TYPES[x.block.type]} »`, fg: x.block.ink, bg: x.block.bg, apply: (v) => { x.block.ink = v; draw(); },
+    }));
+    const { rows, blocking } = legibilityRows(pairs);
+    fill(lisib, rows);
+    saveBtn.disabled = blocking > 0;
+  }
+  const newId = () => `b_${Math.random().toString(36).slice(2, 10).padEnd(8, "0")}`;
+  const addBlock = (type) => {
+    if (d.sections.filter((x) => x.custom).length >= 12) return;
+    d.sections.push({ id: newId(), visible: true, custom: true, block: { type, title: type === "cta" ? "Votre titre" : "Titre du bloc", text: "", imageUrl: "", alt: "", buttonLabel: "", buttonHref: "", bg: "", ink: "", devices: { desktop: true, tablet: true, mobile: true } } });
+    draw();
+  };
+  function blockRow(x, i, vis, move) {
+    const b = x.block;
+    const bind = (el, key) => { el.addEventListener("input", () => { b[key] = el.value; refreshLisib(); }); return el; };
+    const field = (label, el) => h("label", { class: "field" }, h("span", null, label), el);
+    const text = bind(h("textarea", { class: "input", rows: "3", maxlength: "600" }), "text"); text.value = b.text;
+    const status = h("span", { class: "small muted", role: "status" }, "PNG, JPEG ou WebP · 2 Mo maximum.");
+    const file = h("input", { class: "input", type: "file", accept: "image/png,image/jpeg,image/webp", "aria-label": "Importer une image" });
+    file.addEventListener("change", async () => {
+      const f = file.files?.[0]; if (!f) return;
+      if (!/^image\/(png|jpeg|webp)$/.test(f.type) || f.size > 2 * 1024 * 1024) { status.textContent = "Format non accepté ou fichier supérieur à 2 Mo."; file.value = ""; return; }
+      try { status.textContent = "Envoi…"; b.imageUrl = (await api("/staff/home-block-image", { method: "POST", body: { dataUrl: await readDataUrl(f) } })).imageUrl; draw(); }
+      catch (error) { status.textContent = error.message || "Envoi impossible."; }
+    });
+    const dev = (key, label) => { const c = h("input", { type: "checkbox", checked: b.devices[key] !== false }); c.addEventListener("change", () => { b.devices[key] = c.checked; }); return h("label", { class: "small" }, c, ` ${label}`); };
+    return h("div", { class: "row", style: { alignItems: "center", gap: "8px", flexWrap: "wrap" } },
+      h("button", { type: "button", class: "btn", "aria-label": "Monter", disabled: i === 0, onClick: () => move(-1) }, "↑"),
+      h("button", { type: "button", class: "btn", "aria-label": "Descendre", disabled: i === d.sections.length - 1, onClick: () => move(1) }, "↓"),
+      h("b", null, `${TYPES[b.type]} · ${b.title || "sans titre"}`), h("label", { class: "small" }, vis, " Affiché"),
+      h("button", { type: "button", class: "btn", onClick: () => { d.sections.splice(i, 1); draw(); } }, "Supprimer le bloc"),
+      h("details", { style: { flexBasis: "100%" } }, h("summary", { class: "small" }, "Modifier le bloc"),
+        h("div", { class: "form" },
+          field("Titre", bind(h("input", { class: "input", maxlength: "120", value: b.title }), "title")),
+          field("Texte", text),
+          b.type === "cta" ? null : h("div", { class: "stack" },
+            b.imageUrl ? h("img", { src: b.imageUrl, alt: "", style: { maxHeight: "90px", borderRadius: "8px" } }) : null,
+            file, status,
+            b.imageUrl ? h("button", { type: "button", class: "btn", onClick: () => { b.imageUrl = ""; draw(); } }, "Retirer l'image") : null,
+            field("Description de l'image (lecteurs d'écran)", bind(h("input", { class: "input", maxlength: "120", value: b.alt }), "alt"))),
+          h("div", { class: "form two" },
+            field("Bouton · nom", bind(h("input", { class: "input", maxlength: "30", value: b.buttonLabel }), "buttonLabel")),
+            field("Bouton · lien", bind(h("input", { class: "input", maxlength: "300", placeholder: "#/page, /page ou https://…", value: b.buttonHref }), "buttonHref"))),
+          h("div", { class: "form two" },
+            field("Couleur de fond (vide = aucune)", bind(h("input", { class: "input", maxlength: "7", placeholder: "#0b3d2e", value: b.bg }), "bg")),
+            field("Couleur du texte", bind(h("input", { class: "input", maxlength: "7", placeholder: "#ffffff", value: b.ink }), "ink"))),
+          h("div", { class: "row", style: { gap: "14px" } }, h("span", { class: "small muted" }, "Afficher sur :"), dev("desktop", "Ordinateur"), dev("tablet", "Tablette"), dev("mobile", "Mobile")))));
+  }
+  const draw = () => { refreshLisib(); fill(box, d.sections.map((x, i) => {
     const vis = h("input", { type: "checkbox", checked: x.visible !== false, "aria-label": `Afficher ${src.labels[x.id]}` });
     vis.addEventListener("change", () => { x.visible = vis.checked; });
     const move = (dir) => { const j = i + dir; if (j < 0 || j >= d.sections.length) return; [d.sections[i], d.sections[j]] = [d.sections[j], d.sections[i]]; draw(); };
+    if (x.custom) return blockRow(x, i, vis, move);
     return h("div", { class: "row", style: { alignItems: "center", gap: "8px", flexWrap: "wrap" } },
       h("button", { type: "button", class: "btn", "aria-label": "Monter", disabled: i === 0, onClick: () => move(-1) }, "↑"),
       h("button", { type: "button", class: "btn", "aria-label": "Descendre", disabled: i === d.sections.length - 1, onClick: () => move(1) }, "↓"),
@@ -167,13 +221,14 @@ export function layoutSection(src, reload) {
             i.addEventListener("input", () => { const list = (d.cards[x.id] ??= []); while (list.length <= n) list.push({ title: "", text: "" }); list[n][k] = i.value; });
             return h("label", { class: "field" }, h("span", null, label), i);
           })))));
-  }));
+  })); };
   draw();
+  saveBtn.addEventListener("click", () => act(() => api("/staff/home-layout", { method: "PUT", body: d }), "Accueil enregistré.", reload));
   return [
     panel("Sections de l'accueil", "Sous la recherche : choisissez l'ordre, ce qui s'affiche et les textes des titres. Une section sans données reste masquée automatiquement.", box),
-    h("div", { class: "row" },
-      h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/home-layout", { method: "PUT", body: d }), "Accueil enregistré.", reload) }, "Enregistrer l'accueil"),
-      h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
+    panel("Blocs libres", "Ajoutez vos propres blocs (jusqu'à 12) : ils se placent et se masquent comme les autres sections, appareil par appareil. Un texte illisible sur sa couleur de fond bloque l'enregistrement.", h("div", { class: "stack" },
+      h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap" } }, ...Object.entries(TYPES).map(([t, label]) => h("button", { type: "button", class: "btn", onClick: () => addBlock(t) }, `+ ${label}`))), lisib)),
+    h("div", { class: "row" }, saveBtn, h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
   ];
 }
 
