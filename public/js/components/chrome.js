@@ -35,7 +35,8 @@ const MOBILE_CATALOG = {
 const MOBILE_DEFAULT = ["home", "discover", "publish", "map", "account"];
 const navMobileItems = () => {
   const ids = Array.isArray(HEADER?.mobile) && HEADER.mobile.length ? HEADER.mobile : MOBILE_DEFAULT;
-  const items = ids.map((id) => MOBILE_CATALOG[id]).filter(Boolean);
+  // « Messages » et « Compte » couvrent tous deux /boite : si les deux sont choisis, seul « Messages » s'allume sur cette page.
+  const items = ids.map((id) => (id === "account" && ids.includes("inbox") ? { ...MOBILE_CATALOG.account, match: (p, q) => MOBILE_CATALOG.account.match(p, q) && !p.startsWith("/boite") } : MOBILE_CATALOG[id])).filter(Boolean);
   return items.length ? items : MOBILE_DEFAULT.map((id) => MOBILE_CATALOG[id]);
 };
 

@@ -76,6 +76,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
       tabs.push({ id, label, href, visible: t.visible !== false, ...(sys ? {} : { custom: true }) });
     }
     for (const s of SYSTEM_TABS) if (!seen.has(s.id)) tabs.push({ ...s, visible: false }); // un onglet d'origine omis est masqué, jamais perdu
+    if (tabs.length > MAX_TABS) throw badRequest(`Pas plus de ${MAX_TABS} onglets (onglets d'origine masqués compris).`);
     if (!tabs.some((t) => t.visible)) throw badRequest("Au moins un onglet doit rester visible.");
     const pair = (p, name) => {
       const bg = p?.bg ? normalizeHex(p.bg) : "", ink = p?.ink ? normalizeHex(p.ink) : "";
@@ -122,7 +123,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
       return { url, alt: str(im?.alt, 120, "Description de l'image") };
     });
     if (type === "gallery" && !images.length) throw badRequest("Une galerie demande au moins une image.");
-    if (!title && !text && !imageUrl && !images.length) throw badRequest("Un bloc ne peut pas être vide.");
+    if (type !== "form" && !title && !text && !imageUrl && !images.length) throw badRequest("Un bloc ne peut pas être vide.");
     // Formulaire : champs fixes (nom, contact, message) ; le « bouton » est le bouton d'envoi, sans lien.
     const successText = type === "form" ? str(b.successText || "Merci, votre message a bien été envoyé.", 200, "Message de confirmation") : "";
     const buttonLabel = type === "form" ? (str(b.buttonLabel, 30, "Bouton") || "Envoyer") : str(b.buttonLabel, 30, "Bouton");
@@ -169,7 +170,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     const cards = {};
     const rawCards = input.cards && typeof input.cards === "object" && !Array.isArray(input.cards) ? input.cards : {};
     for (const [id, list] of Object.entries(rawCards)) {
-      if (!HOME_CARDS[id] || !Array.isArray(list) || list.length > HOME_CARDS[id]) throw badRequest("Cartes invalides.");
+      if (!Object.hasOwn(HOME_CARDS, id) || !Array.isArray(list) || list.length > HOME_CARDS[id]) throw badRequest("Cartes invalides.");
       const out = list.map((c) => {
         const title = String(c?.title ?? "").trim(), text = String(c?.text ?? "").trim();
         if (title.length > 60) throw badRequest("Le titre d'une carte est limité à 60 caractères.");
@@ -282,7 +283,13 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
       const allowed = await allowedImages();
       const next = sanitizeLayout(input, allowed);
       await put("home_layout", JSON.stringify(next));
-      await put("home_block_pending", "[]");
+      // Images servies au public : liste exacte des fichiers des blocs affichés (jamais une recherche dans les textes libres).
+      const urlsOf = (sections) => sections.flatMap((x) => [x.block?.imageUrl, ...(x.block?.images ?? []).map((i) => i.url)]).filter(Boolean);
+      await put("home_published_images", JSON.stringify([...new Set(urlsOf(next.sections.filter((x) => x.visible !== false)))]));
+      // En attente : on ne retire que les images réellement utilisées (l'import d'un autre membre du personnel n'est pas perdu).
+      let still = []; try { still = JSON.parse(await setting("home_block_pending") || "[]"); } catch { still = []; }
+      const used = new Set(urlsOf(next.sections));
+      await put("home_block_pending", JSON.stringify(still.filter((u) => !used.has(u))));
       await put("home_layout_draft", ""); // le brouillon est publié : il disparaît
       await accounts.audit(userId, "HOME_LAYOUT_SAVE", null, `${next.sections.filter((x) => x.visible).length}/${next.sections.length} section(s) affichée(s)`);
       return next;

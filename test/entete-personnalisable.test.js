@@ -259,3 +259,40 @@ test("galerie : 1 à 6 images valides, description bornée", async () => {
   await svc.saveLayout("u", withBlock(g([{ url: "/api/media/55555555-5555-4555-8555-555555555555", alt: "x".repeat(10) }])));
   await assert.rejects(() => svc.saveLayout("u", withBlock(g([{ url: "/media/g1.jpg", alt: "x".repeat(121) }]))), /120/);
 });
+
+// --- Corrections issues de la revue (23 novembre 2026) ---
+test("revue B1 : le plafond d'onglets tient compte des onglets d'origine ajoutés (rien ne dépasse 16, la lecture ne retombe pas sur les défauts)", async () => {
+  const { svc } = make();
+  const custom = Array.from({ length: 12 }, (_, i) => ({ id: `c_aaaa${1000 + i}`, label: `L${i}`, href: "#/" }));
+  const three = SYSTEM_TABS.slice(0, 3).map((t) => ({ ...t, visible: true }));
+  await assert.rejects(() => svc.save("u", { tabs: [...custom, ...three] }), /16/);  // 12 + 3 + 5 omis = 20 : refusé
+  const ok = await svc.save("u", { tabs: [...custom.slice(0, 8), ...SYSTEM_TABS.map((t) => ({ ...t, visible: true }))] }); // 8 + 8 = 16 : accepté
+  assert.equal((await svc.get()).tabs.length, 16); assert.equal(ok.tabs.length, 16);
+});
+test("revue B2 : clés héritées (constructor, __proto__) refusées pour les cartes", async () => {
+  const { svc } = make();
+  await assert.rejects(() => svc.saveLayout("u", { cards: { constructor: [{ title: "x" }] } }), /invalides/);
+  await assert.rejects(() => svc.saveLayout("u", JSON.parse('{"cards":{"__proto__":[{"title":"x"}]}}')), /invalides/);
+});
+test("revue B3 : un bloc Formulaire sans titre ni texte est accepté (champs fixes), pas un bloc texte vide", async () => {
+  const { svc } = make();
+  await svc.saveLayout("u", withBlock(blk({ type: "form", title: "", text: "", buttonLabel: "", buttonHref: "", bg: "", ink: "" })));
+  await assert.rejects(() => svc.saveLayout("u", withBlock(blk({ type: "text", title: "", text: "", buttonLabel: "", buttonHref: "", bg: "", ink: "" }))), /vide/);
+});
+test("revue B4 : publier ne perd pas l'image importée en attente par un autre membre du personnel", async () => {
+  const { svc, db } = make();
+  const mine = "/api/media/88888888-8888-4888-8888-888888888888", other = "/api/media/99999999-9999-4999-8999-999999999999";
+  db.kv.set("home_block_pending", JSON.stringify([mine, other]));
+  await svc.saveLayout("u", withBlock(blk({ type: "image", imageUrl: mine })));
+  assert.deepEqual(JSON.parse(db.kv.get("home_block_pending")), [other]);
+});
+test("revue S1 : la liste des images publiques ne contient que les fichiers des blocs affichés (pas les textes libres, pas les blocs masqués)", async () => {
+  const { svc, db } = make();
+  const shown = "/media/a.jpg", hidden = "/media/b.jpg", cited = "/api/media/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  await svc.saveLayout("u", { sections: [
+    { id: "b_shown001", visible: true, custom: true, block: blk({ type: "image", imageUrl: shown, text: `voir ${cited}` }) },
+    { id: "b_hidden01", visible: false, custom: true, block: blk({ type: "image", imageUrl: hidden }) },
+    { id: "b_gallery1", visible: true, custom: true, block: blk({ type: "gallery", images: [{ url: "/media/g.jpg", alt: "" }], bg: "", ink: "" }) },
+  ] });
+  assert.deepEqual(JSON.parse(db.kv.get("home_published_images")).sort(), ["/media/a.jpg", "/media/g.jpg"]);
+});
