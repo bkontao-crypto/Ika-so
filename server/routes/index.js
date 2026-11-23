@@ -28,7 +28,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { userCenter, featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { userCenter, featuredRequests, premiumRequests, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -1098,6 +1098,15 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/site-footer", async (_req, res) => res.json(await siteHeader.getFooter()));
   router.get("/staff/site-footer", async (req, res) => { await accounts.requirePermission(requireUser(req), "contenu.gerer"); res.json(await siteHeader.getFooter()); });
   router.put("/staff/site-footer", async (req, res) => res.json(await siteHeader.saveFooter(requireUser(req), req.body ?? {})));
+  // Formulaire de l'accueil : dépôt public (limité par adresse et par bloc), lecture/traitement réservés à « contenu.gerer ».
+  router.post("/home-forms/:blockId", async (req, res) => {
+    limiter.hit(`hform:${req.ip}`, 5, 60 * 60_000);
+    limiter.hit(`hform:${req.params.blockId}`, 60, 60 * 60_000);
+    res.status(201).json(await homeForms.submit({ ...(req.body ?? {}), blockId: req.params.blockId }));
+  });
+  router.get("/staff/home-forms", async (req, res) => res.json({ items: await homeForms.list(requireUser(req), req.query.status), newCount: await homeForms.count(requireUser(req)) }));
+  router.post("/staff/home-forms/:id/handle", async (req, res) => res.json(await homeForms.handle(requireUser(req), req.params.id)));
+  router.delete("/staff/home-forms/:id", async (req, res) => res.json(await homeForms.remove(requireUser(req), req.params.id)));
   router.get("/home-layout", async (_req, res) => res.json(await siteHeader.getLayout()));
   router.get("/staff/home-layout", async (req, res) => res.json(await siteHeader.getLayoutForStaff(requireUser(req))));
   router.post("/staff/home-block-image", async (req, res) => res.status(201).json(await siteHeader.uploadBlockImage(requireUser(req), req.body?.dataUrl)));

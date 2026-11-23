@@ -34,6 +34,7 @@ import { createRights } from "./rights.js";
 import { createSeo } from "./seo.js";
 import { createTrust } from "./trust.js";
 import { createSiteHeader } from "./site-header.js";
+import { createHomeForms } from "./home-forms.js";
 import { createHomepageSettings } from "./homepage-settings.js";
 import { createPartners } from "./partners.js";
 import { createPlaces } from "./places.js";
@@ -85,6 +86,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const stats = createStats({ db, accounts, analytics, backup, sendEmail, onSettingsChanged: () => seo.invalidateSite() });
   const homepageSettings = createHomepageSettings({ db, accounts });
   const siteHeader = createSiteHeader({ db, accounts, onChanged: () => seo.invalidateSite() });
+  const homeForms = createHomeForms({ db, accounts, siteHeader });
   const partners = createPartners({ db, accounts });
   const places = createPlaces({ db, accounts });
   const ownerCenter = createOwnerCenter({ db, accounts, logger });
@@ -93,7 +95,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

@@ -148,7 +148,7 @@ export function layoutSection(src, reload) {
   const d = { sections: JSON.parse(JSON.stringify(base.sections)), texts: JSON.parse(JSON.stringify(base.texts ?? {})), cards: JSON.parse(JSON.stringify(base.cards ?? {})) };
   const FIELDS = [["kicker", "Petit titre (au-dessus)", 40], ["title", "Titre", 120], ["text", "Texte d'introduction", 300]];
   const box = h("div", { class: "stack" });
-  const TYPES = { text: "Texte", image: "Texte + image", gallery: "Galerie", cta: "Appel à l'action" };
+  const TYPES = { text: "Texte", image: "Texte + image", gallery: "Galerie", form: "Formulaire", cta: "Appel à l'action" };
   const lisib = h("div", { class: "stack" });
   const saveBtn = h("button", { class: "btn primary", type: "button" }, "Publier l'accueil");
   const draftBtn = h("button", { class: "btn", type: "button" }, "Enregistrer le brouillon");
@@ -166,7 +166,7 @@ export function layoutSection(src, reload) {
   const newId = () => `b_${Math.random().toString(36).slice(2, 10).padEnd(8, "0")}`;
   const addBlock = (type) => {
     if (d.sections.filter((x) => x.custom).length >= 12) return;
-    d.sections.push({ id: newId(), visible: true, custom: true, block: { type, title: type === "cta" ? "Votre titre" : "Titre du bloc", text: "", imageUrl: "", alt: "", images: [], buttonLabel: "", buttonHref: "", bg: "", ink: "", devices: { desktop: true, tablet: true, mobile: true } } });
+    d.sections.push({ id: newId(), visible: true, custom: true, block: { type, title: type === "cta" ? "Votre titre" : type === "form" ? "Écrivez-nous" : "Titre du bloc", text: "", imageUrl: "", alt: "", images: [], successText: "", buttonLabel: "", buttonHref: "", bg: "", ink: "", devices: { desktop: true, tablet: true, mobile: true } } });
     draw();
   };
   function galleryEditor(b) {
@@ -228,14 +228,19 @@ export function layoutSection(src, reload) {
           field("Titre", bind(h("input", { class: "input", maxlength: "120", value: b.title }), "title")),
           field("Texte", text),
           b.type === "gallery" ? galleryEditor(b) : null,
-          b.type === "cta" || b.type === "gallery" ? null : h("div", { class: "stack" },
+          b.type === "cta" || b.type === "gallery" || b.type === "form" ? null : h("div", { class: "stack" },
             b.imageUrl ? h("img", { src: b.imageUrl, alt: "", style: { maxHeight: "90px", borderRadius: "8px" } }) : null,
             file, status,
             b.imageUrl ? h("button", { type: "button", class: "btn", onClick: () => { b.imageUrl = ""; draw(); } }, "Retirer l'image") : null,
             field("Description de l'image (lecteurs d'écran)", bind(h("input", { class: "input", maxlength: "120", value: b.alt }), "alt"))),
-          h("div", { class: "form two" },
-            field("Bouton · nom", bind(h("input", { class: "input", maxlength: "30", value: b.buttonLabel }), "buttonLabel")),
-            field("Bouton · lien", bind(h("input", { class: "input", maxlength: "300", placeholder: "#/page, /page ou https://…", value: b.buttonHref }), "buttonHref"))),
+          b.type === "form"
+            ? h("div", { class: "form two" },
+              field("Bouton d'envoi · nom", bind(h("input", { class: "input", maxlength: "30", placeholder: "Envoyer", value: b.buttonLabel }), "buttonLabel")),
+              field("Message de confirmation", bind(h("input", { class: "input", maxlength: "200", placeholder: "Merci, votre message a bien été envoyé.", value: b.successText }), "successText")))
+            : h("div", { class: "form two" },
+              field("Bouton · nom", bind(h("input", { class: "input", maxlength: "30", value: b.buttonLabel }), "buttonLabel")),
+              field("Bouton · lien", bind(h("input", { class: "input", maxlength: "300", placeholder: "#/page, /page ou https://…", value: b.buttonHref }), "buttonHref"))),
+          b.type === "form" ? h("p", { class: "small muted" }, "Le visiteur renseigne son nom, un téléphone ou e-mail et son message. Les messages arrivent plus bas, dans « Messages reçus ».") : null,
           h("div", { class: "form two" },
             field("Couleur de fond (vide = aucune)", bind(h("input", { class: "input", maxlength: "7", placeholder: "#0b3d2e", value: b.bg }), "bg")),
             field("Couleur du texte", bind(h("input", { class: "input", maxlength: "7", placeholder: "#ffffff", value: b.ink }), "ink"))),
@@ -276,6 +281,7 @@ export function layoutSection(src, reload) {
     panel("Sections de l'accueil", "Sous la recherche : choisissez l'ordre, ce qui s'affiche et les textes des titres. Une section sans données reste masquée automatiquement.", box),
     panel("Blocs libres", "Ajoutez vos propres blocs (jusqu'à 12) : ils se placent et se masquent comme les autres sections, appareil par appareil. Un texte illisible sur sa couleur de fond bloque l'enregistrement.", h("div", { class: "stack" },
       h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap" } }, ...Object.entries(TYPES).map(([t, label]) => h("button", { type: "button", class: "btn", onClick: () => addBlock(t) }, `+ ${label}`))), lisib)),
+    formMessagesPanel(src.forms, reload),
     src.draft ? h("p", { class: "small", role: "status" }, "Un brouillon non publié est en cours : vous le modifiez. Les visiteurs voient toujours la version publiée.") : null,
     h("div", { class: "row", style: { gap: "8px", flexWrap: "wrap", alignItems: "center" } }, draftBtn, previewBtn, saveBtn, src.draft ? discardBtn : null, h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications"), status),
   ].filter(Boolean); // replaceChildren natif écrirait « null » pour un élément absent
@@ -312,4 +318,28 @@ export function footerSection(src, reload) {
       h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications")),
   ];
   function toastMax() { box.append(h("p", { class: "small muted" }, "Maximum : 4 colonnes.")); }
+}
+
+/** Messages reçus par les blocs « Formulaire » : à traiter, puis marqués traités ou supprimés. */
+export function formMessagesPanel(initial, reload) {
+  const box = h("div", { class: "stack" });
+  let mode = "NEW";
+  async function load(next) {
+    mode = next;
+    try { const r = await api(`/staff/home-forms?status=${mode}`); draw(r.items); }
+    catch (error) { fill(box, h("p", { class: "small muted" }, error.message || "Chargement impossible.")); }
+  }
+  const draw = (items) => fill(box,
+    h("div", { class: "row", style: { gap: "8px" } },
+      h("button", { type: "button", class: "btn", disabled: mode === "NEW", onClick: () => load("NEW") }, "À traiter"),
+      h("button", { type: "button", class: "btn", disabled: mode === "HANDLED", onClick: () => load("HANDLED") }, "Traités")),
+    items.length ? items.map((m) => h("article", { class: "card panel stack" },
+      h("div", null, h("b", null, m.name), ` · ${m.contact}`, h("span", { class: "small muted" }, ` · ${new Date(m.created_at).toLocaleString("fr-FR")}${m.block_title ? ` · ${m.block_title}` : ""}`)),
+      h("p", { style: { whiteSpace: "pre-line", margin: 0 } }, m.message),
+      h("div", { class: "row", style: { gap: "8px" } },
+        mode === "NEW" ? h("button", { type: "button", class: "btn", onClick: () => act(() => api(`/staff/home-forms/${m.id}/handle`, { method: "POST" }), "Message marqué traité.", () => load(mode)) }, "Marquer traité") : null,
+        h("button", { type: "button", class: "btn", onClick: () => { if (confirm("Supprimer définitivement ce message ?")) act(() => api(`/staff/home-forms/${m.id}`, { method: "DELETE" }), "Message supprimé.", () => load(mode)); } }, "Supprimer"))))
+      : h("p", { class: "small muted" }, mode === "NEW" ? "Aucun message à traiter." : "Aucun message traité."));
+  draw(initial?.items ?? []);
+  return panel(`Messages reçus${initial?.newCount ? ` (${initial.newCount} à traiter)` : ""}`, "Envoyés par les blocs « Formulaire » de l'accueil. Données personnelles : supprimez les messages dont vous n'avez plus besoin.", box);
 }
