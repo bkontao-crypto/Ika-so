@@ -106,14 +106,23 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
   // Bloc libre de l'accueil : texte, texte + image, ou appel à l'action. Texte brut uniquement ; image du site ou importée ; couleurs contrôlées.
   function sanitizeBlock(b, allowedImages) {
     if (!b || typeof b !== "object") throw badRequest("Bloc invalide.");
-    const type = ["text", "image", "cta"].includes(b.type) ? b.type : null;
+    const type = ["text", "image", "cta", "gallery"].includes(b.type) ? b.type : null;
     if (!type) throw badRequest("Type de bloc inconnu.");
     const str = (v, max, name) => { const t = String(v ?? "").trim(); if (t.length > max) throw badRequest(`${name} : ${max} caractères maximum.`); return t; };
     const title = str(b.title, 120, "Titre"), text = str(b.text, 600, "Texte"), alt = str(b.alt, 120, "Description de l'image");
     const imageUrl = String(b.imageUrl ?? "").trim();
     if (imageUrl && !(STATIC_IMAGE.test(imageUrl) || (STORED_LOGO.test(imageUrl) && (!allowedImages || allowedImages.has(imageUrl))))) throw badRequest("Image : importez un fichier (PNG, JPEG, WebP) ou choisissez un fichier /media/… du site.");
     if (type === "image" && !imageUrl) throw badRequest("Un bloc « texte + image » demande une image.");
-    if (!title && !text && !imageUrl) throw badRequest("Un bloc ne peut pas être vide.");
+    // Galerie : jusqu'à 6 images, chacune avec sa description.
+    const rawImages = type === "gallery" ? (Array.isArray(b.images) ? b.images : []) : [];
+    if (rawImages.length > 6) throw badRequest("Une galerie contient 6 images au maximum.");
+    const images = rawImages.map((im) => {
+      const url = String(im?.url ?? "").trim();
+      if (!(STATIC_IMAGE.test(url) || (STORED_LOGO.test(url) && (!allowedImages || allowedImages.has(url))))) throw badRequest("Galerie : importez des fichiers (PNG, JPEG, WebP) ou choisissez des fichiers /media/… du site.");
+      return { url, alt: str(im?.alt, 120, "Description de l'image") };
+    });
+    if (type === "gallery" && !images.length) throw badRequest("Une galerie demande au moins une image.");
+    if (!title && !text && !imageUrl && !images.length) throw badRequest("Un bloc ne peut pas être vide.");
     const buttonLabel = str(b.buttonLabel, 30, "Bouton"), buttonHref = String(b.buttonHref ?? "").trim();
     if (!!buttonLabel !== !!buttonHref) throw badRequest("Bouton : indiquez le nom ET le lien (ou aucun des deux).");
     if (buttonHref && !(INTERNAL.test(buttonHref) || SITE_PATH.test(buttonHref) || EXTERNAL.test(buttonHref))) throw badRequest("Lien du bouton invalide : une page du site (#/… ou /…) ou une adresse https.");
@@ -124,7 +133,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     const d = b.devices && typeof b.devices === "object" ? b.devices : {};
     const devices = { desktop: d.desktop !== false, tablet: d.tablet !== false, mobile: d.mobile !== false };
     if (!devices.desktop && !devices.tablet && !devices.mobile) throw badRequest("Le bloc doit s'afficher sur au moins un appareil.");
-    return { type, title, text, imageUrl, alt, buttonLabel, buttonHref, bg, ink, devices };
+    return { type, title, text, imageUrl, alt, images, buttonLabel, buttonHref, bg, ink, devices };
   }
   function sanitizeLayout(input = {}, allowedImages = null) {
     const raw = Array.isArray(input.sections) ? input.sections : HOME_SECTIONS.map((x) => ({ id: x.id, visible: true }));
@@ -204,6 +213,17 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     try { return sanitizeFooter(JSON.parse(await setting("site_footer") || "{}")); } catch { return sanitizeFooter({}); }
   }
 
+  // Une image est acceptée si elle vient d'être importée ici (en attente), ou figure déjà dans l'accueil publié.
+  const imagesOf = (l) => l.sections.flatMap((x) => [x.block?.imageUrl, ...(x.block?.images ?? []).map((i) => i.url)]).filter(Boolean);
+  async function allowedImages() {
+    let pending = []; try { pending = JSON.parse(await setting("home_block_pending") || "[]"); } catch { pending = []; }
+    return new Set([...pending, ...imagesOf(await layout())]);
+  }
+  async function draft() {
+    const raw = await setting("home_layout_draft");
+    if (!raw) return null;
+    try { return sanitizeLayout(JSON.parse(raw)); } catch { return null; } // brouillon altéré : ignoré, jamais publié
+  }
   async function layout() {
     try { return sanitizeLayout(JSON.parse(await setting("home_layout") || "{}")); } catch { return sanitizeLayout({}); }
   }
@@ -221,7 +241,27 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     },
     /** Public : lu par l'accueil. */
     getLayout: layout,
-    async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])), cardCounts: HOME_CARDS }; },
+    async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), draft: await draft(), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])), cardCounts: HOME_CARDS }; },
+    /** Brouillon : même validation que la publication, mais rien n'est visible des visiteurs. */
+    async saveLayoutDraft(userId, input) {
+      await accounts.requirePermission(userId, "contenu.gerer");
+      if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
+      const next = sanitizeLayout(input, await allowedImages());
+      await put("home_layout_draft", JSON.stringify(next));
+      await accounts.audit(userId, "HOME_LAYOUT_DRAFT_SAVE", null, `${next.sections.filter((x) => x.custom).length} bloc(s) libre(s), brouillon non publié`);
+      return next;
+    },
+    async discardLayoutDraft(userId) {
+      await accounts.requirePermission(userId, "contenu.gerer");
+      await put("home_layout_draft", "");
+      await accounts.audit(userId, "HOME_LAYOUT_DRAFT_DISCARD", null, "brouillon abandonné");
+      return { ok: true };
+    },
+    /** Aperçu réservé au personnel : le brouillon s'il existe, sinon la version publiée. */
+    async previewLayout(userId) {
+      await accounts.requirePermission(userId, "contenu.gerer");
+      return (await draft()) ?? (await layout());
+    },
     async uploadBlockImage(userId, dataUrl) {
       await accounts.requirePermission(userId, "contenu.gerer");
       let file;
@@ -229,20 +269,18 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
       catch (error) { throw badRequest(error?.message || "Impossible d'enregistrer cette image."); }
       const url = `/api/media/${file.id}`;
       let pending = []; try { pending = JSON.parse(await setting("home_block_pending") || "[]"); } catch { pending = []; }
-      await put("home_block_pending", JSON.stringify([...pending, url].slice(-20)));
+      await put("home_block_pending", JSON.stringify([...pending, url].slice(-100)));
       await accounts.audit(userId, "HOME_BLOCK_IMAGE_UPLOAD", null, `${file.mimeType}, ${file.fileSize} octets (en attente, non publié)`);
       return { imageUrl: url, pending: true };
     },
     async saveLayout(userId, input) {
       await accounts.requirePermission(userId, "contenu.gerer");
       if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
-      // Une image importée n'est acceptée que si elle vient d'être importée ici ou figure déjà dans l'accueil publié.
-      let pending = []; try { pending = JSON.parse(await setting("home_block_pending") || "[]"); } catch { pending = []; }
-      const current = await layout();
-      const allowed = new Set([...pending, ...current.sections.filter((x) => x.block?.imageUrl).map((x) => x.block.imageUrl)]);
+      const allowed = await allowedImages();
       const next = sanitizeLayout(input, allowed);
       await put("home_layout", JSON.stringify(next));
       await put("home_block_pending", "[]");
+      await put("home_layout_draft", ""); // le brouillon est publié : il disparaît
       await accounts.audit(userId, "HOME_LAYOUT_SAVE", null, `${next.sections.filter((x) => x.visible).length}/${next.sections.length} section(s) affichée(s)`);
       return next;
     },

@@ -224,3 +224,38 @@ test("blocs libres : une image importée n'est acceptée qu'après import, puis 
   const st = await svc.saveLayout("u", withBlock(blk({ type: "image", imageUrl: "/media/villa-badala.jpg" })));
   assert.equal(st.sections[0].block.imageUrl, "/media/villa-badala.jpg");
 });
+
+test("brouillon de l'accueil : validé comme la publication, invisible du public, publié puis effacé", async () => {
+  const { svc, db } = make();
+  const d = await svc.saveLayoutDraft("u", withBlock(blk({ title: "Brouillon" })));
+  assert.equal(d.sections[0].block.title, "Brouillon");
+  assert.equal((await svc.getLayout()).sections.some((x) => x.custom), false); // public : inchangé
+  assert.equal((await svc.previewLayout("u")).sections[0].block.title, "Brouillon");
+  assert.equal((await svc.getLayoutForStaff("u")).draft.sections[0].block.title, "Brouillon");
+  await assert.rejects(() => svc.saveLayoutDraft("u", withBlock(blk({ bg: "#00a9ef", ink: "#ffffff" }))), /illisible/); // même garde-fou
+  await svc.saveLayout("u", withBlock(blk({ title: "Publié" })));
+  assert.equal(db.kv.get("home_layout_draft"), ""); // brouillon effacé à la publication
+  assert.equal((await svc.getLayout()).sections[0].block.title, "Publié");
+  assert.equal((await svc.previewLayout("u")).sections[0].block.title, "Publié"); // sans brouillon : la version publiée
+  await svc.saveLayoutDraft("u", withBlock(blk()));
+  await svc.discardLayoutDraft("u");
+  assert.equal((await svc.getLayoutForStaff("u")).draft, null);
+  db.kv.set("home_layout_draft", "{casse");
+  assert.equal((await svc.previewLayout("u")).sections[0].block.title, "Publié"); // brouillon altéré : ignoré
+  await assert.rejects(() => make(true).svc.saveLayoutDraft("u", {}), /interdit/);
+  await assert.rejects(() => make(true).svc.previewLayout("u"), /interdit/);
+});
+test("galerie : 1 à 6 images valides, description bornée", async () => {
+  const { svc, db } = make();
+  const img = (n) => ({ url: `/media/g${n}.jpg`, alt: `Photo ${n}` });
+  const g = (images) => blk({ type: "gallery", images, bg: "", ink: "" });
+  const ok = await svc.saveLayout("u", withBlock(g([img(1), img(2)])));
+  assert.equal(ok.sections[0].block.images.length, 2);
+  await assert.rejects(() => svc.saveLayout("u", withBlock(g([]))), /au moins une/);
+  await assert.rejects(() => svc.saveLayout("u", withBlock(g(Array.from({ length: 7 }, (_, n) => img(n))))), /6/);
+  await assert.rejects(() => svc.saveLayout("u", withBlock(g([{ url: "https://evil.ml/x.png", alt: "" }]))), /Galerie/);
+  await assert.rejects(() => svc.saveLayout("u", withBlock(g([{ url: "/api/media/55555555-5555-4555-8555-555555555555", alt: "" }]))), /Galerie/);
+  db.kv.set("home_block_pending", JSON.stringify(["/api/media/55555555-5555-4555-8555-555555555555"]));
+  await svc.saveLayout("u", withBlock(g([{ url: "/api/media/55555555-5555-4555-8555-555555555555", alt: "x".repeat(10) }])));
+  await assert.rejects(() => svc.saveLayout("u", withBlock(g([{ url: "/media/g1.jpg", alt: "x".repeat(121) }]))), /120/);
+});
