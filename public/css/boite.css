@@ -246,3 +246,4 @@
 .bx-toast.is-on { transform: none; opacity: 1; }
 .bx-toast i { width: .5rem; height: .5rem; border-radius: 9999px; background: #D99B26; flex: none; }
 @media (prefers-reduced-motion: reduce) { .bx-panel, .bx-dot { animation: none; } }
+.bx-card.is-click{cursor:pointer}

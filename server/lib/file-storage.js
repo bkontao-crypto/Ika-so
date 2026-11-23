@@ -120,7 +120,7 @@ export async function readPublicImage(db, id, viewerId = null, { metaOnly = fals
               or ${PUBLICATION_IMAGE_PUBLIC}
               or exists (select 1 from ika_homepage_settings hs where hs.config->>'image' = $3)
               or exists (select 1 from ika_settings st where st.key = 'platform_logo' and st.value = $3)
-              or exists (select 1 from ika_settings st where st.key = 'home_layout' and position($3 in st.value) > 0)
+              or exists (select 1 from ika_settings st where st.key = 'home_published_images' and position('"' || $3 || '"' in st.value) > 0)
               or exists (select 1 from ika_listings l where l.image_url = $3 and ${PUBLIC_LISTING})
               or exists (
                 select 1 from ika_listing_photos ph join ika_listings l on l.id = ph.listing_id
@@ -135,7 +135,7 @@ export async function readPublicImage(db, id, viewerId = null, { metaOnly = fals
          or ${PUBLICATION_IMAGE_ALLOWED}
          or exists (select 1 from ika_homepage_settings hs where hs.config->>'image' = $3)
               or exists (select 1 from ika_settings st where st.key = 'platform_logo' and st.value = $3)
-              or exists (select 1 from ika_settings st where st.key = 'home_layout' and position($3 in st.value) > 0)
+              or exists (select 1 from ika_settings st where st.key = 'home_published_images' and position('"' || $3 || '"' in st.value) > 0)
          or exists (select 1 from ika_settings st where st.key = 'home_block_pending' and position($3 in st.value) > 0
                     and exists (select 1 from ika_profiles s where s.user_id = $2 and s.staff_role in ('ADMIN','SUPERADMIN')))
          or exists (select 1 from ika_settings st where st.key = 'site_header_logo_pending' and st.value = $3

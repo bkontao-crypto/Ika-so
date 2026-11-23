@@ -187,7 +187,10 @@ export async function renderHome() {
   try { hero = { ...hero, ...await api("/homepage-settings") }; } catch { /* valeurs par défaut */ }
   let layout = null; // ordre et visibilité des sections choisis par le superadmin ; à défaut, ordre d'origine
   const preview = /[?&]apercu=1(&|$)/.test(location.hash); // aperçu du brouillon (réservé au personnel connecté)
-  try { const l = await api(preview ? "/staff/home-layout-preview" : "/home-layout"); layout = l.sections; TEXTS = l.texts ?? {}; CARDS = l.cards ?? {}; } catch { /* ordre d'origine */ }
+  let l = null;
+  try { l = await api(preview ? "/staff/home-layout-preview" : "/home-layout"); }
+  catch { if (preview) { try { l = await api("/home-layout"); } catch { l = null; } } } // aperçu refusé (non connecté) : version publiée ; sinon ordre d'origine
+  if (l) { layout = l.sections; TEXTS = l.texts ?? {}; CARDS = l.cards ?? {}; }
   const required = (await api("/config/advertiser").catch(() => ({ applicationRequired: true }))).applicationRequired !== false;
   const isAdvertiser = !required || await advertiserCheck;
   const favorites = new Set(S.meta?.favoriteIds ?? []);
