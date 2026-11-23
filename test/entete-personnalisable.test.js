@@ -178,3 +178,49 @@ test("cartes de l'accueil : titre/texte modifiables, nombre et sections bornés,
   await bad({ trust: [{ text: "x".repeat(201) }] });
   assert.equal((await svc.getForStaff("u")).mobileCatalog.length > 0, true);
 });
+
+const blk = (o = {}) => ({ type: "cta", title: "Publiez", text: "Texte", imageUrl: "", alt: "", buttonLabel: "Go", buttonHref: "#/publier", bg: "#0b3d2e", ink: "#ffffff", devices: { desktop: true, tablet: true, mobile: false }, ...o });
+const withBlock = (b, id = "b_abc12345") => ({ sections: [{ id, visible: true, custom: true, block: b }] });
+
+test("blocs libres : création, ordre parmi les sections, affichage par appareil", async () => {
+  const { svc } = make();
+  const out = await svc.saveLayout("u", withBlock(blk()));
+  assert.equal(out.sections[0].custom, true); assert.equal(out.sections[0].block.devices.mobile, false);
+  assert.equal(out.sections.length, 15); // 14 sections d'origine + 1 bloc
+  const g = await svc.getLayout(); assert.equal(g.sections[0].block.title, "Publiez");
+});
+test("blocs libres : refus des contenus dangereux ou invalides", async () => {
+  const { svc } = make();
+  const bad = (b, re = /./) => assert.rejects(() => svc.saveLayout("u", withBlock(b)), re);
+  await bad(blk({ type: "pirate" }), /Type/);
+  await bad(blk({ title: "", text: "", imageUrl: "" }), /vide/);
+  await bad(blk({ title: "x".repeat(121) }), /120/);
+  await bad(blk({ buttonHref: "javascript:alert(1)" }), /Lien/);
+  await bad(blk({ buttonLabel: "Go", buttonHref: "" }), /ET/);
+  await bad(blk({ imageUrl: "https://evil.ml/x.png" }), /Image/);
+  await bad(blk({ type: "image", imageUrl: "" }), /image/);
+  await bad(blk({ imageUrl: "/api/media/11111111-1111-1111-1111-111111111111" }), /Image/); // jamais importée
+  await bad(blk({ devices: { desktop: false, tablet: false, mobile: false } }), /appareil/);
+  await bad(blk({ bg: "rouge" }), /invalide/);
+  await assert.rejects(() => svc.saveLayout("u", { sections: [{ id: "b_abc12345", visible: true, custom: true }] }), /Bloc invalide/);
+  await assert.rejects(() => svc.saveLayout("u", { sections: [{ id: "b_abc12345", block: blk() }, { id: "b_abc12345", block: blk() }] }), /double/);
+  await assert.rejects(() => svc.saveLayout("u", { sections: Array.from({ length: 13 }, (_, i) => ({ id: `b_aaaa${1000 + i}`, block: blk() })) }), /12/);
+});
+test("blocs libres : texte illisible sur sa couleur = publication bloquée", async () => {
+  const { svc } = make();
+  await assert.rejects(() => svc.saveLayout("u", withBlock(blk({ bg: "#00a9ef", ink: "#ffffff" }))), /Publication bloquée.*illisible/s);
+  await assert.rejects(() => svc.saveLayout("u", withBlock(blk({ bg: "#00a9ef", ink: "" }))), /ET/);
+  await svc.saveLayout("u", withBlock(blk({ bg: "", ink: "" }))); // sans couleur : couleurs du thème
+});
+test("blocs libres : une image importée n'est acceptée qu'après import, puis reste valable", async () => {
+  const { svc, db } = make();
+  const url = "/api/media/22222222-2222-4222-8222-222222222222";
+  await assert.rejects(() => svc.saveLayout("u", withBlock(blk({ type: "image", imageUrl: url }))), /Image/);
+  db.kv.set("home_block_pending", JSON.stringify([url]));
+  const ok = await svc.saveLayout("u", withBlock(blk({ type: "image", imageUrl: url })));
+  assert.equal(ok.sections[0].block.imageUrl, url);
+  assert.equal(db.kv.get("home_block_pending"), "[]");
+  await svc.saveLayout("u", withBlock(blk({ type: "image", imageUrl: url, title: "Autre" }))); // déjà publiée : reste acceptée
+  const st = await svc.saveLayout("u", withBlock(blk({ type: "image", imageUrl: "/media/villa-badala.jpg" })));
+  assert.equal(st.sections[0].block.imageUrl, "/media/villa-badala.jpg");
+});

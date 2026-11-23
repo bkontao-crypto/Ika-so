@@ -30,6 +30,9 @@ const INTERNAL = /^#\/[\w\-/?=&%.]*$/;                       // page du site
 const EXTERNAL = /^https:\/\/[^\s"'<>\\]+$/;                 // autre site (https uniquement)
 const STATIC_LOGO = /^\/media\/[\w.-]+\.(jpe?g|png|webp)$/i;
 const STORED_LOGO = /^\/api\/media\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CUSTOM_ID = /^b_[a-z0-9]{6,12}$/;
+const MAX_BLOCKS = 12;
+const STATIC_IMAGE = STATIC_LOGO;
 const SAFE_LOGO = /^(\/(?!\/)[^\s"'<>\\]*|https:\/\/[^\s"'<>\\]+)$/;
 
 /** Contrôle de lisibilité d'une paire texte/fond : renvoie un message d'erreur, ou null. */
@@ -100,10 +103,40 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     return SAFE_LOGO.test(url) ? url : "";
   }
 
-  function sanitizeLayout(input = {}) {
+  // Bloc libre de l'accueil : texte, texte + image, ou appel à l'action. Texte brut uniquement ; image du site ou importée ; couleurs contrôlées.
+  function sanitizeBlock(b, allowedImages) {
+    if (!b || typeof b !== "object") throw badRequest("Bloc invalide.");
+    const type = ["text", "image", "cta"].includes(b.type) ? b.type : null;
+    if (!type) throw badRequest("Type de bloc inconnu.");
+    const str = (v, max, name) => { const t = String(v ?? "").trim(); if (t.length > max) throw badRequest(`${name} : ${max} caractères maximum.`); return t; };
+    const title = str(b.title, 120, "Titre"), text = str(b.text, 600, "Texte"), alt = str(b.alt, 120, "Description de l'image");
+    const imageUrl = String(b.imageUrl ?? "").trim();
+    if (imageUrl && !(STATIC_IMAGE.test(imageUrl) || (STORED_LOGO.test(imageUrl) && (!allowedImages || allowedImages.has(imageUrl))))) throw badRequest("Image : importez un fichier (PNG, JPEG, WebP) ou choisissez un fichier /media/… du site.");
+    if (type === "image" && !imageUrl) throw badRequest("Un bloc « texte + image » demande une image.");
+    if (!title && !text && !imageUrl) throw badRequest("Un bloc ne peut pas être vide.");
+    const buttonLabel = str(b.buttonLabel, 30, "Bouton"), buttonHref = String(b.buttonHref ?? "").trim();
+    if (!!buttonLabel !== !!buttonHref) throw badRequest("Bouton : indiquez le nom ET le lien (ou aucun des deux).");
+    if (buttonHref && !(INTERNAL.test(buttonHref) || SITE_PATH.test(buttonHref) || EXTERNAL.test(buttonHref))) throw badRequest("Lien du bouton invalide : une page du site (#/… ou /…) ou une adresse https.");
+    const bg = b.bg ? normalizeHex(b.bg) : "", ink = b.ink ? normalizeHex(b.ink) : "";
+    if ((b.bg && !bg) || (b.ink && !ink)) throw badRequest("Couleur invalide (code #RRGGBB).");
+    const problem = paletteProblem(`Bloc « ${title || type} »`, { bg, ink });
+    if (problem) throw badRequest(`Publication bloquée. ${problem}`);
+    const d = b.devices && typeof b.devices === "object" ? b.devices : {};
+    const devices = { desktop: d.desktop !== false, tablet: d.tablet !== false, mobile: d.mobile !== false };
+    if (!devices.desktop && !devices.tablet && !devices.mobile) throw badRequest("Le bloc doit s'afficher sur au moins un appareil.");
+    return { type, title, text, imageUrl, alt, buttonLabel, buttonHref, bg, ink, devices };
+  }
+  function sanitizeLayout(input = {}, allowedImages = null) {
     const raw = Array.isArray(input.sections) ? input.sections : HOME_SECTIONS.map((x) => ({ id: x.id, visible: true }));
     const known = new Set(HOME_SECTIONS.map((x) => x.id)), seen = new Set(), sections = [];
+    let customCount = 0;
     for (const x of raw) {
+      if (CUSTOM_ID.test(String(x?.id ?? ""))) { // bloc libre ajouté par le superadmin
+        if (seen.has(x.id)) throw badRequest("Bloc en double.");
+        if (++customCount > MAX_BLOCKS) throw badRequest(`Pas plus de ${MAX_BLOCKS} blocs libres.`);
+        seen.add(x.id); sections.push({ id: x.id, visible: x.visible !== false, custom: true, block: sanitizeBlock(x.block, allowedImages) });
+        continue;
+      }
       if (!known.has(x?.id) || seen.has(x.id)) throw badRequest("Section invalide ou en double.");
       seen.add(x.id); sections.push({ id: x.id, visible: x.visible !== false });
     }
@@ -189,11 +222,27 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     /** Public : lu par l'accueil. */
     getLayout: layout,
     async getLayoutForStaff(userId) { await accounts.requirePermission(userId, "contenu.gerer"); return { ...(await layout()), labels: Object.fromEntries(HOME_SECTIONS.map((x) => [x.id, x.label])), cardCounts: HOME_CARDS }; },
+    async uploadBlockImage(userId, dataUrl) {
+      await accounts.requirePermission(userId, "contenu.gerer");
+      let file;
+      try { file = await storeDataUrl(db, dataUrl, { imagesOnly: true }); }
+      catch (error) { throw badRequest(error?.message || "Impossible d'enregistrer cette image."); }
+      const url = `/api/media/${file.id}`;
+      let pending = []; try { pending = JSON.parse(await setting("home_block_pending") || "[]"); } catch { pending = []; }
+      await put("home_block_pending", JSON.stringify([...pending, url].slice(-20)));
+      await accounts.audit(userId, "HOME_BLOCK_IMAGE_UPLOAD", null, `${file.mimeType}, ${file.fileSize} octets (en attente, non publié)`);
+      return { imageUrl: url, pending: true };
+    },
     async saveLayout(userId, input) {
       await accounts.requirePermission(userId, "contenu.gerer");
       if (!input || typeof input !== "object" || Array.isArray(input)) throw badRequest("Configuration invalide.");
-      const next = sanitizeLayout(input);
+      // Une image importée n'est acceptée que si elle vient d'être importée ici ou figure déjà dans l'accueil publié.
+      let pending = []; try { pending = JSON.parse(await setting("home_block_pending") || "[]"); } catch { pending = []; }
+      const current = await layout();
+      const allowed = new Set([...pending, ...current.sections.filter((x) => x.block?.imageUrl).map((x) => x.block.imageUrl)]);
+      const next = sanitizeLayout(input, allowed);
       await put("home_layout", JSON.stringify(next));
+      await put("home_block_pending", "[]");
       await accounts.audit(userId, "HOME_LAYOUT_SAVE", null, `${next.sections.filter((x) => x.visible).length}/${next.sections.length} section(s) affichée(s)`);
       return next;
     },

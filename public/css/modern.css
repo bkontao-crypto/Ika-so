@@ -349,3 +349,15 @@ label.field .input:focus, label.field select:focus, label.field input:focus { bo
 html body .site-header[data-custom] { background: var(--header-bg); color: var(--header-ink); border-bottom-color: color-mix(in srgb, var(--header-ink) 18%, transparent); }
 html body .site-header[data-custom] .nav-link, html body .site-header[data-custom] .icon-btn { color: var(--header-ink); }
 html body .site-header[data-custom] .nav-link:hover, html body .site-header[data-custom] .nav-link.active, html body .site-header[data-custom] .nav-link[aria-current="page"] { color: var(--header-ink); background: color-mix(in srgb, var(--header-ink) 14%, transparent); }
+
+/* Blocs libres de l'accueil (Owner Center > Sections de l'accueil) */
+.rx-cblock-in { display: grid; gap: 20px; align-items: center; max-width: 1100px; margin: 0 auto; }
+.rx-cblock-image .rx-cblock-in { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.rx-cblock-img { width: 100%; height: auto; max-height: 420px; object-fit: cover; border-radius: 16px; }
+.rx-cblock-body h2 { margin: 0 0 10px; }
+.rx-cblock-body p { margin: 0 0 14px; white-space: pre-line; }
+.rx-cblock.is-colored { padding: 28px 20px; border-radius: 18px; }
+.rx-cblock-cta .rx-cblock-in { text-align: center; }
+@media (max-width: 700px) { .rx-cblock-image .rx-cblock-in { grid-template-columns: 1fr; } .hide-m { display: none !important; } }
+@media (min-width: 701px) and (max-width: 1024px) { .hide-t { display: none !important; } }
+@media (min-width: 1025px) { .hide-d { display: none !important; } }
