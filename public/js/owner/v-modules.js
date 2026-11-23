@@ -1020,12 +1020,12 @@ const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "App
 export const customizeView = (ctx, initial = "identity") => page(ctx, {
   eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
   load: async () => {
-    const [settings, sec, home, seo, logo, legal, main, header, layout, footer] = await Promise.all([
+    const [settings, sec, home, seo, logo, legal, main, header, layout, footer, forms] = await Promise.all([
       api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
       api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal"),
       api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null),
-      api("/staff/site-header"), api("/staff/home-layout"), api("/staff/site-footer")]);
-    return { settings, sec, home, seo, logo, legal, main, header, layout, footer };
+      api("/staff/site-header"), api("/staff/home-layout"), api("/staff/site-footer"), api("/staff/home-forms").catch(() => ({ items: [], newCount: 0 }))]);
+    return { settings, sec, home, seo, logo, legal, main, header, layout: { ...layout, forms }, footer };
   },
   actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
   build({ settings, sec, home, seo, logo, legal, main, header, layout, footer }, reload) {

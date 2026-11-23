@@ -364,3 +364,5 @@ html body .site-header[data-custom] .nav-link:hover, html body .site-header[data
 .rx-cblock-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
 .rx-cblock-gallery img { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 12px; }
 .rx-preview-bar { position: sticky; top: 0; z-index: 30; padding: 8px 14px; background: #fff3cd; color: #5c4400; font-weight: 600; text-align: center; border-bottom: 1px solid #e0c36a; }
+.rx-cblock-form { display: grid; gap: 10px; max-width: 520px; margin: 0 auto; position: relative; text-align: left; }
+.rx-form-status { margin: 0; font-weight: 600; }

@@ -130,8 +130,29 @@ function reveal(root) {
 let TEXTS = {};
 let CARDS = {};
 /** Titre/texte d'une carte : valeur du superadmin si renseignée, sinon texte d'origine. */
+/** Formulaire de contact d'un bloc libre : nom, téléphone ou e-mail, message. Un champ piège invisible écarte les robots. */
+function contactForm(b, blockId) {
+  const name = h("input", { class: "input", name: "name", maxlength: "80", required: true, autocomplete: "name", "aria-label": "Votre nom", placeholder: "Votre nom" });
+  const contact = h("input", { class: "input", name: "contact", maxlength: "120", required: true, autocomplete: "tel", "aria-label": "Téléphone ou e-mail", placeholder: "Téléphone ou e-mail" });
+  const message = h("textarea", { class: "input", name: "message", maxlength: "1000", required: true, rows: "4", "aria-label": "Votre message", placeholder: "Votre message" });
+  const trap = h("input", { name: "website", tabindex: "-1", autocomplete: "off", "aria-hidden": "true", style: { position: "absolute", left: "-9999px", height: "0", opacity: "0" } });
+  const status = h("p", { role: "status", class: "rx-form-status" });
+  const send = h("button", { class: "btn", type: "submit" }, b.buttonLabel || "Envoyer");
+  const form = h("form", { class: "rx-cblock-form", novalidate: true }, name, contact, message, trap, send, status);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!name.value.trim() || !contact.value.trim() || !message.value.trim()) { status.textContent = "Renseignez votre nom, un moyen de vous joindre et votre message."; return; }
+    send.disabled = true; status.textContent = "Envoi…";
+    try {
+      const r = await api(`/home-forms/${encodeURIComponent(blockId)}`, { method: "POST", body: { name: name.value, contact: contact.value, message: message.value, website: trap.value } });
+      form.replaceChildren(h("p", { role: "status", class: "rx-form-status" }, r.successText || b.successText || "Merci, votre message a bien été envoyé."));
+    } catch (error) { status.textContent = error.message || "Envoi impossible. Réessayez."; send.disabled = false; }
+  });
+  return form;
+}
+
 /** Bloc libre ajouté par le superadmin (texte, texte + image, appel à l'action) : texte brut, masquable par appareil. */
-function customBlock(b) {
+function customBlock(b, id) {
   const hide = [["desktop", "hide-d"], ["tablet", "hide-t"], ["mobile", "hide-m"]].filter(([k]) => b.devices?.[k] === false).map(([, c]) => c);
   const external = /^https:/i.test(b.buttonHref || "");
   const colors = b.bg && b.ink ? { background: b.bg, color: b.ink } : null;
@@ -142,7 +163,8 @@ function customBlock(b) {
       h("div", { class: "rx-cblock-body" },
         b.title ? h("h2", null, b.title) : null,
         b.text ? h("p", null, b.text) : null,
-        b.buttonLabel ? h("a", { class: "btn", href: b.buttonHref, target: external ? "_blank" : null, rel: external ? "noopener noreferrer" : null }, b.buttonLabel) : null)));
+        b.type === "form" ? contactForm(b, id) : null,
+        b.buttonLabel && b.type !== "form" ? h("a", { class: "btn", href: b.buttonHref, target: external ? "_blank" : null, rel: external ? "noopener noreferrer" : null }, b.buttonLabel) : null)));
 }
 const card = (id, i, t, p) => { const c = CARDS[id]?.[i]; return [c?.title?.trim() || t, c?.text?.trim() || p]; };
 const ov = (id, d) => ({ ...d, ...Object.fromEntries(Object.entries(TEXTS[id] ?? {}).filter(([, v]) => typeof v === "string" && v.trim())) });
@@ -267,7 +289,7 @@ export async function renderHome() {
     partners, guides, download: downloadApp,
   };
   const order = layout ?? Object.keys(blocks).map((id) => ({ id, visible: true }));
-  mount(app, preview ? h("div", { class: "rx-preview-bar", role: "status" }, "Aperçu du brouillon : non publié, visible de vous seulement.") : null, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => (x.custom && x.block ? customBlock(x.block) : blocks[x.id])));
+  mount(app, preview ? h("div", { class: "rx-preview-bar", role: "status" }, "Aperçu du brouillon : non publié, visible de vous seulement.") : null, heroEl, searchEl, ...order.filter((x) => x.visible !== false).map((x) => (x.custom && x.block ? customBlock(x.block, x.id) : blocks[x.id])));
 
   reveal(app);
 

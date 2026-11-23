@@ -106,7 +106,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
   // Bloc libre de l'accueil : texte, texte + image, ou appel à l'action. Texte brut uniquement ; image du site ou importée ; couleurs contrôlées.
   function sanitizeBlock(b, allowedImages) {
     if (!b || typeof b !== "object") throw badRequest("Bloc invalide.");
-    const type = ["text", "image", "cta", "gallery"].includes(b.type) ? b.type : null;
+    const type = ["text", "image", "cta", "gallery", "form"].includes(b.type) ? b.type : null;
     if (!type) throw badRequest("Type de bloc inconnu.");
     const str = (v, max, name) => { const t = String(v ?? "").trim(); if (t.length > max) throw badRequest(`${name} : ${max} caractères maximum.`); return t; };
     const title = str(b.title, 120, "Titre"), text = str(b.text, 600, "Texte"), alt = str(b.alt, 120, "Description de l'image");
@@ -123,8 +123,11 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     });
     if (type === "gallery" && !images.length) throw badRequest("Une galerie demande au moins une image.");
     if (!title && !text && !imageUrl && !images.length) throw badRequest("Un bloc ne peut pas être vide.");
-    const buttonLabel = str(b.buttonLabel, 30, "Bouton"), buttonHref = String(b.buttonHref ?? "").trim();
-    if (!!buttonLabel !== !!buttonHref) throw badRequest("Bouton : indiquez le nom ET le lien (ou aucun des deux).");
+    // Formulaire : champs fixes (nom, contact, message) ; le « bouton » est le bouton d'envoi, sans lien.
+    const successText = type === "form" ? str(b.successText || "Merci, votre message a bien été envoyé.", 200, "Message de confirmation") : "";
+    const buttonLabel = type === "form" ? (str(b.buttonLabel, 30, "Bouton") || "Envoyer") : str(b.buttonLabel, 30, "Bouton");
+    const buttonHref = type === "form" ? "" : String(b.buttonHref ?? "").trim();
+    if (type !== "form" && !!buttonLabel !== !!buttonHref) throw badRequest("Bouton : indiquez le nom ET le lien (ou aucun des deux).");
     if (buttonHref && !(INTERNAL.test(buttonHref) || SITE_PATH.test(buttonHref) || EXTERNAL.test(buttonHref))) throw badRequest("Lien du bouton invalide : une page du site (#/… ou /…) ou une adresse https.");
     const bg = b.bg ? normalizeHex(b.bg) : "", ink = b.ink ? normalizeHex(b.ink) : "";
     if ((b.bg && !bg) || (b.ink && !ink)) throw badRequest("Couleur invalide (code #RRGGBB).");
@@ -133,7 +136,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
     const d = b.devices && typeof b.devices === "object" ? b.devices : {};
     const devices = { desktop: d.desktop !== false, tablet: d.tablet !== false, mobile: d.mobile !== false };
     if (!devices.desktop && !devices.tablet && !devices.mobile) throw badRequest("Le bloc doit s'afficher sur au moins un appareil.");
-    return { type, title, text, imageUrl, alt, images, buttonLabel, buttonHref, bg, ink, devices };
+    return { type, title, text, imageUrl, alt, images, buttonLabel, buttonHref, successText, bg, ink, devices };
   }
   function sanitizeLayout(input = {}, allowedImages = null) {
     const raw = Array.isArray(input.sections) ? input.sections : HOME_SECTIONS.map((x) => ({ id: x.id, visible: true }));
