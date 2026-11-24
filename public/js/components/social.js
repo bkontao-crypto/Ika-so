@@ -116,22 +116,29 @@ export function socialBar(type, id, { onComments, inline = true, openComments = 
 }
 
 /** Photo en plein écran : précédente / suivante, et à droite j'aime, partage et commentaires de la publication. */
-export function openLightbox(photos, start, { type, id, title } = {}) {
+export function openLightbox(photos, start, { type, id, title, action, body } = {}) {
   loadSocialCss();
+  const withPhotos = photos.length > 0;
   let i = Math.max(0, Math.min(start ?? 0, photos.length - 1));
   const img = h("img", { class: "sc-big", alt: "" });
   const counter = h("span", { class: "sc-pos" });
-  const show = () => { img.src = photos[i]; img.alt = `Photo ${i + 1} sur ${photos.length}`; counter.textContent = photos.length > 1 ? `${i + 1} / ${photos.length}` : ""; };
-  const move = (d) => { i = (i + d + photos.length) % photos.length; show(); };
-  const dlg = h("dialog", { class: "sc-lightbox", "aria-label": "Photo en plein écran" },
-    h("div", { class: "sc-stage" },
+  const show = () => { if (!withPhotos) return; img.src = photos[i]; img.alt = `Photo ${i + 1} sur ${photos.length}`; counter.textContent = photos.length > 1 ? `${i + 1} / ${photos.length}` : ""; };
+  const move = (d) => { if (!withPhotos) return; i = (i + d + photos.length) % photos.length; show(); };
+  const head = title || action ? h("div", { class: "sc-sidehead" },
+    withPhotos ? null : h("button", { type: "button", class: "sc-sideclose", "aria-label": "Fermer", onClick: () => dlg.close() }, icon("x")),
+    title ? h("strong", null, title) : null, action?.() ?? null) : null;
+  const stage = !withPhotos ? null : h("div", { class: "sc-stage" },
       h("button", { type: "button", class: "sc-close", "aria-label": "Fermer", onClick: () => dlg.close() }, icon("x")),
       photos.length > 1 ? h("button", { type: "button", class: "sc-nav prev", "aria-label": "Photo précédente", onClick: () => move(-1) }, "‹") : null,
       img,
-      photos.length > 1 ? h("button", { type: "button", class: "sc-nav next", "aria-label": "Photo suivante", onClick: () => move(1) }, "›") : null, counter),
-    id ? h("aside", { class: "sc-side" }, title ? h("strong", null, title) : null, socialBar(type, id, { openComments: true })) : null);
+      photos.length > 1 ? h("button", { type: "button", class: "sc-nav next", "aria-label": "Photo suivante", onClick: () => move(1) }, "›") : null, counter);
+  const dlg = h("dialog", { class: `sc-lightbox${withPhotos ? "" : " sc-textonly"}`, "aria-label": withPhotos ? "Photo en plein écran" : "Publication" }, stage,
+    id ? h("aside", { class: "sc-side" }, head, body?.() ?? null, socialBar(type, id, { openComments: true })) : null);
   dlg.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") move(-1); if (e.key === "ArrowRight") move(1); });
   dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
-  dlg.addEventListener("close", () => dlg.remove());
+  // « Écrire » mène à la messagerie : la fenêtre se ferme dès que la page change.
+  const onHash = () => dlg.close();
+  window.addEventListener("hashchange", onHash);
+  dlg.addEventListener("close", () => { window.removeEventListener("hashchange", onHash); dlg.remove(); });
   show(); document.body.append(dlg); dlg.showModal();
 }

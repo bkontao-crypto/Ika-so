@@ -299,7 +299,7 @@ textarea:focus {
 :root[data-theme="dark"] .mp-btn-primary {
   background: var(--leaf);
   border-color: var(--leaf);
-  color: #04130c;
+  color: var(--on-leaf, #04130c); /* suit la couleur principale choisie dans l'Owner center (voir core/contrast.js) */
 }
 
 :root[data-theme="dark"] .card,

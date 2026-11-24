@@ -3,11 +3,17 @@
 // Chargé par public/js/app.js.
 
 import { api } from "/js/dom.js";
+import { readableOn } from "/js/core/contrast.js";
 
 export function applySettings(s) {
   if (!s) return;
   const root = document.documentElement;
-  if (s.colors?.primary) root.style.setProperty("--leaf", s.colors.primary);
+  if (s.colors?.primary) {
+    root.style.setProperty("--leaf", s.colors.primary);
+    // Le texte posé sur la couleur principale (boutons, pastilles) reste lisible en clair comme en sombre, quelle que soit la couleur choisie.
+    const on = readableOn(s.colors.primary);
+    if (on) root.style.setProperty("--on-leaf", on);
+  }
   if (s.colors?.accent) root.style.setProperty("--gold", s.colors.accent);
 }
 

@@ -5,7 +5,7 @@ import { needLogin } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
 import { ago, avatar } from "/js/components/espace.js";
 import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer, sharedCard, videoCard } from "/js/components/post-composer.js";
-import { socialBar } from "/js/components/social.js";
+import { openLightbox, socialBar } from "/js/components/social.js";
 import { getPref, setPref } from "/js/core/prefs.js";
 
 const REASONS = ["Annonce déguisée ou publicité", "Arnaque ou demande d'argent", "Contenu choquant ou insultant", "Numéro de téléphone ou contact direct", "Autre"];
@@ -64,14 +64,17 @@ function card(item, onChange, highlight = false) {
   const open = (make) => { if (needLogin()) return; const d = make(item); dialogs.push(d); article.append(d); d.addEventListener("close", () => d.remove()); d.showModal(); };
   const name = item.author.advertiser ? h("a", { href: `#/annonceur/${encodeURIComponent(item.author.id)}` }, h("strong", null, item.author.name)) : h("strong", null, item.author.name);
   const meta = [ago(item.createdAt), item.category, item.zone].filter(Boolean).join(" · ");
+  // Détail de la publication (clic sur le texte ou une photo) : « Écrire » est sur la ligne du nom, à l'autre bout.
+  const ecrire = item.mine ? null : () => h("button", { class: "btn btn-primary btn-small", type: "button", onClick: () => open(contactDialog) }, icon("message"), "Écrire");
+  const detailBody = () => [h("p", { class: "dc-text" }, item.content), sharedCard(item.shared), videoCard(item.video)];
+  const openDetail = () => openLightbox([], 0, { type: "PUBLICATION", id: item.id, title: item.author.name, action: ecrire, body: detailBody });
   const article = h("article", { class: `card pad stack dc-post kind-${item.kind.toLowerCase()}` },
     h("header", { class: "dc-head" }, avatar(item.author.name, item.author.avatarUrl),
       h("div", { class: "dc-who" }, h("div", { class: "row" }, name, h("span", { class: "pill" }, item.kindLabel), item.author.advertiser ? h("span", { class: "pill pill-green" }, "Annonceur") : null), h("small", { class: "muted" }, meta)),
       postMenu(item, { onChange, openReport: () => open(reportDialog) })),
-    h("p", { class: "dc-text" }, item.content), sharedCard(item.shared), photoGrid(item.photos, { id: item.id, title: item.author.name }), videoCard(item.video),
-    socialBar("PUBLICATION", item.id, { openComments: highlight }),
-    item.mine ? null : h("footer", { class: "row dc-actions" },
-      h("button", { class: "btn btn-primary", type: "button", onClick: () => open(contactDialog) }, icon("message"), "Écrire")));
+    h("p", { class: "dc-text", role: "button", tabindex: "0", "aria-label": "Ouvrir la publication", onClick: openDetail, onKeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDetail(); } } }, item.content),
+    sharedCard(item.shared), photoGrid(item.photos, { id: item.id, title: item.author.name, action: ecrire, body: detailBody }), videoCard(item.video),
+    socialBar("PUBLICATION", item.id, { openComments: highlight }));
   return article;
 }
 
