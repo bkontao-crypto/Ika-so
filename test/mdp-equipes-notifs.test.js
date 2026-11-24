@@ -62,6 +62,29 @@ test("réinitialisation : jeton périmé ou déjà utilisé refusé ; sinon mot 
   assert.ok(db.calls.some((c) => /delete from ika_sessions where user_id/.test(c.sql)));
 });
 
+test("lien de réinitialisation staff : refusé sur un rang égal ou supérieur, accepté sur un rang inférieur", async () => {
+  const make = (actorRole, targetRole) => {
+    const db = fakeDb([
+      [/select \* from ika_profiles/, () => [{ user_id: "a1", staff_role: actorRole, account_status: "ACTIVE" }]],
+      [/select id from ika_users where id/, () => [{ id: "t1" }]],
+      [/select staff_role from ika_profiles/, () => [{ staff_role: targetRole }]],
+    ]);
+    return { db, acc: createAccounts({ db, config }) };
+  };
+  const inserted = (db) => db.calls.some((c) => /insert into ika_password_resets/.test(c.sql));
+  const toSuper = make("ADMIN", "SUPERADMIN");
+  await assert.rejects(toSuper.acc.staffResetLink("a1", "t1"), /rang égal ou supérieur/);
+  assert.equal(inserted(toSuper.db), false);
+  const toAdmin = make("ADMIN", "ADMIN");
+  await assert.rejects(toAdmin.acc.staffResetLink("a1", "t1"), /rang égal ou supérieur/);
+  assert.equal(inserted(toAdmin.db), false);
+  const toUser = make("ADMIN", "USER");
+  assert.match((await toUser.acc.staffResetLink("a1", "t1")).link, /token=/);
+  assert.equal(inserted(toUser.db), true);
+  const superToAdmin = make("SUPERADMIN", "ADMIN");
+  assert.match((await superToAdmin.acc.staffResetLink("a1", "t1")).link, /token=/);
+});
+
 test("demande annonceur : tout le staff est notifié", async () => {
   const notes = [];
   const db = fakeDb([[/select user_id from ika_profiles where staff_role/, () => [{ user_id: "m1" }, { user_id: "a1" }, { user_id: "s1" }]]]);
