@@ -1,4 +1,4 @@
-// Mon profil (#/profil) : couverture, photo, à propos, publications, annonces, avis, paramètres.
+// Mon profil (#/profil) : couverture, photo, à propos, publications, photos, vidéos, annonces, avis, paramètres.
 // Tout est modifiable depuis cette page. Les données viennent des API existantes ; aucune valeur n'est inventée.
 import { api, compressPhoto, fail, formatPrice, h, mount, readProofFile, toast } from "/js/dom.js";
 import { S, app, refreshSession } from "/js/core/state.js";
@@ -8,9 +8,10 @@ import { KIND_LABELS, photoGrid, postComposer, videoCard } from "/js/components/
 import { socialBar } from "/js/components/social.js";
 import { stars } from "/js/components/stars.js";
 import { bulkImportBlock } from "/js/components/bulk-import.js";
+import { profileTabs } from "/js/components/profile-tabs.js";
 import { accountSettings } from "/js/pages/account.js";
 
-const TABS = [["publications", "Publications"], ["annonces", "Mes annonces"], ["avis", "Avis"], ["abonnes", "Abonnés"], ["equipe", "Équipe"], ["parametres", "Paramètres & Confidentialité"]];
+const TABS = [["publications", "Publications"], ["apropos", "À propos"], ["videos", "Vidéos"], ["photos", "Photos"], ["annonces", "Mes annonces"], ["avis", "Avis"], ["abonnes", "Abonnés"], ["equipe", "Équipe"], ["parametres", "Paramètres & Confidentialité"]];
 const STATUS = { PENDING: ["amber", "⏳ En attente de validation"], REJECTED: ["red", "✕ Refusée"], EXPIRED: ["neutral", "Expirée"], SOLD: ["neutral", "Vendue"], RENTED: ["neutral", "Louée"], DRAFT: ["neutral", "Brouillon"] };
 const FILTERS = [["all", "🏠", "Toutes mes annonces"], ["PUBLISHED", "🟢", "En ligne"], ["PENDING", "🟡", "En attente"], ["REJECTED", "🔴", "Refusées"]];
 const monthYear = (iso) => (iso ? new Date(iso).toLocaleDateString("fr-FR", { month: "long", year: "numeric" }) : "");
@@ -59,9 +60,41 @@ export async function profilePage() {
   const can = (k) => edit.allowed.includes(k);
   const name = m.fullName || S.user.name;
   const visible = listings.filter((l) => l.status !== "ARCHIVED");
+  const posts = pub?.publications ?? [];
+  const withPhotos = posts.filter((p) => Array.isArray(p.photos) && p.photos.length);
+  const withVideo = posts.filter((p) => p.video?.url);
+  const photoCount = withPhotos.reduce((n, p) => n + p.photos.length, 0);
 
   const reload = () => profilePage();
   const run = async (fn, ok) => { try { await fn(); if (ok) toast(ok); await refreshSession().catch(() => {}); await reload(); } catch (error) { fail(error); } };
+
+  /* ---------- Onglets (façon Facebook : jamais de débordement, le reste dans « Plus ▾ ») et menu « ••• » ---------- */
+  const tabLabel = (tid, label) => (tid === "annonces" ? `${label} (${visible.length})` : tid === "avis" ? `${label} (${pub?.rating?.count ?? 0})` : tid === "abonnes" ? `${label} (${followers.total})`
+    : tid === "photos" ? `${label} (${photoCount})` : tid === "videos" ? `${label} (${withVideo.length})`
+    : tid === "equipe" ? `${label} (${team.members.length}${team.received.length ? ` · ${team.received.length} invitation${team.received.length > 1 ? "s" : ""}` : ""})` : label);
+  const editAbout = () => { editingAbout = true; currentTab = "apropos"; reload(); };
+  const bar = profileTabs({
+    tabs: TABS.map(([tid, label]) => ({ id: tid, label: tabLabel(tid, label) })),
+    current: currentTab,
+    onSelect: (tid) => show(tid),
+    menu: [
+      { title: "Mon profil", items: [
+        pub ? { icon: "👁️", label: "Voir mon profil public", href: `#/annonceur/${encodeURIComponent(id)}` } : null,
+        { icon: "✏️", label: "Modifier mes informations", onClick: editAbout },
+        { icon: "🛡️", label: "Vérification et badges de confiance", onClick: () => show("parametres") },
+      ] },
+      { title: "Outils professionnels", items: [
+        { icon: "➕", label: "Nouvelle annonce", href: "#/publier" },
+        { icon: "🗂️", label: "Gestion avancée des annonces", href: "#/mes-annonces" },
+        { icon: "🔔", label: "Mes alertes", href: "#/alertes" },
+        { icon: "⭐", label: "Avantages Premium", href: "#/premium" },
+      ] },
+      { title: "Contenu du profil", items: [
+        { icon: "📝", label: "Mes publications", onClick: () => show("publications") },
+        { icon: "📥", label: "Exporter mes données", href: "/api/me/export", download: "mes-donnees-ika-so.json" },
+      ] },
+    ],
+  });
 
   /* ---------- Photos ---------- */
   const upload = (kind, label) => h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", class: "sr-only", "aria-label": label,
@@ -93,7 +126,7 @@ export async function profilePage() {
 
   /* ---------- En-tête ---------- */
   const place = pr.city ? ` · ${pr.city}, Mali` : "";
-  const header = h("section", { class: "mp-header" },
+  const header = h("section", { class: "mp-header mp-header-pop" },
     h("div", { class: "mp-cover", role: "button", tabindex: "0", "aria-label": "Modifier la photo de couverture", style: pr.coverUrl ? `background-image:linear-gradient(rgba(7,22,15,.25),rgba(7,22,15,.25)),url('${pr.coverUrl}')` : null,
       onClick: () => photoMenu("cover", "Photo de couverture", !!pr.coverUrl),
       onKeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); photoMenu("cover", "Photo de couverture", !!pr.coverUrl); } } },
@@ -113,8 +146,7 @@ export async function profilePage() {
           m.phoneVerified ? badge("green", "✓ Téléphone vérifié") : badge("neutral", "Téléphone non vérifié"),
           edit.agencyVerified ? badge("green", "✓ Agence vérifiée") : null,
           badge("neutral", { ACTIVE: "Compte actif", RESTRICTED: "Compte restreint", BANNED: "Compte bloqué" }[m.accountStatus] ?? "Compte")))),
-    h("div", { class: "mp-tabs", role: "tablist" }, TABS.map(([tid, label]) => h("button", { class: "mp-tab", type: "button", role: "tab", "data-ic": "1", "data-tab": tid, "aria-selected": String(tid === currentTab), onClick: () => show(tid) },
-      tid === "annonces" ? `${label} (${visible.length})` : tid === "avis" ? `${label} (${pub?.rating?.count ?? 0})` : tid === "abonnes" ? `${label} (${followers.total})` : tid === "equipe" ? `${label} (${team.members.length}${team.received.length ? ` · ${team.received.length} invitation${team.received.length > 1 ? "s" : ""}` : ""})` : label))));
+    bar.node);
 
   /* ---------- À propos (modifiable sur place) ---------- */
   const nameInput = h("input", { class: "input", value: name, maxlength: "80", autocomplete: "name" });
@@ -186,19 +218,28 @@ export async function profilePage() {
       score ? h("p", { class: "mp-score-parts" }, `Confiance ${score.parts.trust} · Visibilité ${score.parts.visibility} · Fidélité ${score.parts.loyalty} · Réactivité ${score.parts.reactivity}`) : null,
       h("p", { class: "mp-score-note" }, "Basé sur la confiance (40%), visibilité (20%), fidélité (20%) et réactivité (20%). ", h("b", null, "Ce n'est pas une certification officielle."))));
 
-  /* ---------- Publications ---------- */
-  const posts = pub?.publications ?? [];
-  const publicationsTab = h("div", { class: "mp-grid" },
-    h("div", { class: "mp-col" }, aboutCard, servicesCard, scoreCard),
-    h("div", { class: "mp-col" },
-      postComposer({ onPosted: () => reload() }),
-      h("p", { class: "mp-hint" }, "Vos publications apparaissent aussi dans l'onglet « Découvrir » du site, séparées des annonces."),
-      posts.length
-        ? posts.map((p) => h("article", { class: "mp-card" }, p.kind && p.kind !== "ACTUALITE" ? h("span", { class: "pill" }, KIND_LABELS[p.kind] ?? p.kind) : null, h("p", { class: "mp-post" }, p.content), photoGrid(p.photos, { id: p.id, title: name }), videoCard(p.video), socialBar("PUBLICATION", p.id),
-            h("div", { class: "mp-row between" }, h("small", null, dateFr(p.createdAt)),
-              h("button", { class: "mp-link danger", type: "button", onClick: () => { if (window.confirm("Supprimer cette publication ?")) run(() => api(`/me/publications/${encodeURIComponent(p.id)}/delete`, { method: "POST", body: {} }), "Publication supprimée."); } }, "Supprimer"))))
-        : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "📝"), h("h3", null, "Aucune publication récente"),
-            h("p", null, "Partagez une actualité, une information ou ce que vous cherchez : vos publications apparaîtront ici."))));
+  /* ---------- Publications (fil), À propos, Photos, Vidéos ---------- */
+  const publicationsTab = h("div", { class: "mp-feed" },
+    postComposer({ onPosted: () => reload() }),
+    h("p", { class: "mp-hint" }, "Vos publications apparaissent aussi dans l'onglet « Découvrir » du site, séparées des annonces."),
+    posts.length
+      ? posts.map((p) => h("article", { class: "mp-card" }, p.kind && p.kind !== "ACTUALITE" ? h("span", { class: "pill" }, KIND_LABELS[p.kind] ?? p.kind) : null, h("p", { class: "mp-post" }, p.content), photoGrid(p.photos, { id: p.id, title: name }), videoCard(p.video), socialBar("PUBLICATION", p.id),
+          h("div", { class: "mp-row between" }, h("small", null, dateFr(p.createdAt)),
+            h("button", { class: "mp-link danger", type: "button", onClick: () => { if (window.confirm("Supprimer cette publication ?")) run(() => api(`/me/publications/${encodeURIComponent(p.id)}/delete`, { method: "POST", body: {} }), "Publication supprimée."); } }, "Supprimer"))))
+      : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "📝"), h("h3", null, "Aucune publication récente"),
+          h("p", null, "Partagez une actualité, une information ou ce que vous cherchez : vos publications apparaîtront ici.")));
+
+  const aproposTab = h("div", { class: "mp-grid" },
+    h("div", { class: "mp-col" }, aboutCard, scoreCard),
+    h("div", { class: "mp-col" }, servicesCard));
+
+  const photosTab = h("div", { class: "mp-feed" }, withPhotos.length
+    ? withPhotos.map((p) => h("article", { class: "mp-card" }, photoGrid(p.photos, { id: p.id, title: name }), h("small", null, dateFr(p.createdAt))))
+    : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "🖼️"), h("h3", null, "Aucune photo"), h("p", null, "Les photos de vos publications apparaîtront ici.")));
+
+  const videosTab = h("div", { class: "mp-feed" }, withVideo.length
+    ? withVideo.map((p) => h("article", { class: "mp-card" }, p.content ? h("p", { class: "mp-post" }, p.content) : null, videoCard(p.video), h("small", null, dateFr(p.createdAt))))
+    : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "🎬"), h("h3", null, "Aucune vidéo"), h("p", null, "Les liens vidéo (YouTube, Facebook) de vos publications apparaîtront ici.")));
 
   /* ---------- Mes annonces ---------- */
   const count = (f) => (f === "all" ? visible.length : visible.filter((l) => l.status === f).length);
@@ -357,12 +398,12 @@ export async function profilePage() {
   const parametres = h("div", { class: "mp-stack" }, parametresTab, settingsHost);
 
   /* ---------- Assemblage et onglets ---------- */
-  const panels = { publications: publicationsTab, annonces: annoncesTab, avis: avisTab, abonnes, equipe: teamTab, parametres };
+  const panels = { publications: publicationsTab, apropos: aproposTab, videos: videosTab, photos: photosTab, annonces: annoncesTab, avis: avisTab, abonnes, equipe: teamTab, parametres };
   const body = h("div", { class: "mp-body" });
   function show(tab) {
     currentTab = tab;
     body.replaceChildren(panels[tab]);
-    header.querySelectorAll(".mp-tab").forEach((el) => el.setAttribute("aria-selected", String(el.dataset.tab === tab)));
+    bar.select(tab);
     if (tab === "annonces") paintListings();
   }
   // Appel « Passez Premium » : au-dessus de tous les onglets, sauf pour les comptes déjà Premium.
