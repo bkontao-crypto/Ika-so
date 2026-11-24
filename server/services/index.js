@@ -82,7 +82,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const alerts = createAlerts({ db, accounts, rules: ruleExceptions, moderationAudit, engagement });
   const discover = createDiscover({ db, accounts, rules: ruleExceptions, engagement, moderationAudit, requestsHub });
   const premiumRequests = createPremiumRequests({ requestsHub, db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments, rules: ruleExceptions });
-  const starBadge = createStarBadge({ db, accounts, superadminSettings, requestsHub, moderationAudit });
+  const starBadge = createStarBadge({ db, accounts, superadminSettings, requestsHub, moderationAudit, notify: (userId, note) => engagement.notify(userId, note) });
   // Sauvegarde réelle (pg_dump) : injectable dans les tests ; absente sans DATABASE_URL (le journal indique alors « non configurée »).
   const backup = givenBackup !== undefined ? givenBackup : (config?.databaseUrl ? createBackupRunner({ databaseUrl: config.databaseUrl, dir: config.backup?.dir, keep: config.backup?.keep }) : null);
   const stats = createStats({ db, accounts, analytics, backup, sendEmail, onSettingsChanged: () => seo.invalidateSite() });
