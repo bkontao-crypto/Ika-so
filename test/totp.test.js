@@ -32,10 +32,12 @@ test("TOTP : vecteurs de la RFC 6238", () => {
   }
 });
 
-test("base32 : aller-retour et rejet des caractères invalides", () => {
+test("base32 : aller-retour, minuscules et séparateurs tolérés, caractères invalides refusés", () => {
   const raw = Buffer.from("Ika So MFA \u00e9\u00e8");
   assert.deepEqual(base32Decode(base32Encode(raw)), raw);
-  assert.equal(base32Decode("mfrg gzdf-mz").toString(), "abcde".slice(0, 0) + base32Decode("MFRGGZDFMZ").toString());
+  assert.equal(base32Encode(Buffer.from("abcde")), "MFRGGZDF");
+  assert.equal(base32Decode("mfrg gzdf").toString(), "abcde");
+  assert.equal(base32Decode("MFRG-GZDF").toString(), "abcde");
   assert.throws(() => base32Decode("AB1"));
   assert.equal(generateSecret().length, 32);
 });
@@ -47,7 +49,8 @@ test("verifyTotp : bon code, tolérance d'un pas, mauvais code, format", () => {
   assert.ok(verifyTotp(RFC_SECRET, ` ${good.slice(0, 3)} ${good.slice(3)} `, { now }) !== null, "espaces tolérés");
   assert.ok(verifyTotp(RFC_SECRET, totpCode(RFC_SECRET, now - 30_000), { now }) !== null, "pas précédent accepté");
   assert.equal(verifyTotp(RFC_SECRET, totpCode(RFC_SECRET, now - 90_000), { now }), null, "trois pas d'écart refusé");
-  assert.equal(verifyTotp(RFC_SECRET, "000000".replace(/0/g, good[0] === "0" ? "1" : "0"), { now }) === null || true, true);
+  const wrong = good.slice(0, 5) + String((Number(good[5]) + 1) % 10);
+  assert.equal(verifyTotp(RFC_SECRET, wrong, { now }), null, "mauvais code refusé");
   assert.equal(verifyTotp(RFC_SECRET, "12345", { now }), null);
   assert.equal(verifyTotp(RFC_SECRET, "abcdef", { now }), null);
   assert.equal(verifyTotp(RFC_SECRET, undefined, { now }), null);
@@ -65,7 +68,7 @@ test("verifyTotp : un code ne sert qu'une fois (rejeu refusé)", () => {
 
 test("otpauthUri : contient secret, émetteur, algorithme et pas", () => {
   const uri = otpauthUri("ABCDEFGH", "babakontao2@gmail.com");
-  assert.match(uri, /^otpauth:\/\/totp\/Ika%20So:babakontao2%40gmail\.com\?secret=ABCDEFGH&issuer=Ika%20So&algorithm=SHA1&digits=6&period=30$/);
+  assert.equal(uri, "otpauth://totp/Ika%20So:babakontao2%40gmail.com?secret=ABCDEFGH&issuer=Ika%20So&algorithm=SHA1&digits=6&period=30");
 });
 
 test("chiffrement du secret : aller-retour, clé incorrecte et altération refusées", () => {
