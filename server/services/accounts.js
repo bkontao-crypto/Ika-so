@@ -8,6 +8,7 @@ import {
   isSmsVerified,
   normalizePhone,
   otpRequestAllowed,
+  staffRank,
 } from "../lib/rules.js";
 import {
   DUMMY_HASH,
@@ -412,11 +413,18 @@ export function createAccounts(ctx) {
       });
     },
 
-    /** Secours quand ni l'e-mail ni le SMS ne sont disponibles : un administrateur génère un lien à transmettre à la personne. Journalisé. */
+    /**
+     * Secours quand ni l'e-mail ni le SMS ne sont disponibles : un administrateur génère un lien à transmettre à la personne. Journalisé.
+     * Seulement pour un compte de rang STRICTEMENT inférieur à celui de l'acteur (sinon un administrateur pourrait prendre le contrôle d'un superadmin).
+     */
     async staffResetLink(staffId, targetUserId) {
-      await requireStaff(staffId, "ADMIN");
+      const actor = await requireStaff(staffId, "ADMIN");
       const rows = await db.query("select id from ika_users where id = $1 and deleted_at is null", [String(targetUserId ?? "").slice(0, 80)]);
       if (!rows[0]) throw badRequest("Compte introuvable.");
+      const target = (await db.query("select staff_role from ika_profiles where user_id = $1", [rows[0].id]))[0];
+      if (staffRank(target?.staff_role ?? "USER") >= staffRank(actor.staff_role)) {
+        throw forbidden("Vous ne pouvez pas générer de lien pour un compte de rang égal ou supérieur.");
+      }
       const token = newToken();
       await db.query("insert into ika_password_resets (token_hash, user_id, expires_at) values ($1, $2, now() + ($3 || ' minutes')::interval)", [sha256(token), rows[0].id, String(RESET_MINUTES)]);
       await audit(staffId, "STAFF_PASSWORD_RESET_LINK", null, rows[0].id);
