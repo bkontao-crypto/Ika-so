@@ -62,6 +62,11 @@ export function saveConsent(acceptedIds, { storage = localStore(), now = Date.no
   return record;
 }
 
+/** « Continuer » à l'inscription (décision du propriétaire, 24/11/2026) : toutes les catégories sont acceptées sur cet appareil ; chacune se retire ensuite dans Mon profil > Paramètres. */
+export function acceptAllConsent(options) {
+  return saveConsent(IDS, options);
+}
+
 /** Retire les données posées par la bibliothèque Mapbox dans ce navigateur (identifiant « mapbox.eventData », compteurs). À appeler dès que « Cartes » n'est plus accepté. */
 export function clearMapboxStorage(storage = localStore()) {
   try {

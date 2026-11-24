@@ -1,4 +1,4 @@
-// Panneau « Gérer mes choix » (lot A). Ouvert depuis le pied de page. Aucune catégorie optionnelle n'est acceptée par défaut.
+// Panneau « Gérer mes choix » (lot A). Ouvert depuis le pied de page et depuis Mon profil > Paramètres. Sans choix valide, aucune catégorie optionnelle n'est acceptée ; « Continuer » à l'inscription les accepte toutes, chacune se retire ici.
 import { h, toast } from "/js/dom.js";
 import { CONSENT_CATEGORIES, clearMapboxStorage, hasConsent, readConsent, saveConsent } from "/js/core/consent.js";
 
@@ -24,7 +24,7 @@ export function openConsentPanel() {
   };
 
   const rows = CONSENT_CATEGORIES.map((c) => {
-    const box = h("input", { type: "checkbox", checked: picked.has(c.id), disabled: !c.active, onChange: (e) => (e.target.checked ? picked.add(c.id) : picked.delete(c.id)) });
+    const box = h("input", { type: "checkbox", checked: picked.has(c.id), onChange: (e) => (e.target.checked ? picked.add(c.id) : picked.delete(c.id)) });
     return h("div", { class: "consent-row" },
       h("label", { class: "consent-head" }, box, h("strong", null, c.label)),
       h("p", { class: "small muted" }, c.description, c.active ? null : " Aucun service ne l'utilise pour le moment."));
