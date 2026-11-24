@@ -12,7 +12,14 @@
 .dc-cat{max-width:260px}
 .dc-post{gap:12px}
 .dc-head{display:flex;gap:12px;align-items:center}
-.dc-who{min-width:0;display:grid;gap:2px}
+.dc-who{min-width:0;flex:1;display:grid;gap:2px}
+.dc-menu-wrap{position:relative;margin-left:auto;align-self:flex-start;flex:none}
+.dc-menu-btn{display:grid;place-items:center;width:38px;height:38px;border:0;border-radius:50%;background:none;color:var(--ink,#1c2a22);cursor:pointer}
+.dc-menu-btn:hover{background:var(--soft,#eef2ec)}
+.dc-menu-btn svg{width:22px;height:22px;stroke-width:3;stroke-linecap:round}
+.dc-menu-wrap .dc-menu{left:auto;right:0}
+.dc-menu button{display:flex;align-items:center;gap:10px}
+.dc-menu svg{width:18px;height:18px;flex:none}
 .dc-who .row{flex-wrap:wrap;gap:6px;align-items:center}
 .dc-text{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
 .dc-post.kind-recherche{border-left:4px solid var(--gold,#c9ef75)}

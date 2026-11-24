@@ -127,9 +127,14 @@ export async function minePage() {
 export async function favoritesPage() {
   if (needLogin()) return;
   const items = await api("/me/favorites");
+  const pubs = await api("/me/publication-favorites").catch(() => []);
   const favorites = new Set(items.map((i) => i.id));
+  const pubCard = (p) => h("article", { class: "card pad stack" }, h("strong", null, p.author.name), h("p", { class: "muted" }, p.content.length > 200 ? `${p.content.slice(0, 200)}…` : p.content),
+    h("div", { class: "row" }, h("a", { class: "btn btn-small", href: `#/decouvrir?p=${encodeURIComponent(p.id)}` }, "Voir la publication"),
+      h("button", { class: "btn btn-small btn-quiet", type: "button", onClick: async (e) => { try { await api(`/discover/${encodeURIComponent(p.id)}/favorite`, { method: "POST", body: {} }); e.target.closest("article").remove(); toast("Retirée de vos favoris."); } catch (error) { fail(error); } } }, "Retirer")));
   mount(app, h("h1", { class: "title" }, "Favoris"),
-    items.length ? h("div", { class: "listing-grid" }, items.map((i) => listingCard(i, favorites))) : h("p", { class: "card pad muted" }, "Aucun favori pour le moment."));
+    items.length ? h("div", { class: "listing-grid" }, items.map((i) => listingCard(i, favorites))) : (pubs.length ? null : h("p", { class: "card pad muted" }, "Aucun favori pour le moment.")),
+    pubs.length ? h("section", { class: "stack" }, h("h2", null, "Publications de Découvrir"), pubs.map(pubCard)) : null);
 }
 
 /** Réglages du compte (rôles, accès, alertes, données…) : contenu de l'onglet « Paramètres & Confidentialité » du profil. */

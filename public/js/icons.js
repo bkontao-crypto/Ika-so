@@ -67,6 +67,8 @@ const P = {
   info: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v6M12 7.5v.01",
   key: "M7 16a4 4 0 100-8 4 4 0 000 8zM11 12h10M17 12v3M21 12v2",
   trash: "M4 7h16M9 7V4h6v3M6 7l1 14h10l1-14",
+  more: "M5 12h.01M12 12h.01M19 12h.01",
+  bookmark: "M6 3h12v18l-6-4-6 4z",
 };
 
 export const ICON_NAMES = Object.keys(P);

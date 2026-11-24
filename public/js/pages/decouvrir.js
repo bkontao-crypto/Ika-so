@@ -34,6 +34,30 @@ function reportDialog(item) {
   return dialog;
 }
 
+/** Menu « ⋯ » de l'en-tête : Supprimer (ma publication) ou Favoris / Signaler (celle d'un autre). */
+function postMenu(item, { onChange, openReport }) {
+  const menu = h("div", { class: "sc-menu dc-menu", role: "menu" }); menu.hidden = true;
+  const toggle = h("button", { class: "dc-menu-btn", type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "Plus d'options", onClick: () => { menu.hidden = !menu.hidden; toggle.setAttribute("aria-expanded", String(!menu.hidden)); } }, icon("more"));
+  const close = () => { menu.hidden = true; toggle.setAttribute("aria-expanded", "false"); };
+  const entry = (label, ico, onClick) => h("button", { type: "button", role: "menuitem", onClick: () => { close(); onClick(); } }, icon(ico), label);
+  if (item.mine) {
+    menu.append(entry("Supprimer", "trash", async () => {
+      if (!window.confirm("Supprimer cette publication ?")) return;
+      try { await api(`/me/publications/${encodeURIComponent(item.id)}/delete`, { method: "POST", body: {} }); toast("Publication supprimée."); onChange(); } catch (error) { fail(error); }
+    }));
+  } else {
+    const fav = entry("", "bookmark", async () => {
+      if (needLogin()) return;
+      try { const r = await api(`/discover/${encodeURIComponent(item.id)}/favorite`, { method: "POST", body: {} }); item.faved = r.on; drawFav(); toast(r.on ? "Ajoutée à vos favoris." : "Retirée de vos favoris."); } catch (error) { fail(error); }
+    });
+    const drawFav = () => fav.replaceChildren(icon("bookmark"), item.faved ? "Retirer des favoris" : "Mettre dans les favoris");
+    drawFav();
+    menu.append(fav, entry("Signaler", "flag", openReport));
+  }
+  document.addEventListener("click", (e) => { if (!menu.hidden && !e.target.closest?.(".dc-menu-wrap")) close(); });
+  return h("div", { class: "dc-menu-wrap" }, toggle, menu);
+}
+
 function card(item, onChange, highlight = false) {
   const dialogs = [];
   const open = (make) => { if (needLogin()) return; const d = make(item); dialogs.push(d); article.append(d); d.addEventListener("close", () => d.remove()); d.showModal(); };
@@ -41,14 +65,12 @@ function card(item, onChange, highlight = false) {
   const meta = [ago(item.createdAt), item.category, item.zone].filter(Boolean).join(" · ");
   const article = h("article", { class: `card pad stack dc-post kind-${item.kind.toLowerCase()}` },
     h("header", { class: "dc-head" }, avatar(item.author.name, item.author.avatarUrl),
-      h("div", { class: "dc-who" }, h("div", { class: "row" }, name, h("span", { class: "pill" }, item.kindLabel), item.author.advertiser ? h("span", { class: "pill pill-green" }, "Annonceur") : null), h("small", { class: "muted" }, meta))),
+      h("div", { class: "dc-who" }, h("div", { class: "row" }, name, h("span", { class: "pill" }, item.kindLabel), item.author.advertiser ? h("span", { class: "pill pill-green" }, "Annonceur") : null), h("small", { class: "muted" }, meta)),
+      postMenu(item, { onChange, openReport: () => open(reportDialog) })),
     h("p", { class: "dc-text" }, item.content), sharedCard(item.shared), photoGrid(item.photos, { id: item.id, title: item.author.name }), videoCard(item.video),
     socialBar("PUBLICATION", item.id, { openComments: highlight }),
-    h("footer", { class: "row dc-actions" },
-      item.mine
-        ? h("button", { class: "btn btn-quiet", type: "button", onClick: async () => { if (!window.confirm("Supprimer cette publication ?")) return; try { await api(`/me/publications/${encodeURIComponent(item.id)}/delete`, { method: "POST", body: {} }); toast("Publication supprimée."); onChange(); } catch (error) { fail(error); } } }, icon("trash"), "Supprimer")
-        : [h("button", { class: "btn btn-primary", type: "button", onClick: () => open(contactDialog) }, icon("message"), "Écrire"),
-          h("button", { class: "btn btn-quiet", type: "button", onClick: () => open(reportDialog) }, icon("flag"), "Signaler")]));
+    item.mine ? null : h("footer", { class: "row dc-actions" },
+      h("button", { class: "btn btn-primary", type: "button", onClick: () => open(contactDialog) }, icon("message"), "Écrire")));
   return article;
 }
 
