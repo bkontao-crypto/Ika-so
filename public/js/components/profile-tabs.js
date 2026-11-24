@@ -79,16 +79,23 @@ export function profileTabs({ tabs, current, onSelect, menu = [] }) {
   };
   const sections = menu.map((s) => ({ title: s.title, items: s.items.filter(Boolean) })).filter((s) => s.items.length);
   const dotsBtn = h("button", { class: "mpt-dots-btn", type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "Plus d'options du profil", title: "Plus d'options" }, "•••");
-  const dotsPop = h("div", { class: "mpt-pop mpt-pop-right", role: "menu", "aria-label": "Options du profil" },
-    sections.map((s) => h("div", { class: "mpt-sec", role: "group", "aria-label": s.title }, h("h4", null, s.title), s.items.map(entry))));
+  const sectionNode = (s) => h("div", { class: "mpt-sec", role: "group", "aria-label": s.title }, h("h4", null, s.title), s.items.map(entry));
+  const dotsPop = h("div", { class: "mpt-pop mpt-pop-right", role: "menu", "aria-label": "Options du profil" }, sections.map(sectionNode));
   const dots = h("div", { class: "mpt-dots" }, dotsBtn, dotsPop);
   dropdown(dotsBtn, dotsPop);
 
   const wrap = h("div", { class: "mpt" }, list, more, dots);
+  const small = typeof matchMedia === "function" ? matchMedia("(max-width: 640px)") : null;
+  const compact = () => Boolean(small?.matches); // téléphone : pas de « Plus ▾ », tout passe par « ••• »
 
   function renderOverflow() {
-    morePop.replaceChildren(...overflow.map((t) => h("button", { class: "mpt-item", type: "button", role: "menuitem", "data-ic": "1", "aria-current": String(t.id === selected), onClick: () => choose(t.id) }, t.label)));
-    moreBtn.classList.toggle("is-on", overflow.some((t) => t.id === selected));
+    const tabItems = overflow.map((t) => h("button", { class: "mpt-item", type: "button", role: "menuitem", "data-ic": "1", "aria-current": String(t.id === selected), onClick: () => choose(t.id) }, t.label));
+    morePop.replaceChildren(...(compact() ? [] : tabItems));
+    // Téléphone : les onglets en trop forment la première rubrique du menu « ••• ».
+    dotsPop.replaceChildren(...(compact() && tabItems.length ? [h("div", { class: "mpt-sec", role: "group", "aria-label": "Autres sections" }, h("h4", null, "Autres sections"), tabItems)] : []), ...sections.map(sectionNode));
+    const on = overflow.some((t) => t.id === selected);
+    moreBtn.classList.toggle("is-on", on && !compact());
+    dotsBtn.classList.toggle("is-on", on && compact());
   }
 
   /** Marque l'onglet actif (sans rappeler onSelect). */
@@ -102,8 +109,8 @@ export function profileTabs({ tabs, current, onSelect, menu = [] }) {
   function layout() {
     if (!wrap.isConnected || !wrap.clientWidth) return;
     buttons.forEach((el) => { el.hidden = false; });
-    more.hidden = false;
-    dots.hidden = !sections.length;
+    more.hidden = compact();
+    dots.hidden = !sections.length && !compact();
     const style = getComputedStyle(wrap);
     const gap = parseFloat(getComputedStyle(list).columnGap) || 0;
     const room = wrap.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - (dots.hidden ? 0 : dots.offsetWidth + gap);
@@ -111,7 +118,7 @@ export function profileTabs({ tabs, current, onSelect, menu = [] }) {
     const total = widths.reduce((sum, w) => sum + w, 0) + gap * (widths.length - 1);
     let count = widths.length;
     if (total > room) {
-      let used = more.offsetWidth + gap;
+      let used = (compact() ? 0 : more.offsetWidth) + gap;
       count = 0;
       for (const w of widths) {
         if (used + w + gap > room) break;
@@ -122,7 +129,8 @@ export function profileTabs({ tabs, current, onSelect, menu = [] }) {
     }
     buttons.forEach((el, i) => { el.hidden = i >= count; });
     overflow = tabs.slice(count);
-    more.hidden = overflow.length === 0;
+    more.hidden = compact() || overflow.length === 0;
+    dots.hidden = !sections.length && !(compact() && overflow.length);
     renderOverflow();
   }
 
@@ -130,6 +138,7 @@ export function profileTabs({ tabs, current, onSelect, menu = [] }) {
     observer = new ResizeObserver(layout);
     observer.observe(wrap);
   } else window.addEventListener("resize", layout);
+  small?.addEventListener?.("change", layout);
   document.fonts?.ready?.then(layout).catch(() => undefined); // les polices changent la largeur des onglets
   select(current);
   return { node: wrap, select, layout };
