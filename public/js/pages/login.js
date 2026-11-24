@@ -3,6 +3,7 @@ import { S, app, refreshSession } from "/js/core/state.js";
 import { currentRoute, go } from "/js/core/router.js";
 import { field, passwordField } from "/js/components/ui.js";
 import { askDataConsent } from "/js/components/data-consent.js";
+import { acceptAllConsent } from "/js/core/consent.js";
 
 // Logo « G » officiel de Google (SVG fixe, sans donnée extérieure), construit sans innerHTML.
 const googleLogo = () => new DOMParser().parseFromString(
@@ -42,6 +43,7 @@ export async function loginPage() {
           if (reg) {
             const choice = await askDataConsent();
             if (!choice) return toast("Inscription annulée.", true);
+            acceptAllConsent(); // « Continuer » = toutes les catégories acceptées sur cet appareil, retirables dans le profil
             body = { ...form, acceptTerms: true, dataConsent: choice };
           }
           await api(reg ? "/auth/register" : "/auth/login", { method: "POST", body });
@@ -61,6 +63,7 @@ export async function loginPage() {
         h("button", { class: "btn-google", type: "button", onClick: async () => {
           const choice = await askDataConsent();
           if (!choice) return toast("Connexion annulée.", true);
+          acceptAllConsent();
           location.href = `/api/auth/google?terms=1&consent=${choice}&next=${encodeURIComponent(next)}`;
         } }, googleLogo(), h("span", null, "Continuer avec Google"))) : null,
       h("p", { class: "small muted" }, "Votre numéro de téléphone est vérifié par un code SMS au moment de publier.")));

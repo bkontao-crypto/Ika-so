@@ -260,3 +260,14 @@ test("localisation : le lien d'impression apparaît aussi pour un simple point",
   const source = readFileSync(new URL("../public/js/pages/localisation.js", import.meta.url), "utf8");
   assert.match(source, /\(geo\?\.polygon \|\| geo\?\.point\) \? h\("p", null, h\("a", \{ class: "btn btn-small", href: `\/api\/me\/listings/);
 });
+
+test("« Continuer » : acceptAllConsent accepte toutes les catégories, chacune est retirable ensuite", async () => {
+  const { acceptAllConsent } = await import("../public/js/core/consent.js");
+  const store = new Map();
+  const storage = { getItem: (k) => store.get(k) ?? null, setItem: (k, v) => store.set(k, v), removeItem: (k) => store.delete(k) };
+  acceptAllConsent({ storage, now: NOW });
+  for (const c of CONSENT_CATEGORIES) assert.equal(hasConsent(c.id, { storage, now: NOW }), true, c.id);
+  saveConsent(CONSENT_CATEGORIES.map((c) => c.id).filter((id) => id !== "marketing"), { storage, now: NOW });
+  assert.equal(hasConsent("marketing", { storage, now: NOW }), false);
+  assert.equal(hasConsent("statistiques", { storage, now: NOW }), true);
+});

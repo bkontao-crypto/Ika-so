@@ -3,6 +3,7 @@
 import { api, compressPhoto, fail, formatPrice, h, mount, readProofFile, toast } from "/js/dom.js";
 import { S, app, refreshSession } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
+import { openConsentPanel } from "/js/components/consent-panel.js";
 import { field } from "/js/components/ui.js";
 import { KIND_LABELS, photoGrid, postComposer, videoCard } from "/js/components/post-composer.js";
 import { socialBar } from "/js/components/social.js";
@@ -333,6 +334,8 @@ export async function profilePage() {
           toggle(followSettings.anonymousByDefault, "Suivre anonymement par défaut", () => run(() => api("/me/follow-settings", { method: "PUT", body: { anonymousByDefault: !followSettings.anonymousByDefault, applyToExisting: !followSettings.anonymousByDefault } }), followSettings.anonymousByDefault ? "Vos prochains abonnements montreront votre nom." : "Vous êtes maintenant anonyme pour tous vos abonnements."))),
         consent?.terms?.acceptedAt ? setting("Conditions et confidentialité",
           `Acceptées le ${fmtDateTime(consent.terms.acceptedAt)} (version ${consent.terms.version ?? "—"}).`) : null,
+        setting("Cookies et services externes", "Préférences, statistiques, cartes et services externes, marketing : autorisés par défaut à l'inscription. Vous pouvez retirer chaque choix à tout moment.",
+          h("button", { class: "mp-btn sm", type: "button", onClick: openConsentPanel }, "Gérer mes choix")),
         consent ? setting("Collecte de mes données", consent.decidedAt
           ? `${consent.accepted === true ? "Acceptée" : "Désactivée"} le ${fmtDateTime(consent.decidedAt)} (texte ${consent.decidedTextVersion ?? "—"}). Vous pouvez la modifier ici à tout moment.`
           : "Aucun choix enregistré. Vous pouvez l'activer ici.",
