@@ -762,6 +762,12 @@ router.get("/listings/:id", async (req, res) => {
     limiter.hit(`discreport:${userId}`, 20, 60 * 60_000);
     res.json(await services.discover.report(userId, id(req), clean(req.body?.reason, 80)));
   });
+  router.post("/discover/:id/favorite", async (req, res) => {
+    const userId = requireUser(req);
+    limiter.hit(`discfav:${userId}`, 120, 60 * 60_000);
+    res.json(await services.discover.toggleFavorite(userId, id(req)));
+  });
+  router.get("/me/publication-favorites", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.discover.listFavorites(requireUser(req))); });
   router.get("/staff/discover/reports", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ items: await services.discover.reported(await requireOwnerModule(req, "moderation")) }); });
   router.post("/staff/discover/:id/hide", async (req, res) => res.json(await services.discover.hide(await requireOwnerGate(req, "moderation"), id(req), clean(req.body?.reason, 300))));
   router.post("/staff/discover/:id/dismiss", async (req, res) => res.json(await services.discover.dismiss(await requireOwnerGate(req, "moderation"), id(req))));

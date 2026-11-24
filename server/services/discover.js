@@ -54,8 +54,37 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
   const AUTHOR_JOINS = `join ika_users u on u.id = pb.user_id and u.deleted_at is null join ika_profiles pr on pr.user_id = pb.user_id and pr.account_status <> 'BANNED'
                         left join ika_advertiser_profiles ap on ap.user_id = pb.user_id`;
 
+  /** Marque `faved` sur les publications que le visiteur a mises en favoris. */
+  async function withFaved(items, viewerId) {
+    if (!viewerId || !items.length) return items.map((it) => ({ ...it, faved: false }));
+    const rows = await db.query("select publication_id from ika_publication_favorites where user_id = $1 and publication_id = any($2::text[])", [viewerId, items.map((it) => it.id)]);
+    const set = new Set(rows.map((r) => r.publication_id));
+    return items.map((it) => ({ ...it, faved: set.has(it.id) }));
+  }
+
   return {
     settings,
+
+    /** Ajoute ou retire une publication des favoris du membre. */
+    async toggleFavorite(userId, publicationId) {
+      await accounts.requireActive(userId);
+      const pid = String(publicationId ?? "").slice(0, 80);
+      const pub = (await db.query("select id from ika_publications where id = $1 and status = 'PUBLISHED'", [pid]))[0];
+      if (!pub) throw notFound("Publication introuvable.");
+      const removed = await db.query("delete from ika_publication_favorites where user_id = $1 and publication_id = $2 returning publication_id", [userId, pid]);
+      if (removed[0]) return { on: false };
+      await db.query("insert into ika_publication_favorites (user_id, publication_id) values ($1, $2) on conflict do nothing", [userId, pid]);
+      return { on: true };
+    },
+
+    /** Publications mises en favoris par le membre (les plus récemment ajoutées d'abord ; masquées ou supprimées exclues). */
+    async listFavorites(userId) {
+      const rows = await db.query(
+        `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.shared_type, pb.shared_id, pb.created_at, ${AUTHOR}, ${PHOTOS}
+           from ika_publication_favorites f join ika_publications pb on pb.id = f.publication_id ${AUTHOR_JOINS}
+          where f.user_id = $1 and pb.status = 'PUBLISHED' order by f.created_at desc limit 100`, [userId]);
+      return (await withFaved(rows.map((r) => view(r, userId)), userId));
+    },
 
     /** Une publication (lien partagé #/decouvrir?p=…). */
     async get(viewerId, publicationId) {
@@ -63,7 +92,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
         `select pb.id, pb.user_id, pb.content, pb.kind, pb.category, pb.zone, pb.status, pb.video_url, pb.video_provider, pb.shared_type, pb.shared_id, pb.created_at, ${AUTHOR}, ${PHOTOS}
            from ika_publications pb ${AUTHOR_JOINS} where pb.id = $1 and pb.status = 'PUBLISHED'`, [String(publicationId ?? "").slice(0, 80)]);
       if (!rows[0]) throw notFound("Publication introuvable.");
-      return (await withShared([view(rows[0], viewerId)], rows))[0];
+      return (await withFaved(await withShared([view(rows[0], viewerId)], rows), viewerId))[0];
     },
 
     /** Fil public, du plus récent au plus ancien. Les publications masquées, les comptes bloqués et les personnes que vous avez bloquées (ou qui vous ont bloqué) n'y figurent pas. */
@@ -82,7 +111,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
           order by pb.created_at desc limit ${PAGE + 1}`,
         [viewerId ?? null, k, c, b]);
       const page = rows.slice(0, PAGE);
-      return { items: await withShared(page.map((r) => view(r, viewerId)), page), next: rows.length > PAGE ? iso(page[page.length - 1].created_at) : null, settings: s };
+      return { items: await withFaved(await withShared(page.map((r) => view(r, viewerId)), page), viewerId), next: rows.length > PAGE ? iso(page[page.length - 1].created_at) : null, settings: s };
     },
 
     /** Publie. Texte obligatoire (pas de numéro de téléphone), photos facultatives (envoyées déjà réduites par le navigateur). */
