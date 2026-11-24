@@ -18,6 +18,8 @@ Aucun cookie de mesure d'audience, de publicité ou de visiteur. `visitor_id` et
 | `ika-so-draft` (ancien) | Ancien brouillon sans compte : rangé au compte qui se déconnecte, sinon retiré | — | Migration | Fonctionnel |
 | `ika_theme` | `light` ou `dark` | Sans expiration | Clic sur le bouton de thème | Préférence demandée par la personne |
 | `ika-owner-theme` | Thème de l'espace propriétaire | Sans expiration | Clic sur le bouton de thème | Préférence (administration) |
+| `ika-so-prefs`, `ika_theme` | Préférences d'affichage : thème, derniers filtres de recherche, mode d'affichage, filtre de Découvrir | Tant que « Préférences » est accepté (service activé dans l'Owner center) | Confort | « Préférences » ; effacé au retrait du choix |
+| `_fbp`, `_ga*`, `_gcl*`, `ttp` (posés par les prestataires) | Mesure de campagnes et publicité ciblée | Selon le prestataire | Marketing | « Marketing » ; retrait = rechargement de la page, plus aucun pixel chargé ; les cookies déjà posés se suppriment depuis les réglages du navigateur |
 | `mapbox*` | Données de la bibliothèque Mapbox | Tant que « Cartes » est accepté | Chargement de la carte Mapbox | « Cartes et services externes » ; effacé au retrait du choix |
 | Cache du service worker (`ika-so-…`) | Fichiers publics du site et lectures publiques d'annonces pour le hors connexion | Jusqu'à la version suivante | Installation du site | Fonctionnel ; rien de privé (comptes, messages) |
 
@@ -40,9 +42,15 @@ Aucun cookie de mesure d'audience, de publicité ou de visiteur. `visitor_id` et
 | Render (hébergeur) | Hébergement du site et de l'API | Toujours | Tout le trafic ; l'hébergeur peut conserver des adresses IP | À préciser (pays, durée) |
 
 Polices et bibliothèques : hébergées chez nous (`/fonts`, `/vendor`), aucun CDN.
+| Meta Platforms (États-Unis) : `connect.facebook.net`, `www.facebook.com` | Pixel Meta : pages vues et inscription | Seulement après accord « Marketing » ET service activé dans l'Owner center | Adresse IP, page, identifiant publicitaire, événement d'inscription | Éteint par défaut ; identifiant du pixel à saisir |
+| Google (États-Unis) : `www.googletagmanager.com`, `*.google-analytics.com`, `*.doubleclick.net` | Balise Google Ads | Idem | Idem | Éteint par défaut |
+| TikTok (Singapour / États-Unis) : `analytics.tiktok.com` | Pixel TikTok | Idem | Idem | Éteint par défaut |
+
+Les adresses d'un prestataire ne sont ouvertes dans la politique de sécurité (CSP) que tant que son service est activé.
 
 ## 5. Points ouverts
 - Valider ce registre et la politique par un juriste malien ; formalités APDP et transferts hors du Mali (voir `note-cadre-juridique-mali.md`).
 - Confirmer sur Render quels prestataires sont réellement activés, puis mettre à jour la colonne « État ».
 - Le lien « Gérer mes choix » est présent sur les pages rendues côté serveur (quartiers, guides, agences, annonces) ; `/mentions-legales` et la fiche imprimable ne l'ont pas.
+- Avant d'activer un pixel Marketing : mentionner le prestataire et le transfert hors du Mali dans la politique de confidentialité, et faire valider par le juriste.
 - Lot D (preuve de consentement côté serveur) : seulement si le juriste l'exige.

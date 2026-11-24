@@ -1,11 +1,13 @@
 // Panneau « Gérer mes choix » (lot A). Ouvert depuis le pied de page et depuis Mon profil > Paramètres. Sans choix valide, aucune catégorie optionnelle n'est acceptée ; « Continuer » à l'inscription les accepte toutes, chacune se retire ici.
 import { h, toast } from "/js/dom.js";
 import { CONSENT_CATEGORIES, clearMapboxStorage, hasConsent, readConsent, saveConsent } from "/js/core/consent.js";
+import { onConsentSaved } from "/js/core/services.js";
 
 export function openConsentPanel() {
   if (document.getElementById("consent-dialog")) return;
   const previous = document.activeElement;
   const before = hasConsent("cartes");
+  const was = { preferences: hasConsent("preferences"), marketing: hasConsent("marketing") };
   const picked = new Set(readConsent()?.accepted ?? []);
 
   const close = () => {
@@ -17,9 +19,11 @@ export function openConsentPanel() {
   const save = (ids) => {
     saveConsent(ids);
     if (!hasConsent("cartes")) clearMapboxStorage(); // identifiant et télémétrie Mapbox retirés dès le retrait
+    const after = onConsentSaved(was, { preferences: hasConsent("preferences"), marketing: hasConsent("marketing") });
     close();
     // Le fond de carte est choisi au chargement de la page : on recharge pour appliquer le choix tout de suite (retrait compris).
-    if (hasConsent("cartes") !== before) { location.reload(); return; }
+    // Un pixel Marketing déjà chargé ne peut pas être déchargé : le retrait recharge la page.
+    if (hasConsent("cartes") !== before || after.reload) { location.reload(); return; }
     toast("Vos choix sont enregistrés.");
   };
 

@@ -7,15 +7,17 @@ export const SESSION_COOKIE = "ika_session";
  * Avec un jeton public valide : uniquement les adresses Mapbox nécessaires au fond de carte ; le code de la bibliothèque
  * reste hébergé chez nous (public/vendor/), donc script-src ne change pas.
  */
-export function contentSecurityPolicy(config = {}) {
+export function contentSecurityPolicy(config = {}, extra = null) {
   const mapbox = Boolean(config.mapbox?.token);
+  // `extra` : adresses des services Marketing activés par le Super Administrateur (voir lib/consent-services.js). Absent = valeur d'origine.
+  const add = (k) => (extra?.[k]?.length ? ` ${[...new Set(extra[k])].join(" ")}` : "");
   return [
     "default-src 'self'",
-    "script-src 'self'",
+    `script-src 'self'${add("script")}`,
     "style-src 'self'",
-    mapbox ? "img-src 'self' data: blob: https://api.mapbox.com" : "img-src 'self' data:",
+    (mapbox ? "img-src 'self' data: blob: https://api.mapbox.com" : "img-src 'self' data:") + add("img"),
     "font-src 'self'",
-    mapbox ? "connect-src 'self' https://api.mapbox.com https://events.mapbox.com" : "connect-src 'self'",
+    (mapbox ? "connect-src 'self' https://api.mapbox.com https://events.mapbox.com" : "connect-src 'self'") + add("connect"),
     ...(mapbox ? ["worker-src 'self' blob:", "child-src 'self' blob:"] : []),
     "object-src 'none'",
     "base-uri 'none'",
@@ -25,9 +27,11 @@ export function contentSecurityPolicy(config = {}) {
 }
 
 /** En-têtes de sécurité (voir contentSecurityPolicy). */
-export function securityHeaders(config) {
-  const csp = contentSecurityPolicy(config);
-  return (req, res, next) => {
+export function securityHeaders(config, getExtra = null) {
+  const base = contentSecurityPolicy(config);
+  return async (req, res, next) => {
+    let csp = base;
+    if (getExtra) { try { csp = contentSecurityPolicy(config, await getExtra()); } catch { /* réglage illisible : politique d'origine */ } }
     res.setHeader("Content-Security-Policy", csp);
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.setHeader("Referrer-Policy", "same-origin");

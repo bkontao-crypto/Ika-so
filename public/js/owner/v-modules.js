@@ -1049,6 +1049,32 @@ export function appearanceSection({ main }, reload) {
       h("div", null, h("button", { class: "btn primary", type: "button", onClick: save }, "Enregistrer"))))];
 }
 
+// Services et consentement : « Préférences » et « Marketing » (pixels). Réglage superadmin « consent_services ».
+// Rien n'est actif par défaut. Un pixel ne se charge chez le visiteur que s'il est coché ici ET accepté par lui (« Gérer mes choix »).
+const MARKETING_UI = [
+  ["meta", "Pixel Meta (Facebook et Instagram)", "Identifiant du pixel : 15 à 16 chiffres (Gestionnaire d'événements Meta).", "123456789012345"],
+  ["google", "Google Ads / balise Google", "Identifiant de balise : AW-1234567890 ou G-XXXXXXXXXX.", "AW-1234567890"],
+  ["tiktok", "Pixel TikTok", "Identifiant du pixel : lettres et chiffres (TikTok Events Manager).", "C1ABCDEF2GHIJK"],
+];
+export function consentServicesSection({ consent }, reload) {
+  const base = consent && typeof consent === "object" ? consent : {};
+  const P = { enabled: base.preferences?.enabled === true };
+  const M = Object.fromEntries(MARKETING_UI.map(([k]) => [k, { enabled: base.marketing?.[k]?.enabled === true, id: base.marketing?.[k]?.id ?? "" }]));
+  const prefBox = h("input", { type: "checkbox" }); prefBox.checked = P.enabled; prefBox.addEventListener("change", () => { P.enabled = prefBox.checked; });
+  const rows = MARKETING_UI.map(([k, label, hint, example]) => {
+    const box = h("input", { type: "checkbox" }); box.checked = M[k].enabled; box.addEventListener("change", () => { M[k].enabled = box.checked; });
+    const id = h("input", { class: "input", maxlength: "40", placeholder: example, "aria-label": `Identifiant ${label}` }); id.value = M[k].id; id.addEventListener("input", () => { M[k].id = id.value; });
+    return h("div", { class: "stack" }, h("label", { class: "field" }, box, " ", h("b", null, label)), h("label", { class: "field wide" }, "Identifiant", id), h("p", { class: "note" }, hint));
+  });
+  const save = () => act(() => api("/staff/superadmin-settings/consent_services", { method: "PUT", body: { value: { preferences: { ...P }, marketing: Object.fromEntries(Object.entries(M).map(([k, v]) => [k, { ...v }])) } } }), "Services enregistrés. Visible sur le site en moins d'une minute.", reload);
+  return [panel("Préférences", "Mémorisation locale des réglages d'affichage chez le visiteur : thème clair ou sombre, derniers filtres de recherche, mode d'affichage des annonces, filtre de Découvrir. Aucune donnée n'est envoyée à un tiers.",
+      h("div", { class: "stack" }, h("label", { class: "field" }, prefBox, " ", "Activer le service Préférences"),
+        h("p", { class: "note" }, "Éteint : le thème reste mémorisé comme avant, rien d'autre n'est mémorisé. Allumé : tout n'est mémorisé qu'avec l'accord « Préférences » du visiteur, et effacé s'il le retire."))),
+    panel("Marketing et publicité", "Pixels de mesure des campagnes et de publicité ciblée. Chaque pixel s'active avec son identifiant ; il n'est chargé que chez les visiteurs ayant accepté « Marketing » et envoie des données à une société étrangère (à indiquer dans la politique de confidentialité).",
+      h("div", { class: "stack" }, ...rows, h("p", { class: "note" }, "Les pages vues et l'inscription (conversion) sont transmises aux pixels activés. Un identifiant invalide empêche l'enregistrement."))),
+    h("div", null, h("button", { class: "btn primary", type: "button", onClick: save }, "Enregistrer les services"))];
+}
+
 export const i18nView = (ctx) => page(ctx, {
   eyebrow: "SYSTÈME", title: "Langues, catégories & redirections", desc: "Les langues et catégories ne sont pas encore lues par le site public ; les redirections (internes) sont appliquées en 301.",
   load: async () => { const [l, c, r] = await Promise.all([api("/staff/owner/languages"), api("/staff/owner/categories"), api("/staff/owner/redirects")]); return { l, c, r }; },
@@ -1132,22 +1158,24 @@ function countryFormFields(c = null, editing = false) {
 }
 
 // ---------- Personnalisation du site : une seule interface (identité, accueil, référencement, logo, pages légales, sécurité) ----------
-const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["homepage", "Page d’accueil"], ["header", "En-tête & onglets"], ["layout", "Sections de l’accueil"], ["footer", "Pied de page"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
+const CUSTOMIZE_TABS = [["identity", "Identité & contact"], ["appearance", "Apparence & modules"], ["services", "Services et consentement"], ["homepage", "Page d’accueil"], ["header", "En-tête & onglets"], ["layout", "Sections de l’accueil"], ["footer", "Pied de page"], ["seo", "Référencement"], ["logo", "Logo"], ["legal", "Pages légales"], ["security", "Sécurité"]];
 export const customizeView = (ctx, initial = "identity") => page(ctx, {
   eyebrow: "SYSTÈME", title: "Personnalisation du site", desc: "Tout ce qui décrit le site public, au même endroit. Chaque section s’enregistre séparément.",
   load: async () => {
-    const [settings, sec, home, seo, logo, legal, main, header, layout, footer, forms] = await Promise.all([
+    const [settings, sec, home, seo, logo, legal, main, consent, header, layout, footer, forms] = await Promise.all([
       api("/staff/owner/settings"), api("/staff/owner/security-log"), api("/homepage-settings"),
       api("/staff/owner/seo"), api("/staff/owner/logo"), api("/staff/owner/legal"),
       api("/staff/superadmin-settings/main").then((r) => r.value ?? null).catch(() => null),
+      api("/staff/superadmin-settings/consent_services").then((r) => r.value ?? null).catch(() => null),
       api("/staff/site-header"), api("/staff/home-layout"), api("/staff/site-footer"), api("/staff/home-forms").catch(() => ({ items: [], newCount: 0 }))]);
-    return { settings, sec, home, seo, logo, legal, main, header, layout: { ...layout, forms }, footer };
+    return { settings, sec, home, seo, logo, legal, main, consent, header, layout: { ...layout, forms }, footer };
   },
   actions: () => h("a", { class: "btn", href: "/", target: "_blank", rel: "noopener" }, ico("external"), "Voir le site"),
-  build({ settings, sec, home, seo, logo, legal, main, header, layout, footer }, reload) {
+  build({ settings, sec, home, seo, logo, legal, main, consent, header, layout, footer }, reload) {
     const parts = {
       identity: settingsSection({ s: settings, sec }, reload)[0],
       appearance: appearanceSection({ main }, reload),
+      services: consentServicesSection({ consent }, reload),
       security: settingsSection({ s: settings, sec }, reload)[1],
       homepage: homepageSection(home, reload),
       header: headerSection(header, reload),

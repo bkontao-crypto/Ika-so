@@ -22,6 +22,7 @@ import { createModerationAudit } from "./moderation-audit.js";
 import { createCrm } from "./crm.js";
 import { createWhatsApp } from "./whatsapp.js";
 import { createSuperadminSettings } from "./superadmin-settings.js";
+import { createConsentServicesReader } from "../lib/consent-services.js";
 import { createPayments } from "./payments.js";
 import { createPremiumRequests } from "./premium-requests.js";
 import { createStarBadge } from "./star-badge.js";
@@ -64,6 +65,7 @@ const moderationAudit = createModerationAudit(ctx);
 const crm = createCrm(ctx);
 const whatsapp = createWhatsApp(ctx);
 const superadminSettings = createSuperadminSettings(ctx);
+const consentServices = createConsentServicesReader(superadminSettings);
   const seo = createSeo(ctx, listings);
   const rights = createRights(ctx, accounts);
   const notifier = givenNotifier ?? createNotifier({ db, config });
@@ -97,7 +99,7 @@ const superadminSettings = createSuperadminSettings(ctx);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

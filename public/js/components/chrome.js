@@ -2,6 +2,7 @@ import { api, fail, h, mount, toast } from "/js/dom.js";
 import { icon } from "/js/icons.js";
 import { S, clearSession } from "/js/core/state.js";
 import { currentRoute, go } from "/js/core/router.js";
+import { savedTheme, saveTheme } from "/js/core/prefs.js";
 
 // Navigation de la refonte : Accueil, Acheter, Louer, Terrains, Carte, Annonceurs, Partenaires.
 // Toutes les routes d'origine restent accessibles (Favoris et Messages : icônes d'en-tête et menu du profil ;
@@ -179,7 +180,7 @@ export function renderChrome() {
   mount(document.getElementById("nav-bottom"), navMobileItems().map((item) => link(item, "mobile-nav-link", "badge-count")));
 
   // Thème appliqué avant le dessin du bouton, pour que l'icône reflète le thème réel.
-  const saved = localStorage.getItem("ika_theme") || "light";
+  const saved = savedTheme();
   applyTheme(saved);
 
   const actions = document.getElementById("account");
@@ -188,7 +189,7 @@ export function renderChrome() {
     onClick: () => {
       const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
       applyTheme(next);
-      localStorage.setItem("ika_theme", next);
+      saveTheme(next);
       renderChrome();
     },
   }, themeIcon(saved === "dark" ? "sun" : "moon"));

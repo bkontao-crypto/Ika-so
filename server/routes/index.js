@@ -3,6 +3,7 @@ import { premiumOrigin } from "../lib/analytics-events.js";
 import { leadsToPdf, moderationAuditToPdf } from "../lib/table-pdfs.js";
 import { POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
 import { STAR_POLICY_KEY, normalizeStarPolicy } from "../lib/star-badge-policy.js";
+import { CONSENT_SERVICES_KEY, normalizeConsentServices, publicConsentServices } from "../lib/consent-services.js";
 import { Router } from "express";
 import { AppError, forbidden } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
@@ -1009,8 +1010,9 @@ router.get("/listings/:id", async (req, res) => {
     const staffId = requireUser(req);
     await accounts.requireStaff(staffId, "SUPERADMIN");
     const raw = req.body?.value ?? req.body;
-    const value = req.params.key === POLICY_KEY ? normalizePolicy(raw) : req.params.key === STAR_POLICY_KEY ? normalizeStarPolicy(raw) : raw;
+    const value = req.params.key === POLICY_KEY ? normalizePolicy(raw) : req.params.key === STAR_POLICY_KEY ? normalizeStarPolicy(raw) : req.params.key === CONSENT_SERVICES_KEY ? normalizeConsentServices(raw, { strict: true }) : raw;
     const out = await superadminSettings.set(staffId, req.params.key, value);
+    if (req.params.key === CONSENT_SERVICES_KEY) services.consentServices?.invalidate();
     await moderationAudit.log(staffId, {
       action: "superadmin_settings_update",
       targetType: "settings",
@@ -1018,6 +1020,12 @@ router.get("/listings/:id", async (req, res) => {
       details: { key: req.params.key, value },
     }).catch(() => {});
     res.json(out);
+  });
+
+  // Services « Préférences » et « Marketing » activés par le Super Administrateur (lecture publique : le navigateur ne charge rien sans l'accord de l'utilisateur).
+  router.get("/config/consent-services", async (_req, res) => {
+    res.setHeader("Cache-Control", "public, max-age=60");
+    res.json(publicConsentServices(await services.consentServices?.get()));
   });
 
   // Lecture publique des réglages d'affichage (pour le frontend)
