@@ -4,6 +4,7 @@ import { currentRoute, go } from "/js/core/router.js";
 import { field, passwordField } from "/js/components/ui.js";
 import { askDataConsent } from "/js/components/data-consent.js";
 import { acceptAllConsent } from "/js/core/consent.js";
+import { trackConversion } from "/js/core/marketing.js";
 
 // Logo « G » officiel de Google (SVG fixe, sans donnée extérieure), construit sans innerHTML.
 const googleLogo = () => new DOMParser().parseFromString(
@@ -48,6 +49,7 @@ export async function loginPage() {
           }
           await api(reg ? "/auth/register" : "/auth/login", { method: "POST", body });
           await refreshSession();
+          if (reg) trackConversion("registration");
           toast(reg ? "Compte créé." : "Connecté.");
           go(next.startsWith("/") ? next : "/");
         } catch (error) { fail(error); }

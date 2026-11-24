@@ -6,6 +6,7 @@ import { renderChrome, loadHeader, loadFooter } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
 import { openConsentPanel } from "/js/components/consent-panel.js";
 import { trackPageView } from "/js/core/analytics.js";
+import { loadConsentServices } from "/js/core/services.js";
 import "/js/bootstrap-settings.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
@@ -129,4 +130,4 @@ document.addEventListener("visibilitychange", () => {
   if (currentRoute().path !== "/") location.hash = "#/"; else window.scrollTo(0, 0);
 });
 // Les listes de quartiers et de pays sont lues avant le premier affichage (les formulaires et filtres en dépendent).
-Promise.all([loadPlaces(), refreshSession().then(refreshUnread).catch(() => undefined)]).finally(render);
+Promise.all([loadPlaces(), refreshSession().then(refreshUnread).catch(() => undefined), loadConsentServices()]).finally(render);

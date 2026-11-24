@@ -8,11 +8,19 @@ export const CONSENT_VERSION = 1; // à incrémenter si la politique change : le
 export const CONSENT_DURATION_DAYS = 183; // environ six mois, configurable
 
 export const CONSENT_CATEGORIES = [
-  { id: "preferences", label: "Préférences", active: false, description: "Mémorisation de réglages d'affichage." },
+  { id: "preferences", label: "Préférences", active: false, description: "Mémorisation sur cet appareil de vos réglages d'affichage : thème clair ou sombre, derniers filtres de recherche, mode d'affichage des annonces." },
   { id: "statistiques", label: "Statistiques", active: true, description: "Mesure d'audience anonyme : les pages vues sont comptées sans identifiant visiteur ni cookie. Sans votre accord, aucune page vue n'est envoyée." },
   { id: "cartes", label: "Cartes et services externes", active: true, description: "Fond de carte Mapbox (société américaine). Pour afficher ce fond, votre navigateur envoie à Mapbox les tuiles demandées, avec votre adresse IP." },
-  { id: "marketing", label: "Marketing et publicité", active: false, description: "Publicité ciblée." },
+  { id: "marketing", label: "Marketing et publicité", active: false, description: "Mesure de nos campagnes et publicité ciblée sur des réseaux externes (Meta, Google, TikTok) : ces sociétés reçoivent votre adresse IP et des données de navigation." },
 ];
+
+/** Active ou éteint « Préférences » et « Marketing » selon les services que le Super Administrateur a branchés (Owner center). */
+export function setActiveServices({ preferences = false, marketing = false } = {}) {
+  for (const c of CONSENT_CATEGORIES) {
+    if (c.id === "preferences") c.active = preferences === true;
+    if (c.id === "marketing") c.active = marketing === true;
+  }
+}
 
 const IDS = CONSENT_CATEGORIES.map((c) => c.id);
 const DAY_MS = 86_400_000;

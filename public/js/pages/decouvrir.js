@@ -6,6 +6,7 @@ import { icon } from "/js/icons.js";
 import { ago, avatar } from "/js/components/espace.js";
 import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer, sharedCard, videoCard } from "/js/components/post-composer.js";
 import { socialBar } from "/js/components/social.js";
+import { getPref, setPref } from "/js/core/prefs.js";
 
 const REASONS = ["Annonce déguisée ou publicité", "Arnaque ou demande d'argent", "Contenu choquant ou insultant", "Numéro de téléphone ou contact direct", "Autre"];
 
@@ -76,14 +77,15 @@ function card(item, onChange, highlight = false) {
 
 export async function decouvrirPage() {
   loadDiscoverCss();
-  let kind = ""; let category = ""; let before = null; let loading = false;
+  let kind = getPref("decouvrirKind", "") ?? ""; let category = ""; let before = null; let loading = false;
+  if (kind && !KIND_LABELS[kind]) kind = "";
   const linked = new URLSearchParams((location.hash.split("?")[1] ?? "")).get("p"); // lien partagé #/decouvrir?p=…
   const list = h("div", { class: "stack", "aria-live": "polite" });
   const more = h("button", { class: "btn", type: "button", hidden: true, onClick: () => load(false) }, "Voir plus de publications");
   const chips = h("div", { class: "row", role: "group", "aria-label": "Filtrer les publications" });
   const cat = h("select", { class: "input dc-cat", "aria-label": "Type de bien", onChange: (e) => { category = e.target.value; load(true); } },
     h("option", { value: "" }, "Tous les biens"), CATEGORIES.map((c) => h("option", { value: c }, c)));
-  const drawChips = () => chips.replaceChildren(...[["", "Tout"], ...Object.entries(KIND_LABELS)].map(([k, label]) => h("button", { class: "chip", type: "button", "aria-pressed": String(kind === k), onClick: () => { kind = k; drawChips(); load(true); } }, label)));
+  const drawChips = () => chips.replaceChildren(...[["", "Tout"], ...Object.entries(KIND_LABELS)].map(([k, label]) => h("button", { class: "chip", type: "button", "aria-pressed": String(kind === k), onClick: () => { kind = k; setPref("decouvrirKind", k); drawChips(); load(true); } }, label)));
 
   async function load(reset) {
     if (loading) return; loading = true;

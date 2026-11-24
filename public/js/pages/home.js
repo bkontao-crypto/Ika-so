@@ -4,6 +4,7 @@ import { currentRoute, needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 import { icon } from "/js/icons.js";
 import { listingCard, mapView } from "/js/components/listing-card.js";
+import { getPref, setPref } from "/js/core/prefs.js";
 
 const BLANK = { transaction: "", category: "", zone: "", minPrice: "", maxPrice: "", q: "", sort: "", minSurface: "", bedrooms: "" };
 
@@ -51,7 +52,19 @@ async function listingsPage(mode) {
   const PAGE = 24;
   let more = false;
   let onlyFav = false;
-  let view = ["grid", "list", "map"].includes(params.get("vue")) ? params.get("vue") : "grid";
+  // Service « Préférences » (si activé et accepté) : sans filtre dans l'adresse, on reprend les derniers filtres et le dernier mode d'affichage.
+  const fromUrl = ["t", "transaction", "category", "q", "maxPrice", "minPrice", "zone", "vue"].some((k) => params.get(k));
+  if (!isHome && !fromUrl) {
+    const last = getPref("filters", null);
+    if (last && typeof last === "object") {
+      if (TRANSACTIONS.includes(last.transaction)) f.transaction = last.transaction;
+      if (CATEGORIES.includes(last.category)) f.category = last.category;
+      if (ZONES.some((z) => z.name === last.zone)) f.zone = last.zone;
+      if (/^\d+$/.test(last.maxPrice ?? "")) f.maxPrice = last.maxPrice;
+    }
+  }
+  const savedView = !isHome && !params.get("vue") ? getPref("view", null) : null;
+  let view = ["grid", "list", "map"].includes(params.get("vue")) ? params.get("vue") : ["grid", "list", "map"].includes(savedView) ? savedView : "grid";
   let items = [];
   let campaigns = [];
   let sidebarAds = [];
@@ -140,6 +153,7 @@ async function listingsPage(mode) {
     }
   }
   async function load() {
+    if (!isHome) setPref("filters", { transaction: f.transaction, category: f.category, zone: f.zone, maxPrice: f.maxPrice });
     mount(results, h("div", { class: "listing-grid" }, [0, 1, 2].map(() => h("div", { class: "skeleton" }))));
     try {
       // Campagnes SPONSORED (route publique) : une panne ici ne doit jamais empêcher l'affichage des annonces.
@@ -318,7 +332,7 @@ async function listingsPage(mode) {
   const filtersButton = h("button", { class: "btn btn-small", type: "button", onClick: (e) => openDrawer(e.currentTarget) }, icon("sliders"), "Plus de filtres");
   const viewBar = h("div", { class: "rx-viewbar", role: "group", "aria-label": "Mode d'affichage" },
     [["grid", "Grille", "list"], ["list", "Liste", "journal"], ["map", "Carte", "pin"]].map(([v, label, ic]) => {
-      const b = h("button", { type: "button", "aria-pressed": String(view === v), onClick: () => { view = v; viewBar.querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", String(["grid", "list", "map"][i] === v))); draw(); } }, icon(ic), label);
+      const b = h("button", { type: "button", "aria-pressed": String(view === v), onClick: () => { view = v; if (!isHome) setPref("view", v); viewBar.querySelectorAll("button").forEach((x, i) => x.setAttribute("aria-pressed", String(["grid", "list", "map"][i] === v))); draw(); } }, icon(ic), label);
       return b;
     }));
   mount(app, h("section", { class: "section container", id: "annonces" },

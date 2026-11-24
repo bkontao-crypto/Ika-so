@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AppError, badRequest, unauthorized } from "./lib/errors.js";
 import { createRateLimiter, parseCookies } from "./lib/security.js";
+import { consentCspHosts } from "./lib/consent-services.js";
 import { SESSION_COOKIE, clearedSessionCookie, securityHeaders, sameOriginOnly, sessionCookie } from "./lib/web.js";
 import { createCounters, createLogger, requestLogger } from "./lib/logger.js";
 import { buildRoutes } from "./routes/index.js";
@@ -19,7 +20,7 @@ export function createApp({ services, config, logger = createLogger({ level: "er
   const limiter = createRateLimiter();
 
   app.use("/api", requestLogger(logger, counters));
-  app.use(securityHeaders(config));
+  app.use(securityHeaders(config, services.consentServices ? async () => consentCspHosts(await services.consentServices.get()) : null));
   // Les agrégateurs de paiement (CinetPay, PayDunya) notifient en formulaire (application/x-www-form-urlencoded) : on garde le texte exact
   // de CETTE seule route, petit et borné. Le contenu n'est jamais cru tel quel : le fournisseur est ensuite interrogé pour confirmation.
   app.use("/api/payments/webhook", (req, res, next) => {
