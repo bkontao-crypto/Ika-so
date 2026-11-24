@@ -15,12 +15,17 @@ const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) 
 export function createAdvertiserCenter({ db, accounts, ruleExceptions }) {
   async function access(userId) {
     const rows = await db.query(
-      `select p.premium_until, p.phone_verified_at, p.phone_channel, p.agency_verified_at, p.agency_name, p.full_name, p.display_role, p.account_status,
+      `select p.staff_role, p.premium_until, p.phone_verified_at, p.phone_channel, p.agency_verified_at, p.agency_name, p.full_name, p.display_role, p.account_status,
               (select count(*)::int from ika_listings l where l.owner_id = p.user_id and ${LIVE} and l.document_verified_at is not null) as title_checked
        from ika_profiles p where p.user_id = $1`, [userId]);
     const p = rows[0];
     if (!p) throw notFound("Profil introuvable.");
     if (p.account_status === "RESTRICTED") throw Object.assign(forbidden("Compte restreint : le centre de contrôle est indisponible."), { code: "RESTRICTED" });
+    // Super Administrateur : tous les avantages Premium sans exception, sans durée ni condition de certification (rien n'est écrit en base).
+    if (p.staff_role === "SUPERADMIN") {
+      return { premium: true, certified: true, phoneVerified: true, certificationOk: true, eligible: true, unlimited: true, premiumUntil: null, daysLeft: null,
+        certification: { satisfied: true, byException: false, byAcquired: false, eligible: true, rule: "Super Administrateur : tous les avantages sont ouverts." }, name: p.full_name, role: p.display_role, status: p.account_status };
+    }
     // Conditions officielles configurables (+ exception tracée « certification »). Sans service de règles : règle historique (numéro confirmé).
     let cert = null;
     if (ruleExceptions) {

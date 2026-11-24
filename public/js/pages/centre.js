@@ -62,7 +62,7 @@ export async function centrePage() {
       nav("Mon profil", "user", { href: "#/profil" }),
       nav("Paramètres", "settings", { href: "#/profil" }),
       nav("Aide & Support", "info", { id: "esp-aide" }),
-      h("div", { class: "esp-prem" }, h("strong", null, "Compte Premium"), h("small", null, `Expire le ${formatDate(d.access.premiumUntil)} (${d.access.daysLeft} j)`), h("a", { class: "btn btn-gold btn-small", href: "#/partenaires" }, "Gérer mon abonnement")));
+      h("div", { class: "esp-prem" }, h("strong", null, "Compte Premium"), h("small", null, d.access.unlimited ? "Sans limite de durée" : `Expire le ${formatDate(d.access.premiumUntil)} (${d.access.daysLeft} j)`), h("a", { class: "btn btn-gold btn-small", href: "#/partenaires" }, "Gérer mon abonnement")));
 
     const burger = h("button", { class: "esp-burger", type: "button", "aria-label": "Menu", onClick: () => {
       side.classList.toggle("open");
@@ -117,7 +117,7 @@ export async function centrePage() {
       item("Guide utilisateur", "Conseils pour annoncer et rester en sécurité", null, "/guides"), item("Centre de confiance", "Badges, vérifications, bonnes pratiques", null, "#/confiance"),
       item("Contacter un conseiller", "Ouvrir une réclamation", null, "#/reclamations"), item("Signaler un problème", "Annonce, profil ou paiement", null, "#/reclamations"));
 
-    const right = h("div", { class: "esp-right" }, premiumCard({ premium: true, premiumUntil: d.access.premiumUntil, daysLeft: d.access.daysLeft }, "centre"),
+    const right = h("div", { class: "esp-right" }, premiumCard({ premium: true, premiumUntil: d.access.premiumUntil, daysLeft: d.access.daysLeft, unlimited: d.access.unlimited }, "centre"),
       sec("esp-act", "Activité sur la période", null, h("div", { class: "esp-tiles three" }, h("div", null, h("strong", null, nf(d.stats.views)), h("small", null, "vues")), h("div", null, h("strong", null, nf(d.kpis.favorites)), h("small", null, "favoris")), h("div", null, h("strong", null, nf(d.stats.contacts)), h("small", null, "contacts")))),
       sec("esp-msg", "Messages récents", h("a", { class: "text-link", href: "#/boite?onglet=messages" }, "Voir tout"), d.messages.length ? d.messages.map((m) => h("a", { class: `esp-item${m.unread ? " unread" : ""}`, href: `#/boite/${encodeURIComponent(m.id)}` }, avatar(m.from, null, "sm"), h("span", { class: "grow" }, h("strong", null, m.from), h("small", { class: "muted" }, m.text || m.listing)), h("small", { class: "muted" }, ago(m.at)), m.unread ? h("i", { class: "esp-dot", "aria-label": "Non lu" }) : null)) : empty("Aucun message pour le moment.")),
       sec("esp-alerts", "Alertes importantes", d.alerts.length ? h("span", { class: "pill pill-warn" }, String(d.alerts.length)) : null, d.alerts.length ? d.alerts.map(alertItem) : empty("Aucune alerte. Tout est en ordre.")),
