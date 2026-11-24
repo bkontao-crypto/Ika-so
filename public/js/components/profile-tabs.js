@@ -143,3 +143,71 @@ export function profileTabs({ tabs, current, onSelect, menu = [] }) {
   select(current);
   return { node: wrap, select, layout };
 }
+
+// Un observateur partagé pour toutes les barres de raccourcis (il y en a deux sur la page du compte) ; les barres retirées de la page sont oubliées.
+const linkLayouts = new Map();
+let linkObserver = null;
+function watchLinkBar(wrap, layout) {
+  if (typeof ResizeObserver !== "function") { window.addEventListener("resize", layout); return; }
+  linkObserver ??= new ResizeObserver((entries) => {
+    for (const { target } of entries) {
+      const fn = linkLayouts.get(target);
+      if (!target.isConnected) { linkObserver.unobserve(target); linkLayouts.delete(target); } else fn?.();
+    }
+  });
+  linkLayouts.set(wrap, layout);
+  linkObserver.observe(wrap);
+}
+
+/**
+ * Barre de raccourcis (liens) au MÊME design que les onglets du profil : carte, texte, trait doré au survol, jamais de défilement ;
+ * les liens qui ne tiennent pas passent dans le menu « ••• ». Aucun onglet « actif » : ce sont des liens, pas des sections.
+ * @param {{ label?: string, items: ({ label: string, href?: string, onClick?: () => void, danger?: boolean } | null)[] }} options
+ */
+export function linkBar({ label = "Raccourcis du compte", items }) {
+  loadCss();
+  const list = items.filter(Boolean);
+  const cls = (x, base) => `${base}${x.danger ? " mpt-danger" : ""}`;
+  const tab = (x) => (x.href
+    ? h("a", { class: cls(x, "mp-tab mpt-tab"), "data-ic": "1", href: x.href }, x.label)
+    : h("button", { class: cls(x, "mp-tab mpt-tab"), type: "button", "data-ic": "1", onClick: x.onClick }, x.label));
+  const entry = (x) => (x.href
+    ? h("a", { class: cls(x, "mpt-item"), role: "menuitem", "data-ic": "1", href: x.href }, x.label)
+    : h("button", { class: cls(x, "mpt-item"), type: "button", role: "menuitem", "data-ic": "1", onClick: x.onClick }, x.label));
+  const buttons = list.map(tab);
+  const row = h("div", { class: "mpt-list" }, buttons);
+  const dotsBtn = h("button", { class: "mpt-dots-btn", type: "button", "aria-haspopup": "menu", "aria-expanded": "false", "aria-label": "Plus de raccourcis", title: "Plus" }, "•••");
+  const pop = h("div", { class: "mpt-pop mpt-pop-right", role: "menu", "aria-label": "Autres raccourcis" });
+  const dots = h("div", { class: "mpt-dots" }, dotsBtn, pop);
+  dropdown(dotsBtn, pop);
+  const wrap = h("nav", { class: "mpt mpt-card", "aria-label": label }, row, dots);
+
+  function layout() {
+    if (!wrap.isConnected || !wrap.clientWidth) return;
+    buttons.forEach((el) => { el.hidden = false; });
+    dots.hidden = false;
+    const style = getComputedStyle(wrap);
+    const gap = parseFloat(getComputedStyle(row).columnGap) || 0;
+    const full = wrap.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+    const widths = buttons.map((el) => el.offsetWidth);
+    const total = widths.reduce((sum, w) => sum + w, 0) + gap * Math.max(0, widths.length - 1);
+    let count = widths.length;
+    if (total > full) {
+      const room = full - dots.offsetWidth - gap;
+      let used = 0;
+      count = 0;
+      for (const w of widths) {
+        if (used + w + gap > room) break;
+        used += w + gap;
+        count += 1;
+      }
+    }
+    buttons.forEach((el, i) => { el.hidden = i >= count; });
+    pop.replaceChildren(...list.slice(count).map(entry));
+    dots.hidden = count >= list.length;
+  }
+
+  watchLinkBar(wrap, layout);
+  document.fonts?.ready?.then(layout).catch(() => undefined);
+  return { node: wrap, layout };
+}

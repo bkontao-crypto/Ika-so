@@ -26,6 +26,11 @@
 .mpt-item[aria-current="true"] { color: var(--gold-text); }
 .mpt-ic { flex: none; width: 22px; text-align: center; }
 
+/* Barre de raccourcis (liens) : même carte et mêmes onglets que le haut du profil */
+.mpt-card { border: 1px solid var(--line); border-radius: 16px; background: var(--card); }
+a.mp-tab { display: inline-flex; align-items: center; text-decoration: none; }
+.mpt-danger, .mpt-item.mpt-danger { color: var(--danger); }
+
 /* Onglet Publications / Photos / Vidéos : une colonne centrée, comme un fil d'actualité */
 .mp-feed { display: grid; gap: 16px; max-width: 720px; margin: 0 auto; min-width: 0; }
 
