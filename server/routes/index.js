@@ -1047,6 +1047,11 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/staff/star-badge-settings", async (req, res) => { await requireOwnerGate(req, "trust"); res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.settings()); });
   router.put("/staff/star-badge-settings", async (req, res) => res.json(await starBadge.saveSettings(await requireOwnerGate(req, "trust"), req.body?.value ?? req.body)));
   router.get("/staff/star-badge-requests", async (req, res) => { await requireOwnerGate(req, "trust"); res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.listForStaff()); });
+  router.post("/staff/star-badge-requests/:id/steps/:step", async (req, res) => res.json(await starBadge.completeStep(await requireOwnerGate(req, "trust"), id(req), req.params.step, { note: clean(req.body?.note, 300) })));
+  router.post("/staff/star-badge-requests/:id/steps/:step/undo", async (req, res) => res.json(await starBadge.undoStep(await requireOwnerGate(req, "trust"), id(req), req.params.step, { note: clean(req.body?.note, 300) })));
+  router.post("/staff/star-badge-requests/:id/decision", async (req, res) => res.json(await starBadge.decide(await requireOwnerGate(req, "trust"), id(req), { action: clean(req.body?.action, 10), note: clean(req.body?.note, 300) })));
+  router.post("/staff/star-badge-requests/:id/revoke", async (req, res) => res.json(await starBadge.revoke(await requireOwnerGate(req, "trust"), id(req), { note: clean(req.body?.note, 300) })));
+  router.post("/staff/star-badge-sweep", async (req, res) => res.json(await starBadge.sweep(await requireOwnerGate(req, "trust"))));
   router.get("/staff/star-badge-requests/:id/documents/:docId", async (req, res) => { const staffId = await requireOwnerGate(req, "trust"); res.setHeader("Cache-Control", "no-store"); res.json(await starBadge.viewDocument(staffId, id(req), clean(req.params.docId, 80))); });
 
   router.get("/staff/premium-requests", async (req, res) => res.json(await premiumRequests.listForStaff(await requireOwnerGate(req, "payments"))));

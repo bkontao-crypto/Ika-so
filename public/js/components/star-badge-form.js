@@ -3,7 +3,7 @@
 import { api, fail, h, readProofFile, toast } from "/js/dom.js";
 
 const ACCOUNT_LABEL = { INDIVIDUAL: "Particulier / propriétaire", AGENCY: "Agence immobilière", OTHER: "Autre professionnel" };
-const STATUS = { DRAFT: "Dossier en cours de constitution", PENDING: "Dossier envoyé : en cours d'étude par l'équipe", APPROVED: "Badge accordé", REJECTED: "Demande non retenue", CANCELLED: "Dossier retiré" };
+const STATUS = { PENDING: "Dossier envoyé : en cours d'étude par l'équipe" };
 const day = (d) => (d ? new Date(d).toLocaleDateString("fr-FR") : "");
 const fcfa = (n) => `${Number(n).toLocaleString("fr-FR")} FCFA`;
 
@@ -32,12 +32,17 @@ export async function starBadgeCard() {
     const infoBtn = h("button", { class: "mp-btn mp-btn-outline sm", type: "button", "aria-expanded": "false", onClick: () => { const show = panel.style.display === "none"; panel.style.display = show ? "" : "none"; infoBtn.setAttribute("aria-expanded", String(show)); } }, "C'est quoi un compte certifié ?");
     const parts = [h("h3", null, "Badge Étoile : compte certifié"),
       h("p", { class: "mp-hint" }, "Faites vérifier votre identité pour afficher une étoile de confiance sur votre profil et vos annonces. Ce badge est indépendant du Premium."), infoBtn, panel];
+    // Badge actif, motif d'un refus ou d'un retrait : visibles avant le formulaire.
+    if (state.badge) parts.push(h("p", { class: "mp-hint" }, h("strong", null, `Compte certifié : badge Étoile valable jusqu'au ${day(state.badge.validUntil)}.`)));
+    if (r && ["REJECTED", "REVOKED"].includes(r.status)) parts.push(h("p", { class: "mp-hint" }, `${r.status === "REVOKED" ? "Badge retiré" : "Demande non retenue"}${r.revokedAt || r.decidedAt ? ` le ${day(r.revokedAt ?? r.decidedAt)}` : ""} : ${r.revokedNote || r.decidedNote || "motif non précisé"}.`));
+    const canApply = open || !state.badge || state.badge.renewable; // un badge actif n'a pas besoin d'une nouvelle demande, sauf renouvellement (30 jours avant la fin)
 
     if (r?.status === "PENDING") {
       parts.push(h("p", null, h("strong", null, STATUS.PENDING), r.reviewDueAt ? ` (réponse attendue avant le ${day(r.reviewDueAt)})` : ""),
+        h("p", { class: "mp-hint" }, `Étapes : ${p.steps.map((x) => `${x.label} ${r.progress[x.step - 1] ? "✓" : "…"}`).join(" · ")}`),
         h("ul", null, r.documents.map((d) => h("li", null, d.label))),
         h("button", { class: "mp-btn mp-btn-outline sm danger", type: "button", onClick: async () => { if (!window.confirm("Retirer votre dossier ? Les pièces envoyées seront supprimées.")) return; try { await api("/star-badge/cancel", { method: "POST", body: {} }); toast("Dossier retiré."); await paint(); } catch (error) { fail(error); } } }, "Retirer mon dossier"));
-    } else {
+    } else if (canApply) {
       if (open) accountType = r.accountType;
       const typeSel = h("select", { class: "input", "aria-label": "Type de compte", disabled: Boolean(open), onChange: () => { accountType = typeSel.value; paint(); } },
         Object.entries(ACCOUNT_LABEL).map(([v, l]) => h("option", { value: v, selected: v === accountType }, l)));
@@ -65,7 +70,6 @@ export async function starBadgeCard() {
         } }, phone, message, h("label", { class: "row", for: "star-terms" }, terms, h("span", null, "Je certifie l'exactitude des pièces et j'accepte leur examen par l'équipe IKA SO.")),
           h("button", { class: "mp-btn mp-btn-primary", type: "submit", disabled: !open || missing.length > 0, title: missing.length ? `Pièces manquantes : ${missing.map((d) => d.label).join(", ")}` : "" }, "Envoyer mon dossier")),
         open ? h("button", { class: "mp-btn mp-btn-outline sm danger", type: "button", onClick: async () => { if (!window.confirm("Abandonner ce dossier ? Les pièces déjà envoyées seront supprimées.")) return; try { await api("/star-badge/cancel", { method: "POST", body: {} }); await paint(); } catch (error) { fail(error); } } }, "Abandonner le dossier") : null);
-      if (r && ["REJECTED", "APPROVED"].includes(r.status)) parts.push(h("p", { class: "mp-hint" }, `${STATUS[r.status]}${r.decidedAt ? ` le ${day(r.decidedAt)}` : ""}${r.decidedNote ? ` : ${r.decidedNote}` : ""}`));
     }
     card.replaceChildren(...parts.filter(Boolean));
   }

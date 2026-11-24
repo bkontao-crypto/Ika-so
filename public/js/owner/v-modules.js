@@ -526,6 +526,7 @@ export const paymentSettingsView = (ctx) => page(ctx, {
 
 // ---------- Badge Étoile : réglages (activation, prix, durée, pièces, textes) ----------
 const STAR_DOCS = { ID_CARD: "Carte d'identité", PHOTO: "Photo d'identité récente", SELFIE: "Selfie avec la pièce d'identité", RESIDENCE: "Certificat de résidence", COMPANY_REGISTER: "Registre de commerce (RCCM)", HQ_PROOF: "Justificatif de siège" };
+const STAR_STEPS = { 1: "Étude", 2: "Vérification", 3: "Confirmation" };
 const STAR_TYPES = { INDIVIDUAL: "Particulier / propriétaire", AGENCY: "Agence immobilière", OTHER: "Autre professionnel" };
 export const starBadgeSettingsView = (ctx) => page(ctx, {
   eyebrow: "PILOTAGE", title: "Badge Étoile",
@@ -540,6 +541,7 @@ export const starBadgeSettingsView = (ctx) => page(ctx, {
     const title = h("input", { class: "input", maxlength: "80", value: s.infoTitle, "aria-label": "Titre" });
     const body = h("textarea", { class: "input", rows: "4", maxlength: "1200", "aria-label": "Texte explicatif" }, s.infoBody);
     const warn = h("textarea", { class: "input", rows: "3", maxlength: "600", "aria-label": "Avertissement" }, s.warningText);
+    const stepBoxes = Object.fromEntries(Object.keys(STAR_STEPS).map((n) => { const c = h("input", { type: "checkbox", "aria-label": `Étape ${n}` }); c.checked = (s.requiredSteps ?? [1, 2, 3]).includes(Number(n)); return [n, c]; }));
     const boxes = {};
     const reqPanel = Object.entries(STAR_TYPES).map(([t, tl]) => h("div", { class: "stack" }, h("strong", null, tl),
       ...Object.entries(STAR_DOCS).map(([k, kl]) => {
@@ -551,7 +553,7 @@ export const starBadgeSettingsView = (ctx) => page(ctx, {
     const collect = () => {
       const requirements = {};
       for (const t of Object.keys(STAR_TYPES)) requirements[t] = { required: Object.keys(STAR_DOCS).filter((k) => boxes[`${t}.${k}`].value === "required"), optional: Object.keys(STAR_DOCS).filter((k) => boxes[`${t}.${k}`].value === "optional") };
-      return { enabled: on.checked, requirePhone: phone.checked, paymentRequired: pay.checked, priceXof: Number(price.value), durationMonths: Number(months.value), reviewDelayDays: Number(delay.value), retentionDays: Number(keep.value), requirements, infoTitle: title.value, infoBody: body.value, warningText: warn.value };
+      return { enabled: on.checked, requirePhone: phone.checked, paymentRequired: pay.checked, priceXof: Number(price.value), durationMonths: Number(months.value), reviewDelayDays: Number(delay.value), retentionDays: Number(keep.value), requiredSteps: Object.keys(STAR_STEPS).filter((n) => stepBoxes[n].checked).map(Number), requirements, infoTitle: title.value, infoBody: body.value, warningText: warn.value };
     };
     return [
       panel("Activation", null, h("div", { class: "stack" },
@@ -561,6 +563,8 @@ export const starBadgeSettingsView = (ctx) => page(ctx, {
       panel("Prix, durée et délai", null, h("div", { class: "stack" },
         h("label", { class: "field" }, "Prix du badge (FCFA, 0 = gratuit)", price), h("label", { class: "field" }, "Validité du badge (mois)", months),
         h("label", { class: "field" }, "Délai d'étude annoncé (jours)", delay))),
+      panel("Étapes d'étude à valider avant la décision", "Comme pour le Premium : cochez celles qui sont obligatoires (au moins une)", h("div", { class: "stack" },
+        ...Object.entries(STAR_STEPS).map(([n, l]) => h("label", { class: "row" }, stepBoxes[n], h("span", null, `Étape ${n} : ${l}`))))),
       panel("Pièces demandées par type de compte", "Obligatoire, facultative ou non demandée", h("div", { class: "stack" }, ...reqPanel)),
       panel("Conservation des pièces", null, h("div", { class: "stack" },
         h("label", { class: "field" }, "Durée de conservation après la décision (jours, 0 = jusqu'à suppression manuelle)", keep),
@@ -568,6 +572,70 @@ export const starBadgeSettingsView = (ctx) => page(ctx, {
       panel("Textes affichés (bouton « C'est quoi un compte certifié ? »)", null, h("div", { class: "stack" },
         h("label", { class: "field" }, "Titre", title), h("label", { class: "field" }, "Explication", body), h("label", { class: "field" }, "Avertissement aux utilisateurs", warn))),
       h("div", { class: "row" }, h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/star-badge-settings", { method: "PUT", body: { value: collect() } }), "Réglages enregistrés.", reload) }, "Enregistrer")),
+    ];
+  },
+});
+
+// ---------- Badge Étoile : traitement des dossiers (étude, vérification, confirmation, décision, retrait) ----------
+const STAR_STATUS = { PENDING: ["warn", "À étudier"], APPROVED: ["ok", "Badge accordé"], REJECTED: ["bad", "Refusé"], REVOKED: ["bad", "Badge retiré"] };
+async function openStarDoc(requestId, doc) {
+  try {
+    const { fileData } = await api(`/staff/star-badge-requests/${encodeURIComponent(requestId)}/documents/${encodeURIComponent(doc.id)}`);
+    await previewDocument(fileData, doc.label);
+  } catch (error) { fail(error); }
+}
+export const starBadgeRequestsView = (ctx) => page(ctx, {
+  eyebrow: "PILOTAGE", title: "Demandes de badge Étoile",
+  desc: "Étude des dossiers en étapes indépendantes, chacune tracée à la personne qui l'a validée. Chaque ouverture d'une pièce est enregistrée.",
+  load: () => api("/staff/star-badge-requests"),
+  build(data, reload) {
+    const steps = data.requiredSteps ?? [1, 2, 3];
+    const sweep = h("button", { class: "btn", type: "button", onClick: async () => {
+      if (!await confirmDialog("Traiter les expirations", `Envoie les rappels d'expiration (badges qui finissent sous 30 jours)${data.retentionDays > 0 ? ` et efface les pièces gardées depuis plus de ${data.retentionDays} jours` : ". Aucune pièce n'est effacée : la durée de conservation est à 0 dans les réglages"}.`, "Lancer")) return;
+      try { const out = await api("/staff/star-badge-sweep", { method: "POST", body: {} }); toast(`${out.reminded} rappel(s) envoyé(s), ${out.purged} dossier(s) dont les pièces sont effacées.`); reload(); } catch (e) { fail(e); }
+    } }, "Traiter les expirations");
+    const card = (r) => {
+      const byStep = new Map((r.steps ?? []).map((x) => [x.step, x]));
+      const open = r.status === "PENDING";
+      const complete = steps.every((n) => byStep.has(n));
+      const [tone, label] = STAR_STATUS[r.status] ?? ["neutral", r.status];
+      return h("div", { class: "panel pad stack" },
+        h("div", { class: "row" }, h("b", null, r.name || r.email), pill(tone, label), h("span", { class: "muted small" }, `${{ AGENCY: "Agence", INDIVIDUAL: "Particulier", OTHER: "Professionnel" }[r.accountType] ?? r.accountType} · ${r.email} · ${r.phone || "pas de numéro"}`)),
+        h("small", { class: "muted" }, [r.submittedAt ? `Envoyé le ${dateTime(r.submittedAt)}` : "", r.reviewDueAt && open ? ` · réponse attendue avant le ${dateOnly(r.reviewDueAt)}` : "", r.validUntil ? ` · valable jusqu'au ${dateOnly(r.validUntil)}` : "", r.decidedNote ? ` · « ${r.decidedNote} »` : "", r.revokedNote ? ` · retrait : « ${r.revokedNote} »` : ""].join("")),
+        r.message ? h("p", { class: "small" }, `Message : « ${r.message} »`) : null,
+        r.documentsPurgedAt ? h("p", { class: "muted small" }, `Pièces effacées le ${dateOnly(r.documentsPurgedAt)} (durée de conservation écoulée).`)
+          : h("div", { class: "row" }, r.documents.map((d) => h("button", { class: "btn sm", type: "button", onClick: () => openStarDoc(r.id, d) }, ico("eye"), d.label))),
+        h("div", { class: "pstep-grid" }, steps.map((n) => {
+          const done = byStep.get(n); const lab = STAR_STEPS[n];
+          return h("div", { class: `pstep ${done ? "done" : ""}` },
+            h("div", { class: "row" }, pill(done ? "ok" : "neutral", done ? "✓ Validée" : `Étape ${n}`), h("b", null, lab)),
+            h("small", null, done ? `Par ${done.doneByName} · ${dateTime(done.doneAt)}${done.note ? ` · « ${done.note} »` : ""}` : { 1: "Dossier complet, pièces lisibles.", 2: "Identité, photo et justificatifs concordent.", 3: "Dernier contrôle avant la décision." }[n]),
+            open && !done ? h("button", { class: "btn sm", type: "button", onClick: async () => {
+              const v = await formDialog(`Valider l'étape ${n} : ${lab}`, [{ name: "note", label: "Observation (facultatif)", type: "textarea", max: 300 }], { intro: "Votre nom sera enregistré dans l'historique avec cette validation.", submit: "Valider l'étape" });
+              if (v) act(() => api(`/staff/star-badge-requests/${encodeURIComponent(r.id)}/steps/${n}`, { method: "POST", body: { note: v.note } }), `Étape ${n} validée.`, reload);
+            } }, "Valider cette étape") : null,
+            open && done ? h("button", { class: "btn sm", type: "button", onClick: async () => {
+              const v = await formDialog(`Retirer la validation de l'étape ${n}`, [{ name: "note", label: "Motif (obligatoire)", type: "textarea", max: 300, min: 3 }], { submit: "Retirer" });
+              if (v) act(() => api(`/staff/star-badge-requests/${encodeURIComponent(r.id)}/steps/${n}/undo`, { method: "POST", body: { note: v.note } }), "Validation retirée.", reload);
+            } }, "Retirer") : null);
+        })),
+        open ? h("div", { class: "row" },
+          h("button", { class: "btn primary", type: "button", disabled: !complete, title: complete ? "" : "Validez d'abord toutes les étapes", onClick: async () => {
+            const v = await formDialog("Accorder le badge Étoile", [{ name: "note", label: "Observation (facultatif)", type: "textarea", max: 300 }], { intro: "L'annonceur est informé. La validité se cumule en cas de renouvellement.", submit: "Accorder le badge" });
+            if (v) act(() => api(`/staff/star-badge-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "APPROVE", note: v.note } }), "Badge accordé.", reload);
+          } }, "Accorder le badge"),
+          h("button", { class: "btn danger", type: "button", onClick: async () => {
+            const v = await formDialog("Refuser la demande", [{ name: "note", label: "Motif (transmis à l'annonceur)", type: "textarea", max: 300, min: 3 }], { submit: "Refuser" });
+            if (v) act(() => api(`/staff/star-badge-requests/${encodeURIComponent(r.id)}/decision`, { method: "POST", body: { action: "REJECT", note: v.note } }), "Demande refusée.", reload);
+          } }, "Refuser")) : null,
+        r.status === "APPROVED" ? h("div", { class: "row" }, h("button", { class: "btn danger", type: "button", onClick: async () => {
+          const v = await formDialog("Retirer le badge Étoile", [{ name: "note", label: "Motif (transmis à l'annonceur)", type: "textarea", max: 300, min: 3 }], { intro: "Le badge est retiré immédiatement. Cette action est tracée.", submit: "Retirer le badge" });
+          if (v) act(() => api(`/staff/star-badge-requests/${encodeURIComponent(r.id)}/revoke`, { method: "POST", body: { note: v.note } }), "Badge retiré.", reload);
+        } }, "Retirer le badge")) : null);
+    };
+    return [
+      h("div", { class: "row" }, sweep),
+      data.requests.length ? h("div", { class: "stack" }, data.requests.map(card)) : empty("Aucune demande de badge Étoile pour le moment."),
     ];
   },
 });

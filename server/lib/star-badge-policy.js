@@ -10,6 +10,7 @@ export const DOC_KINDS = Object.freeze({
   COMPANY_REGISTER: "Registre de commerce (RCCM)",
   HQ_PROOF: "Justificatif de siège",
 });
+export const STAR_STEPS = Object.freeze({ 1: "Étude", 2: "Vérification", 3: "Confirmation" });
 export const STAR_ACCOUNT_TYPES = ["INDIVIDUAL", "AGENCY", "OTHER"];
 
 const REQUIREMENTS = Object.freeze({
@@ -25,6 +26,7 @@ export const DEFAULT_STAR_POLICY = Object.freeze({
   durationMonths: 12,        // validité du badge
   reviewDelayDays: 5,        // délai d'étude annoncé
   retentionDays: 0,          // conservation des pièces après décision, en jours ; 0 = jusqu'à suppression manuelle (à fixer selon la loi en vigueur)
+  requiredSteps: [1, 2, 3],  // étapes à valider avant la décision finale (réglable : au moins une)
   requirements: REQUIREMENTS,
   infoTitle: "Qu'est-ce qu'un compte certifié ?",
   infoBody: "Le badge Étoile indique que l'identité du titulaire a été vérifiée par l'équipe IKA SO à partir de pièces justificatives. Il ne garantit ni la qualité d'un bien ni la réussite d'une transaction.",
@@ -52,6 +54,7 @@ export function normalizeStarPolicy(value) {
     durationMonths: bounded(v.durationMonths, 1, 60, DEFAULT_STAR_POLICY.durationMonths),
     reviewDelayDays: bounded(v.reviewDelayDays, 1, 60, DEFAULT_STAR_POLICY.reviewDelayDays),
     retentionDays: bounded(v.retentionDays, 0, 3650, DEFAULT_STAR_POLICY.retentionDays),
+    requiredSteps: (() => { const l = Array.isArray(v.requiredSteps) ? [...new Set(v.requiredSteps.map(Number).filter((n) => Object.hasOwn(STAR_STEPS, n)))].sort() : null; return l?.length ? l : [1, 2, 3]; })(),
     requirements,
     infoTitle: text(v.infoTitle, 80, DEFAULT_STAR_POLICY.infoTitle),
     infoBody: text(v.infoBody, 1200, DEFAULT_STAR_POLICY.infoBody),
