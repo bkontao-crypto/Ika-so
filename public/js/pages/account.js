@@ -3,6 +3,7 @@ import { S, app, clearSession, refreshSession } from "/js/core/state.js";
 import { go, needLogin } from "/js/core/router.js";
 import { listingCard } from "/js/components/listing-card.js";
 import { field, passwordField } from "/js/components/ui.js";
+import { linkBar } from "/js/components/profile-tabs.js";
 
 const STATUS_LABEL = { PENDING: "En attente", PUBLISHED: "En ligne", REJECTED: "Refusée", SOLD: "Vendue", RENTED: "Louée", ARCHIVED: "Archivée", EXPIRED: "Expirée", DRAFT: "Brouillon" };
 
@@ -164,23 +165,23 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
 
   const accessLinks = [];
   if (m.staffRole === "SUPERADMIN") {
-    accessLinks.push(h("a", { class: "btn btn-gold", href: "/owner" }, "Owner Control Center"));
+    accessLinks.push({ label: "Owner Control Center", href: "/owner" });
   }
   if (m.staffRole && m.staffRole !== "USER") {
-    accessLinks.push(h("a", { class: "btn btn-dark", href: "/owner" }, `Centre de contrôle staff${m.pendingCount ? ` (${m.pendingCount})` : ""}`));
+    accessLinks.push({ label: `Centre de contrôle staff${m.pendingCount ? ` (${m.pendingCount})` : ""}`, href: "/owner" });
   }
   if (access?.eligible) {
-    accessLinks.push(h("a", { class: "btn btn-primary", href: "#/centre" }, "Centre Premium"));
+    accessLinks.push({ label: "Centre Premium", href: "#/centre" });
   } else if (access?.premium) {
-    accessLinks.push(h("a", { class: "btn", href: "#/profil" }, "Compléter la certification"));
+    accessLinks.push({ label: "Compléter la certification", href: "#/profil" });
   }
   if (access?.premium || m.staffRole !== "USER") {
-    accessLinks.push(h("a", { class: "btn btn-outline", href: "#/partenaires" }, "Annonces sponsorisées"));
+    accessLinks.push({ label: "Annonces sponsorisées", href: "#/partenaires" });
   }
 
   return h("div", { class: "stack" },
     embedded ? null : h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:12px 0" }, roles),
-    h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin-bottom:18px" }, accessLinks),
+    accessLinks.length ? linkBar({ label: "Accès du compte", items: accessLinks }).node : null,
     h("div", { class: "grid" },
       embedded ? null : h("article", { class: "card pad stack" },
         h("p", { class: "small muted" }, "Identité"), h("h2", null, m.fullName || S.user.name), h("p", { class: "muted" }, S.user.email),
@@ -234,10 +235,11 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
           passwordField("Mot de passe", h("input", { class: "input", name: "password", type: "password", autocomplete: "current-password", required: true })),
           field("Tapez SUPPRIMER pour confirmer", h("input", { class: "input", name: "confirm", autocomplete: "off", required: true })),
           h("button", { class: "btn btn-dark", type: "submit" }, "Supprimer définitivement")))),
-    h("div", { class: "row" },
-      h("a", { class: "btn", href: "#/favoris" }, "Mes favoris"),
-      h("a", { class: "btn", href: "#/reclamations" }, "Mes réclamations"),
-      h("a", { class: "btn", href: "#/agence" }, "Espace agence"),
-      h("button", { class: "btn", type: "button", onClick: async () => { await api("/auth/logout", { method: "POST", body: {} }); clearSession();toast("Déconnecté."); go("/"); } }, "Se déconnecter")));
+    linkBar({ label: "Raccourcis du compte", items: [
+      { label: "Mes favoris", href: "#/favoris" },
+      { label: "Mes réclamations", href: "#/reclamations" },
+      { label: "Espace agence", href: "#/agence" },
+      { label: "Se déconnecter", danger: true, onClick: async () => { await api("/auth/logout", { method: "POST", body: {} }); clearSession(); toast("Déconnecté."); go("/"); } },
+    ] }).node);
 }
 

@@ -24,3 +24,11 @@ test("le composant range les onglets en trop dans le menu ••• en mode comp
   assert.match(js, /matchMedia\("\(max-width: 640px\)"\)/);
   assert.match(js, /"Autres sections"/);
 });
+
+test("les raccourcis du compte (bas de page) utilisent la barre au design des onglets du profil", () => {
+  const acc = readFileSync(new URL("../public/js/pages/account.js", import.meta.url), "utf8");
+  assert.match(js, /export function linkBar\(/);
+  assert.equal((acc.match(/linkBar\(/g) ?? []).length, 2, "deux barres : accès du compte, puis favoris / réclamations / agence / déconnexion");
+  assert.ok(!/class: "btn btn-gold", href: "\/owner"/.test(acc), "plus de boutons de couleurs différentes");
+  assert.match(css("profil-onglets.css"), /\.mpt-card \{[^}]*border-radius: 16px/);
+});
