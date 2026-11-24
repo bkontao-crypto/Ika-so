@@ -20,7 +20,7 @@ export function loadDiscoverCss() {
 export function photoGrid(urls = [], ctx = {}) {
   if (!urls.length) return null;
   // Un clic ouvre la photo en plein écran avec j'aime, partage et commentaires de la publication (si on connaît son identifiant).
-  const open = (i) => (e) => { if (!ctx.id) return; e.preventDefault(); openLightbox(urls, i, { type: "PUBLICATION", id: ctx.id, title: ctx.title }); };
+  const open = (i) => (e) => { if (!ctx.id) return; e.preventDefault(); openLightbox(urls, i, { type: "PUBLICATION", id: ctx.id, title: ctx.title, action: ctx.action, body: ctx.body }); };
   return h("div", { class: `dc-photos n${Math.min(urls.length, 4)}` }, urls.slice(0, 4).map((u, i) => h("a", { href: u, target: "_blank", rel: "noopener", "aria-label": `Agrandir la photo ${i + 1}`, onClick: open(i) },
     h("img", { src: u, alt: `Photo ${i + 1} de la publication`, loading: "lazy" }), urls.length > 4 && i === 3 ? h("span", { class: "dc-more" }, `+${urls.length - 4}`) : null)));
 }
