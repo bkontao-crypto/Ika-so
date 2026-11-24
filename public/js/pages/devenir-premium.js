@@ -77,7 +77,7 @@ export async function devenirPremiumPage() {
   const history = (mine?.history ?? []).filter((r) => r.status !== "PENDING");
 
   const status = premium
-    ? `Premium actif${access.premiumUntil ? ` jusqu'au ${day(access.premiumUntil)}` : ""}`
+    ? (access.unlimited ? "Premium actif, sans limite de durée" : `Premium actif${access.premiumUntil ? ` jusqu'au ${day(access.premiumUntil)}` : ""}`)
     : "Premium non activé";
 
   // Conditions : chacune affiche son état réel et l'action qui la fait avancer.
@@ -157,8 +157,8 @@ export async function devenirPremiumPage() {
             h("span", { class: "pm-num" }, c.ok ? icon("check") : String(i + 1)),
             h("div", null, h("strong", null, c.title), h("p", { class: "small muted" }, c.text), c.cta))))),
 
-      phoneOk ? formules : lockedFormules,
-      phoneOk && online && (premium || request) ? dossier("Mon dossier de certification", "Votre paiement est enregistré. Complétez votre dossier : l'équipe l'étudie en 3 étapes (étude, vérification, confirmation) et vous répond sous " + delayDays + " jours.") : null,
+      access?.unlimited ? h("section", { class: "card pad stack dp-block" }, h("h2", null, "Tous les avantages sont ouverts"), h("p", null, "En tant que Super Administrateur, vous bénéficiez de tous les avantages Premium, sans durée limite et sans demande ni paiement."), h("a", { class: "btn btn-gold", href: "#/centre" }, "Ouvrir mon centre de contrôle")) : phoneOk ? formules : lockedFormules,
+      !access?.unlimited && phoneOk && online && (premium || request) ? dossier("Mon dossier de certification", "Votre paiement est enregistré. Complétez votre dossier : l'équipe l'étudie en 3 étapes (étude, vérification, confirmation) et vous répond sous " + delayDays + " jours.") : null,
 
       h("section", { class: "dp-benefits" }, BENEFITS.map(([ic, t, d]) =>
         h("article", { class: "pm-keycard" }, h("span", { class: "pm-kic" }, icon(ic)), h("h2", null, t), h("p", { class: "small muted" }, d)))),

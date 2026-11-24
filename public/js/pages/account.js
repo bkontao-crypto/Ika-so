@@ -23,7 +23,7 @@ function newsletterCard() {
 function centreCard(access) {
   if (!access) return null;
   if (access.eligible) return h("article", { class: "card pad stack" }, h("h2", null, "Centre de contrôle Premium"),
-    h("p", { class: "small muted" }, `Premium actif jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}. Statistiques, carte de vos annonces, messages, alertes et échéances.`),
+    h("p", { class: "small muted" }, `${access.unlimited ? "Premium actif sans limite de durée" : `Premium actif jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}`}. Statistiques, carte de vos annonces, messages, alertes et échéances.`),
     h("a", { class: "btn btn-gold", href: "#/centre" }, "Ouvrir le centre de contrôle"));
   if (access.premium && !access.certified) return h("article", { class: "card pad stack" }, h("h2", null, "Mon espace"),
     h("p", { class: "small muted" }, "Premium payé mais profil non certifié (agence vérifiée ou titre foncier contrôlé requis)."),

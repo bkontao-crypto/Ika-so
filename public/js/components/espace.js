@@ -80,7 +80,7 @@ export function premiumCard(access, from = "espace-card") {
     h("div", { class: "pc-text" },
       h("div", { class: "pc-title" }, crownSvg(), h("h2", null, active ? "Votre Premium est actif" : "Passez Premium")),
       h("p", null, active
-        ? `Actif jusqu'au ${until}${left <= 30 ? ` (${left} j) : pensez à le renouveler.` : "."}`
+        ? (access.unlimited ? "Actif sans limite de durée : tous les avantages sont ouverts (Super Administrateur)." : `Actif jusqu'au ${until}${left <= 30 ? ` (${left} j) : pensez à le renouveler.` : "."}`)
         : "Pilotez vos annonces, suivez vos résultats et accédez à des avantages exclusifs."),
       h("a", { class: "pc-btn", href: `#/premium?from=${from}` }, active ? "Voir mes avantages" : "Découvrir les avantages", h("span", { "aria-hidden": "true" }, "→"))),
     growthSvg());

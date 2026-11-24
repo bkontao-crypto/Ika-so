@@ -36,7 +36,7 @@ function userFlags() {
     isAdmin: role === "ADMIN" || role === "SUPERADMIN",
     isAdvertiser: !!m.advertiserStatus && m.advertiserStatus !== "NONE",
     isOwner: !!m.hasProperties,
-    isPremium: !!m.premium,
+    isPremium: !!m.premium || role === "SUPERADMIN",
     isAgency: !!m.agencyVerified,
   };
 }
@@ -293,7 +293,7 @@ export async function compteUnifiePage() {
       h("div", { class: "card" },
         h("h2", null, "Abonnement"),
         h("p", null, premium
-          ? `Premium actif${until ? ` jusqu'au ${until}` : ""}.`
+          ? `Premium actif${access?.unlimited ? " sans limite de durée" : until ? ` jusqu'au ${until}` : ""}.`
           : "Aucun abonnement Premium actif."),
         h("div", { class: "row wrap gap-sm", style: "margin-top:12px" },
           h("a", { class: "btn btn-primary", href: "#/premium" }, premium ? "Renouveler" : "Découvrir le Premium"),

@@ -69,9 +69,9 @@ export async function premiumPage() {
         access?.eligible ? h("a", { class: "pc-btn", href: "#/centre" }, "Ouvrir mon centre de contrôle", h("span", { "aria-hidden": "true" }, "→"))
           : h("a", { class: "pc-btn", href: ctaHref }, ctaLabel, h("span", { "aria-hidden": "true" }, "→")),
         h("a", { class: "pm-ghost", href: "#pm-compare", onClick: (e) => { e.preventDefault(); document.getElementById("pm-compare")?.scrollIntoView({ behavior: "smooth" }); } }, "Comparer les comptes")),
-      access ? h("p", { class: "pm-status" }, premium ? `Premium actif${access.premiumUntil ? ` jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}` : ""}` : "Premium : non activé", " · ", phoneOk ? "Numéro confirmé" : "Numéro à confirmer") : null),
+      access ? h("p", { class: "pm-status" }, premium ? `Premium actif${access.unlimited ? " sans limite de durée" : access.premiumUntil ? ` jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")}` : ""}` : "Premium : non activé", " · ", phoneOk ? "Numéro confirmé" : "Numéro à confirmer") : null),
 
-    offers.length ? h("section", { class: "card pad stack pm-buy", id: "pm-buy" },
+    offers.length && !access?.unlimited ? h("section", { class: "card pad stack pm-buy", id: "pm-buy" },
       h("h2", null, premium ? "Renouveler le Premium" : "Choisir ma formule Premium"),
       S.user && !phoneOk ? h("p", { class: "small pm-warn" }, "Votre numéro n'est pas encore confirmé : confirmez-le avant de payer (étape 1). Le centre de contrôle s'ouvre dès que le numéro est confirmé et l'abonnement actif.") : null,
       premium && access?.premiumUntil ? h("p", { class: "small muted" }, `Votre Premium actuel court jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")} ; les nouveaux jours s'ajoutent à la suite.`) : null,
