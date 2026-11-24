@@ -1,5 +1,6 @@
 /* Mon profil (#/profil) — mise en page de la maquette « Profil compte connecté », sur les variables du design system (clair / sombre). */
-.mp { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; padding-bottom: 40px; }
+.mp { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding-bottom: 40px; }
+.mp > * { min-width: 0; } /* sinon la largeur minimale du contenu (onglets, champs) élargit toute la page sur téléphone */
 .mp-stack { display: grid; gap: 20px; }
 .mp-header { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
 .mp-cover { position: relative; height: 220px; background: linear-gradient(135deg, #0b3b27, #12734b); background-size: cover; background-position: center; }

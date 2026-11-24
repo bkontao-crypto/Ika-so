@@ -1,16 +1,17 @@
 /* Barre d'onglets du profil (façon Facebook) : aucun défilement horizontal ; le reste passe dans « Plus ▾ » ; menu « ••• » des actions.
    Chargé par public/js/components/profile-tabs.js. Variables du design system (clair / sombre). */
-.mp-header-pop { overflow: visible; }
+.mp-header-pop { overflow: visible; min-width: 0; max-width: 100%; }
 .mp-header-pop .mp-cover { border-radius: 16px 16px 0 0; }
 
-.mpt { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--line); padding: 0 12px; min-width: 0; }
+.mpt { display: flex; align-items: center; gap: 4px; border-top: 1px solid var(--line); padding: 0 12px; min-width: 0; max-width: 100%; box-sizing: border-box; }
 .mpt [hidden] { display: none !important; }
 .mpt-list { display: flex; gap: 4px; flex: 0 1 auto; min-width: 0; overflow: hidden; }
 .mpt-tab, .mpt-more-btn { flex: none; }
 .mpt-more-btn.is-on { color: var(--gold-text); border-bottom-color: var(--gold); }
 .mpt-more, .mpt-dots { position: relative; flex: none; }
 .mpt-dots { margin-left: auto; }
-.mpt-dots-btn { min-width: 44px; height: 38px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--ink); font: 800 .9rem var(--font); letter-spacing: 1px; cursor: pointer; }
+.mpt-dots-btn { min-width: 36px; height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: var(--surface-2); color: var(--ink); font: 800 .78rem/1 var(--font); letter-spacing: .5px; cursor: pointer; }
+.mpt-dots-btn.is-on { color: var(--gold-text); box-shadow: inset 0 -3px 0 var(--gold); }
 .mpt-dots-btn:hover { background: var(--line); }
 .mpt-dots-btn:focus-visible, .mpt-more-btn:focus-visible, .mpt-tab:focus-visible { outline: 3px solid var(--gold); outline-offset: -3px; }
 
@@ -28,6 +29,11 @@
 /* Onglet Publications / Photos / Vidéos : une colonne centrée, comme un fil d'actualité */
 .mp-feed { display: grid; gap: 16px; max-width: 720px; margin: 0 auto; min-width: 0; }
 
-@media (max-width: 560px) {
-  .mpt { padding: 0 6px; }
+/* Téléphone : onglets plus compacts, pas de « Plus ▾ » (les onglets en trop passent dans le menu « ••• ») */
+@media (max-width: 640px) {
+  .mpt { padding: 0 6px; gap: 2px; }
+  .mpt .mp-tab { padding: 12px 10px; min-height: 46px; font-size: .84rem; }
+  .mpt-more { display: none !important; }
+  .mpt-dots-btn { min-width: 32px; height: 30px; padding: 0 6px; font-size: .72rem; }
+  .mpt-pop { max-width: calc(100vw - 16px); }
 }
