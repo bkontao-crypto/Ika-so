@@ -12,6 +12,9 @@ import {
 import { LISTING_COLUMNS, iso, isLive, toCard } from "./cards.js";
 import { findSimilar } from "./duplicates.js";
 
+// Exactement deux emplacements Superadmin (principal et secondaire) : aucun troisième ne peut être créé.
+const MAX_SUPERADMINS = 2;
+
 export function createModeration(ctx, accounts, engagement) {
   const { db } = ctx;
 
@@ -264,6 +267,14 @@ export function createModeration(ctx, accounts, engagement) {
           assertStaffRoleChange(actor.staff_role, role);
         } catch (error) {
           throw badRequest(error.message);
+        }
+        // Exactement deux emplacements Superadmin : on ne peut pas promouvoir un troisième compte (même compte bloqué : il garde son emplacement).
+        if (role === "SUPERADMIN") {
+          const current = (await tx.query("select staff_role from ika_profiles where user_id = $1", [targetId]))[0];
+          if (current && current.staff_role !== "SUPERADMIN") {
+            const held = await tx.query("select count(*)::int as n from ika_profiles where staff_role = 'SUPERADMIN'");
+            if (Number(held[0]?.n ?? 0) >= MAX_SUPERADMINS) throw forbidden("Les deux emplacements Superadmin sont déjà occupés.");
+          }
         }
         // Protection du dernier SUPERADMIN actif : impossible de le rétrograder.
         if (role !== "SUPERADMIN") {
