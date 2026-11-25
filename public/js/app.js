@@ -1,6 +1,6 @@
 // Point d'entrée : routeur à chargement différé (chaque page n'est téléchargée qu'à sa première visite).
 import { api, h, loadPlaces, mount, replaceTextIn } from "/js/dom.js";
-import { app, onSession, refreshSession, refreshUnread } from "/js/core/state.js";
+import { S, app, onSession, refreshSession, refreshUnread } from "/js/core/state.js";
 import { currentRoute } from "/js/core/router.js";
 import { renderChrome, loadHeader, loadFooter } from "/js/components/chrome.js";
 import { startDecorating } from "/js/decorate.js";
@@ -39,6 +39,7 @@ const routes = [
   [/^\/favoris$/, "account", "favoritesPage"],
   [/^\/profil$/, "mon-profil", "profilePage"],
   [/^\/connexion$/, "login", "loginPage"],
+  [/^\/verification$/, "mfa-login", "mfaLoginPage"],
   [/^\/mot-de-passe-oublie$/, "password-reset", "passwordResetPage"],
   [/^\/annonceur\/([^/]+)$/, "advertiser", "advertiserPage", dec],
   [/^\/mon-profil-public$/, "profile-edit", "profileEditPage"],
@@ -49,6 +50,7 @@ const routes = [
   [/^\/boite\/([^/]+)$/, "inbox", "threadPage", dec],
 ];
 
+let mfaChecked = false; // une seule vérification par chargement : connexion Google ou ticket d'application = page rechargée
 let sequence = 0; // numéro de la navigation en cours : une page arrivée trop tard ne doit pas écraser la bonne
 
 // Application Android / PWA : le navigateur ne doit pas restaurer une ancienne position de défilement (l'accueil s'ouvre toujours en haut).
@@ -60,6 +62,12 @@ async function render() {
   trackPageView(path, (pagePath) => api("/e", { method: "POST", body: { pagePath } })); // seulement avec l'accord « Statistiques »
   document.body.classList.remove("in-chat");
   const mine = ++sequence;
+  if (!S.user && !mfaChecked && path !== "/verification") { // session « en attente » du code MFA : on le demande avant tout
+    mfaChecked = true;
+    const state = await api("/mfa/pending").catch(() => ({ pending: false }));
+    if (mine !== sequence) return;
+    if (state.pending) { location.hash = `#/verification?next=${encodeURIComponent(path)}`; return; }
+  }
   const hit = routes.map(([re, file, name, arg]) => [re.exec(path), file, name, arg]).find(([m]) => m);
   document.body.classList.add("page-loading"); // pied de page masqué pendant le chargement (sinon il apparaît sous un écran vide)
   mount(app, h("div", { class: "skeleton" }));
