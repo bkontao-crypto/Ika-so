@@ -405,7 +405,7 @@
   "source": "decouvrir.js, post-composer.js · GET /discover, POST /me/discover, /discover/:id/contact, /discover/:id/report ; discover.js",
   "rights": "Lecture publique ; publier, écrire et signaler avec un compte ; modération : équipe (module modération)",
   "step": "E04"
-  },
+ },
  {
   "id": "S44",
   "title": "Alerte (alertes programmées)",
@@ -418,14 +418,25 @@
   "step": "E04"
  },
  {
-   "id": "S45",
-   "title": "Vérification en deux étapes (MFA)",
-   "route": "#/verification",
-   "status": "Existant",
-   "need": "Terminer la connexion d'un compte protégé par la double authentification.",
-   "journey": "Mot de passe (ou Google) → saisie du code de l'appli ou d'un code de secours → connecté ; bouton Abandonner.",
-   "source": "mfa-login.js, mfa-security.js · GET /mfa/pending, POST /mfa/login, /mfa/cancel, /mfa/begin, /mfa/confirm, /mfa/backup-codes, /mfa/disable",
-   "rights": "Compte ayant activé la MFA, session en attente de code ; activation et réglages depuis Mon compte (compte connecté)",
-   "step": "E03"
+  "id": "S45",
+  "title": "Vérification en deux étapes (MFA)",
+  "route": "#/verification",
+  "status": "Existant",
+  "need": "Terminer la connexion d'un compte protégé par la double authentification.",
+  "journey": "Mot de passe (ou Google) → saisie du code de l'appli ou d'un code de secours → connecté ; bouton Abandonner.",
+  "source": "mfa-login.js, mfa-security.js · GET /mfa/pending, POST /mfa/login, /mfa/cancel, /mfa/begin, /mfa/confirm, /mfa/backup-codes, /mfa/disable",
+  "rights": "Compte ayant activé la MFA, session en attente de code ; activation et réglages depuis Mon compte (compte connecté)",
+  "step": "E03"
+ },
+ {
+  "id": "S46",
+  "title": "WhatsApp (boîte du personnel)",
+  "route": "#/whatsapp",
+  "status": "Existant",
+  "need": "Lire les messages WhatsApp reçus des contacts et leur répondre depuis le site.",
+  "journey": "Personnel connecté → liste des conversations → fil de messages → envoi ; « Nouveau » pour écrire à un numéro ; bloc « Configuration Meta » (adresse du webhook).",
+  "source": "whatsapp.js, whatsapp.css · GET /whatsapp/status, GET /whatsapp/messages, POST /whatsapp/send",
+  "rights": "Personnel autorisé (le serveur refuse tout autre compte) ; l'ancienne adresse /whatsapp redirige vers #/whatsapp",
+  "step": "E07"
  }
 ]
