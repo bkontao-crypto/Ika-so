@@ -1,7 +1,7 @@
 // Double authentification (MFA) : activation, vérification, désactivation, codes de secours.
 // Étape 2a : service autonome, pas encore branché à la connexion ni aux routes (étape 2b).
 // `key` : clé de chiffrement des secrets (Buffer de 32 octets, voir parseKey). Sans elle, l'activation est refusée (503) : rien n'est stocké en clair.
-import { AppError, badRequest, conflict, tooMany, unauthorized } from "../lib/errors.js";
+import { AppError, badRequest, conflict, forbidden, tooMany, unauthorized } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import {
   BACKUP_CODE_COUNT,
@@ -16,6 +16,8 @@ import {
 } from "../lib/totp.js";
 
 const MAX_FAILURES = 5; // essais ratés tolérés…
+const GRACE_DAYS = 14; // Admin et Modérateurs : délai après l'activation de l'obligation (le Superadmin est concerné dès l'activation)
+const STAFF = new Set(["MODERATOR", "ADMIN", "SUPERADMIN"]);
 const LOCK_MINUTES = 15; // …avant un blocage de cette durée (comptés depuis la dernière réussite)
 
 export function createMfa(ctx) {
@@ -82,8 +84,44 @@ export function createMfa(ctx) {
     return { ok: true, method, backupCodesLeft: await backupLeft(userId) };
   }
 
+  /** Réglage « MFA obligatoire » (ika_settings) et date de son activation. */
+  async function requirement() {
+    const rows = await db.query("select key, value from ika_settings where key in ('mfa_required', 'mfa_required_since')");
+    const get = (k) => rows.find((r) => r.key === k)?.value;
+    const since = get("mfa_required_since") ? new Date(get("mfa_required_since")) : null;
+    const required = get("mfa_required") === "true";
+    return { required, since: required ? since : null, graceEndsAt: required && since ? new Date(since.getTime() + GRACE_DAYS * 86_400_000) : null };
+  }
+
+  const isEnabled = async (userId) => Boolean((await db.query("select 1 from ika_mfa_secrets where user_id = $1 and confirmed_at is not null", [userId]))[0]);
+
   return {
     verify,
+    requirement,
+
+    /** Porte du personnel : appelée par requireStaff / requirePermission. Sans clé de chiffrement, personne ne peut s'inscrire : on ne bloque jamais. */
+    async staffGate(profile) {
+      if (!key || !STAFF.has(profile.staff_role)) return;
+      const r = await requirement();
+      if (!r.required) return;
+      if (profile.staff_role !== "SUPERADMIN" && (!r.graceEndsAt || Date.now() < r.graceEndsAt.getTime())) return;
+      if (await isEnabled(profile.user_id)) return;
+      throw forbidden("La double authentification est obligatoire pour votre rôle. Activez-la dans Mon profil, section Double authentification.");
+    },
+
+    /** Superadmin seulement (contrôlé par la route). Exige que l'auteur ait déjà activé sa propre MFA, pour ne pas se verrouiller. */
+    async setRequired(actorId, on) {
+      requireKey();
+      if (on && !(await isEnabled(actorId))) throw badRequest("Activez d'abord votre propre double authentification.");
+      await db.transaction(async (tx) => {
+        const was = (await tx.query("select value from ika_settings where key = 'mfa_required'"))[0]?.value === "true";
+        await tx.query("insert into ika_settings (key, value) values ('mfa_required', $1) on conflict (key) do update set value = excluded.value", [on ? "true" : "false"]);
+        if (on && !was) await tx.query("insert into ika_settings (key, value) values ('mfa_required_since', $1) on conflict (key) do update set value = excluded.value", [new Date().toISOString()]);
+        if (!on) await tx.query("delete from ika_settings where key = 'mfa_required_since'");
+        if (on !== was) await audit(actorId, on ? "MFA_REQUIRED_ON" : "MFA_REQUIRED_OFF", on ? "MFA rendue obligatoire pour le personnel" : "Obligation de MFA levée", tx);
+      });
+      return requirement();
+    },
 
     async status(userId) {
       const row = (await db.query("select confirmed_at from ika_mfa_secrets where user_id = $1", [userId]))[0];
@@ -135,8 +173,10 @@ export function createMfa(ctx) {
       return { backupCodes: codes };
     },
 
-    /** Désactivation. Exige un code valide. (L'interdiction pour les comptes dont la MFA est obligatoire viendra avec l'activation, étape 3.) */
+    /** Désactivation. Exige un code valide. Refusée pour le personnel quand la MFA est obligatoire. */
     async disable(userId, code) {
+      const role = (await db.query("select staff_role from ika_profiles where user_id = $1", [userId]))[0]?.staff_role;
+      if (STAFF.has(role) && (await requirement()).required) throw forbidden("La double authentification est obligatoire pour votre rôle : elle ne peut pas être désactivée.");
       await verify(userId, code);
       await db.transaction(async (tx) => {
         await tx.query("delete from ika_mfa_backup_codes where user_id = $1", [userId]);

@@ -56,9 +56,9 @@ export function createAccounts(ctx) {
       claimed = Boolean(claim[0]);
     }
     const created = await db.query(
-      `insert into ika_profiles (user_id, full_name, staff_role) values ($1, $2, $3)
+      `insert into ika_profiles (user_id, full_name, staff_role, superadmin_slot) values ($1, $2, $3, $4)
        on conflict (user_id) do nothing returning *`,
-      [userId, users[0].name.slice(0, 120), claimed ? "SUPERADMIN" : "USER"],
+      [userId, users[0].name.slice(0, 120), claimed ? "SUPERADMIN" : "USER", claimed ? "PRINCIPAL" : null],
     );
     if (created[0]) return created[0];
     const again = await db.query("select * from ika_profiles where user_id = $1", [userId]);
@@ -135,6 +135,7 @@ export function createAccounts(ctx) {
     return profile;
   }
 
+  let staffGate = async () => undefined; // MFA obligatoire pour le personnel (voir services/mfa.js, staffGate) ; branchée par createApp
   async function requireStaff(userId, minimum = "MODERATOR") {
     const profile = await ensureProfile(userId);
     if (!hasStaffRank(profile.staff_role, minimum)) {
@@ -143,6 +144,7 @@ export function createAccounts(ctx) {
     if (profile.account_status === "BANNED") throw forbidden("Compte bloqué.");
     // Un personnel sanctionné (RESTRICTED) perd ses droits de modération tant que la restriction dure.
     if (profile.account_status === "RESTRICTED") throw forbidden("Compte restreint : droits de modération suspendus.");
+    await staffGate(profile);
     return profile;
   }
 
@@ -169,6 +171,7 @@ export function createAccounts(ctx) {
     }
     if (profile.account_status === "BANNED") throw forbidden("Compte bloqué.");
     if (profile.account_status === "RESTRICTED") throw forbidden("Compte restreint : droits de modération suspendus.");
+    await staffGate(profile);
     return profile;
   }
 
@@ -229,6 +232,7 @@ export function createAccounts(ctx) {
     setAdvertiserPolicy(fn) { applicationRequired = fn; },
     requireActive,
     requireStaff,
+    setStaffGate(fn) { staffGate = fn; },
     requirePermission,
     audit,
 
