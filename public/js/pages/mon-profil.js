@@ -100,7 +100,7 @@ export async function profilePage() {
   });
 
   /* ---------- Photos ---------- */
-  const upload = (kind, label) => h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", class: "sr-only", "aria-label": label,
+  const upload = (kind, label) => h("input", { type: "file", accept: "image/*", class: "sr-only", "aria-label": label,
     onChange: (e) => {
       const f = e.target.files?.[0];
       if (!f) return;

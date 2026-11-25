@@ -52,7 +52,7 @@ export function postComposer({ onPosted = () => {}, defaultKind = "ACTUALITE" } 
   const zone = h("input", { class: "input", maxlength: "80", placeholder: "Quartier ou ville (facultatif)", "aria-label": "Quartier ou ville" });
   const thumbs = h("div", { class: "dc-thumbs" });
   const videoUrl = h("input", { class: "input", type: "url", maxlength: "300", placeholder: "Lien vidéo YouTube ou Facebook (facultatif)", "aria-label": "Lien vidéo YouTube ou Facebook" });
-  const fileInput = h("input", { type: "file", accept: "image/jpeg,image/png,image/webp", multiple: true, class: "sr-only", "aria-label": "Ajouter des photos", onChange: addFiles });
+  const fileInput = h("input", { type: "file", accept: "image/*", multiple: true, class: "sr-only", "aria-label": "Ajouter des photos", onChange: addFiles });
   const kinds = h("div", { class: "row dc-kinds", role: "group", "aria-label": "Type de publication" });
   const send = h("button", { class: "btn btn-primary", type: "button", onClick: submit }, "Publier");
   const photoBtn = h("button", { class: "btn", type: "button", onClick: () => fileInput.click() }, icon("image"), "Photos");
@@ -70,7 +70,12 @@ export function postComposer({ onPosted = () => {}, defaultKind = "ACTUALITE" } 
   }
 
   async function addFiles(e) {
-    const files = [...(e.target.files ?? [])]; e.target.value = "";
+    // Android : on ne vide le champ qu'APRÈS la lecture des photos (vidé avant, le fichier devient illisible et rien n'est importé).
+    const input = e.target; const files = [...(input.files ?? [])];
+    try { await addAll(files); } finally { input.value = ""; }
+  }
+
+  async function addAll(files) {
     for (const f of files) {
       if (photos.length >= settings.maxPhotos) { toast(`${settings.maxPhotos} photo${settings.maxPhotos > 1 ? "s" : ""} au maximum.`, true); break; }
       if (f.size > 12_000_000) { toast("Image trop volumineuse (12 Mo au maximum).", true); continue; }
