@@ -32,6 +32,7 @@ export async function inboxPage() {
   let tab = currentRoute().params.get("onglet") || "alertes";
   if (!["alertes", "messages", "visites"].includes(tab)) tab = "alertes";
   let filter = "all"; let query = ""; let activeId = null; let active = null;
+  let dateFrom = ""; let dateTo = ""; // filtre « entre deux dates » des alertes (AAAA-MM-JJ, heure locale)
   const [notes, searches, threads, visits, prefs, team] = await Promise.all([api("/me/notifications"), api("/me/searches"), api("/me/threads"), api("/me/visits"), api("/me/alert-prefs").catch(() => ({ mode: "INSTANT" })), api("/me/team-requests").catch(() => ({ received: [] }))]);
   const unreadNotes = () => notes.filter((n) => !n.read).length;
   const pendingVisits = () => visits.filter((v) => v.asOwner && v.status === "PENDING").length;
@@ -60,10 +61,19 @@ export async function inboxPage() {
 
   // ---- Alertes ----
   const alertsPanel = () => {
+    const inRange = (iso) => {
+      if (!dateFrom && !dateTo) return true;
+      const t = Date.parse(iso); if (!Number.isFinite(t)) return false;
+      let a = dateFrom, b = dateTo; if (a && b && a > b) [a, b] = [b, a];
+      return (!a || t >= new Date(`${a}T00:00:00`).getTime()) && (!b || t <= new Date(`${b}T23:59:59.999`).getTime());
+    };
+    const dateIn = (label, value, onSet) => h("label", { class: "bx-dt" }, h("span", null, label), h("input", { type: "date", value, "aria-label": label === "Du" ? "Date de début" : "Date de fin", onChange: (e) => { onSet(e.target.value); drawPanel(); } }));
+    const dates = h("div", { class: "bx-dates", role: "group", "aria-label": "Filtrer par dates" }, icon("calendar"), dateIn("Du", dateFrom, (v) => { dateFrom = v; }), dateIn("au", dateTo, (v) => { dateTo = v; }),
+      dateFrom || dateTo ? h("button", { type: "button", class: "bx-fp", onClick: () => { dateFrom = ""; dateTo = ""; drawPanel(); } }, "Effacer les dates") : null);
     const matches = (n) => {
       const okF = filter === "all" || (filter === "unread" && !n.read) || filter === catOf(n);
       const okQ = !query || `${n.title ?? ""} ${n.body ?? ""} ${KIND[n.kind] ?? ""}`.toLowerCase().includes(query);
-      return okF && okQ;
+      return okF && okQ && inRange(n.createdAt);
     };
     const rows = notes.filter(matches);
     const fp = (key, label, extra, tail) => h("button", { type: "button", class: "bx-fp", "aria-pressed": String(filter === key), onClick: () => { filter = key; drawPanel(); } }, label, extra ?? null, tail ?? null);
@@ -99,6 +109,7 @@ export async function inboxPage() {
       h("div", { class: "bx-tools" },
         h("div", { class: "bx-filters", role: "group", "aria-label": "Filtrer les alertes" }, fp("all", "Toutes (", h("span", null, String(notes.length)), ")"), fp("unread", "Non lues (", h("span", null, String(unreadNotes())), ")"), fp("equipe", "Équipe"), fp("annonces", "Annonces & Messages")),
         h("button", { type: "button", class: `bx-btn ${unreadNotes() ? "" : "is-off"}`, onClick: async () => { try { await api("/me/notifications/read", { method: "POST", body: {} }); notes.forEach((n) => { n.read = true; }); bxToast("Toutes les alertes ont été marquées comme lues"); refreshUnread(); draw(); } catch (error) { fail(error); } } }, icon("check-check"), h("span", null, "Tout marquer lu"))),
+      dates,
       rows.length ? h("ul", { class: "bx-list" }, rows.map(card)) : (notes.length ? empty("Aucune alerte trouvée", "Essayez de modifier vos filtres ou votre recherche.") : empty("Aucune alerte pour le moment", "Les nouvelles alertes apparaîtront ici.")),
       h("section", { class: "bx-sec" },
         h("h2", { "data-ic": "x" }, "Mes recherches enregistrées"),
