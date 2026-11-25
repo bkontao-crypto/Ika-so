@@ -12,6 +12,7 @@ import { createNotifier } from "./lib/notifier.js";
 import { parseKey } from "./lib/totp.js";
 import { createMfa } from "./services/mfa.js";
 import { createMfaSessions } from "./services/mfa-session.js";
+import { createWhatsAppInbox } from "./services/whatsapp-inbox.js";
 
 const config = getConfig();
 if (!config.databaseUrl) {
@@ -71,7 +72,8 @@ if (config.production && !config.backup.dirConfigured) {
 }
 if (!mfaKey) logger.info("mfa_non_configuree", { effet: "la double authentification ne peut pas être activée ; posez MFA_ENCRYPTION_KEY (32 octets) pour l'autoriser" });
 const mfa = { service: createMfa({ db, key: mfaKey }), sessions: createMfaSessions({ db }) };
-const app = createApp({ services, config, logger, health: () => db.query("select 1"), mfa });
+const whatsappInbox = createWhatsAppInbox({ db, whatsapp: services.whatsapp, logger });
+const app = createApp({ services, config, logger, health: () => db.query("select 1"), mfa, whatsappInbox });
 // Sauvegardes automatiques et alertes : démarrées ici (processus serveur), pas dans createApp, pour ne pas lancer de minuteries dans les tests.
 services.stats.startScheduler();
 
