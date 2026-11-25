@@ -56,6 +56,7 @@ test("interdictions : utilisateur ordinaire et Admin face aux API d'administrati
       await forbidden(`${who} : promouvoir un Superadmin`, `/api/staff/accounts/${target.id}/role`, { method: "POST", cookie: a.cookie, body: { role: "SUPERADMIN" } });
       await forbidden(`${who} : s'octroyer une permission`, "/api/staff/permissions/grant", { method: "POST", cookie: a.cookie, body: { userId: a.id, permission: "permissions.grant", reason: "test", days: 1 } });
       await forbidden(`${who} : régler la MFA obligatoire`, "/api/mfa/required", { method: "PUT", cookie: a.cookie, body: { required: true } });
+      await forbidden(`${who} : voir les emplacements Superadmin`, "/api/mfa/superadmins", { cookie: a.cookie });
     }
     await forbidden("utilisateur : API d'administration", "/api/staff/permissions", { cookie: user.cookie });
     assert.equal((await db.query("select staff_role from ika_profiles where user_id = $1", [target.id]))[0].staff_role, "USER");
