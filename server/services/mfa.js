@@ -99,6 +99,21 @@ export function createMfa(ctx) {
     verify,
     requirement,
 
+    /** Les deux emplacements Superadmin (principal, secondaire) : titulaire, statut du compte, MFA. Lecture seule ; la route la réserve au Superadmin. */
+    async superadminSlots() {
+      const rows = await db.query(
+        `select p.superadmin_slot as slot, p.user_id, p.account_status, u.name, u.email,
+                exists (select 1 from ika_mfa_secrets s where s.user_id = p.user_id and s.confirmed_at is not null) as mfa
+         from ika_profiles p join ika_users u on u.id = p.user_id
+         where p.staff_role = 'SUPERADMIN'`,
+      );
+      const slots = ["PRINCIPAL", "SECONDARY"].map((slot) => {
+        const r = rows.find((x) => x.slot === slot);
+        return r ? { slot, userId: r.user_id, name: r.name, email: r.email, status: r.account_status, mfa: Boolean(r.mfa) } : { slot, userId: null, name: null, email: null, status: null, mfa: false };
+      });
+      return { slots, withoutSlot: rows.filter((x) => !x.slot).length };
+    },
+
     /** Porte du personnel : appelée par requireStaff / requirePermission. Sans clé de chiffrement, personne ne peut s'inscrire : on ne bloque jamais. */
     async staffGate(profile) {
       if (!key || !STAFF.has(profile.staff_role)) return;
