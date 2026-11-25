@@ -1,14 +1,37 @@
-// Page « WhatsApp » (#/whatsapp) : conversations et envoi (Meta WhatsApp Cloud API), dans l'habillage normal du site.
+// Page « WhatsApp » (#/whatsapp) : discussions et envoi (Meta WhatsApp Cloud API), présentés comme une messagerie
+// (liste de discussions, bulles, coches d'état, thème clair ou sombre selon le système), dans l'habillage du site.
 // Réservée au personnel autorisé : le serveur refuse tout autre compte (401/403), la page ne fait qu'afficher ce refus.
 import { api, h, mount, toast } from "/js/dom.js";
 import { app } from "/js/core/state.js";
 import { icon } from "/js/icons.js";
 
-const STATUS = { received: "Reçu", sent: "Envoyé", delivered: "Distribué", read: "Lu", failed: "Échec" };
 const POLL_MS = 8000;
+const NS = "http://www.w3.org/2000/svg";
 const digits = (value) => String(value ?? "").replace(/\D/g, "");
-const when = (iso) => new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
 const shown = (phone) => `+${phone}`;
+const hhmm = (iso) => new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+const dayKey = (iso) => new Date(iso).toLocaleDateString("fr-CA");
+const dayLabel = (iso) => {
+  const d = new Date(iso); const today = new Date(); const yest = new Date(Date.now() - 86_400_000);
+  if (dayKey(iso) === dayKey(today)) return "Aujourd'hui";
+  if (dayKey(iso) === dayKey(yest)) return "Hier";
+  return d.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
+};
+/** Heure du jour si c'est aujourd'hui, « Hier », sinon la date courte (comme dans une liste de discussions). */
+const listTime = (iso) => (dayKey(iso) === dayKey(new Date()) ? hhmm(iso) : dayKey(iso) === dayKey(new Date(Date.now() - 86_400_000)) ? "Hier" : new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "2-digit" }));
+
+/** Petit dessin SVG (traits simples) : flèche, avion en papier, coches. */
+function svg(paths, cls = "") {
+  const el = document.createElementNS(NS, "svg");
+  el.setAttribute("viewBox", "0 0 24 24"); el.setAttribute("class", `wa-svg ${cls}`.trim()); el.setAttribute("aria-hidden", "true");
+  for (const [d, fill] of paths) { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); p.setAttribute(fill ? "fill" : "stroke-linecap", fill ? "currentColor" : "round"); el.append(p); }
+  return el;
+}
+const BACK = [["M15 5l-7 7 7 7"]];
+const SEND = [["M3.4 20.4l17.4-7.9a.6.6 0 000-1.1L3.4 3.6a.6.6 0 00-.8.7L5 11l9 1-9 1-2.4 6.7a.6.6 0 00.8.7z", true]];
+const TICK1 = [["M5 12.5l4.5 4.5L19 7.5"]];
+const TICK2 = [["M2 12.5l4.5 4.5L16 7.5"], ["M9.5 16.5l.9.9L21 7.5"]];
+const WARN = [["M12 8v5M12 16.5v.01"]];
 
 /** Messages d'erreur de Meta rendus compréhensibles. */
 export function friendlyError(raw) {
@@ -18,40 +41,54 @@ export function friendlyError(raw) {
   return text || "Envoi impossible.";
 }
 
+const AV_COLORS = ["#128c7e", "#d1584a", "#6d5ec9", "#c27a1c", "#2f80b7", "#b24f94"];
+const avatar = (phone, name) => {
+  const hue = AV_COLORS[Number(String(phone).slice(-2)) % AV_COLORS.length];
+  const letter = (name || "").trim().charAt(0).toUpperCase();
+  return h("span", { class: "wa-av", style: `background:${hue}`, "aria-hidden": "true" }, letter || icon("user"));
+};
+
 export async function whatsappPage() {
   loadCss();
   let messages = [];
   let selected = "";
-  let composing = false; // « Nouvelle conversation » : le numéro se saisit
+  let composing = false; // « Nouvelle discussion » : le numéro se saisit
+  let open = false;      // petit écran : la discussion occupe tout l'écran
+  let query = "";
   let loadFailed = false;
-  let configured = null;
 
   const statusEl = h("div", { class: "wa-status" });
   const infoEl = h("details", { class: "wa-info", hidden: true });
+  const search = h("input", { class: "wa-search-in", type: "search", placeholder: "Rechercher une discussion", "aria-label": "Rechercher une discussion", onInput: (e) => { query = e.target.value.trim().toLowerCase(); renderList(); } });
   const listEl = h("div", { class: "wa-list", role: "list" });
-  const headEl = h("div", { class: "wa-thead" });
+  const headEl = h("div", { class: "wa-chead" });
   const threadEl = h("div", { class: "wa-thread", "aria-live": "polite" });
-  const phoneInput = h("input", { class: "input", name: "phone", placeholder: "Numéro avec indicatif, ex. 22370000000", inputmode: "numeric", maxlength: 20, autocomplete: "off", "aria-label": "Numéro du destinataire" });
-  const textInput = h("textarea", { class: "input", name: "message", placeholder: "Votre message", rows: 2, maxlength: 4096, "aria-label": "Votre message" });
-  const sendButton = h("button", { class: "btn btn-primary", type: "submit" }, icon("message"), "Envoyer");
-  const result = h("p", { class: "small wa-result", role: "status" });
+  const toInput = h("input", { class: "wa-to", name: "phone", placeholder: "Numéro avec indicatif, ex. 22370000000", inputmode: "numeric", maxlength: 20, autocomplete: "off", "aria-label": "Numéro du destinataire" });
+  const toRow = h("div", { class: "wa-newto", hidden: true }, h("span", null, "À :"), toInput);
+  const textInput = h("textarea", { class: "wa-msg", name: "message", placeholder: "Écrivez un message", rows: 1, maxlength: 4096, "aria-label": "Votre message",
+    onInput: () => grow(), onKeydown: (e) => { if (e.key === "Enter" && !e.shiftKey && matchMedia("(hover: hover)").matches) { e.preventDefault(); form.requestSubmit(); } } });
+  const grow = () => { textInput.style.height = "auto"; textInput.style.height = `${Math.min(textInput.scrollHeight, 120)}px`; };
+  const sendButton = h("button", { class: "wa-sendbtn", type: "submit", "aria-label": "Envoyer" }, svg(SEND));
+  const result = h("p", { class: "wa-result", role: "status" });
+  const emptyEl = h("div", { class: "wa-placeholder" }, h("span", { class: "wa-bigic" }, icon("message")), h("h2", null, "Vos discussions WhatsApp"), h("p", null, "Choisissez une discussion à gauche, ou cliquez sur « Nouvelle discussion »."));
 
   const form = h("form", { class: "wa-compose", onSubmit: async (event) => {
     event.preventDefault();
-    const to = composing ? phoneInput.value : selected;
-    if (!digits(to)) { result.className = "small wa-result is-err"; result.textContent = "Saisissez le numéro du destinataire."; return; }
-    sendButton.disabled = true; result.className = "small wa-result"; result.textContent = "Envoi en cours…";
+    const to = composing ? toInput.value : selected;
+    if (!digits(to)) { result.textContent = "Saisissez le numéro du destinataire."; result.className = "wa-result is-err"; return; }
+    if (!textInput.value.trim()) return;
+    sendButton.disabled = true; result.className = "wa-result"; result.textContent = "";
     try {
       await api("/whatsapp/send", { method: "POST", body: { phone: to, message: textInput.value } });
-      textInput.value = ""; result.textContent = "Message transmis à Meta.";
+      textInput.value = ""; grow();
       await load(true);
       const last = [...messages].reverse().find((m) => m.direction === "outbound");
       if (composing && last) { selected = last.phone; composing = false; }
       render();
     } catch (error) {
-      result.className = "small wa-result is-err"; result.textContent = friendlyError(error?.message); await load(true);
+      result.className = "wa-result is-err"; result.textContent = friendlyError(error?.message); await load(true);
     } finally { sendButton.disabled = false; }
-  } }, composing ? phoneInput : null, textInput, h("div", { class: "wa-send" }, h("p", { class: "small muted" }, "Message libre : le contact doit avoir écrit il y a moins de 24 h."), sendButton), result);
+  } }, h("div", { class: "wa-field" }, textInput), sendButton);
 
   function conversations() {
     const byPhone = new Map();
@@ -63,69 +100,93 @@ export async function whatsappPage() {
     return [...byPhone.values()].sort((a, b) => new Date(b.last.createdAt) - new Date(a.last.createdAt));
   }
 
+  const ticks = (m) => {
+    if (m.direction !== "outbound") return null;
+    if (m.status === "failed") return h("span", { class: "wa-tick is-failed", title: "Échec de l'envoi" }, svg(WARN, "is-warn"));
+    if (m.status === "read") return h("span", { class: "wa-tick is-read", title: "Lu" }, svg(TICK2));
+    if (m.status === "delivered") return h("span", { class: "wa-tick", title: "Distribué" }, svg(TICK2));
+    return h("span", { class: "wa-tick", title: "Envoyé" }, svg(TICK1));
+  };
+
   const bubble = (m) => {
     const mine = m.direction === "outbound";
-    const meta = [when(m.createdAt), mine ? STATUS[m.status] ?? m.status : null].filter(Boolean).join(" · ");
     return h("div", { class: `wa-bubble ${mine ? "is-out" : "is-in"}${m.status === "failed" ? " is-failed" : ""}` },
-      h("div", { class: "wa-text" }, m.text || "—"), h("div", { class: "wa-meta" }, meta),
+      h("div", { class: "wa-text" }, m.text || "—"),
+      h("div", { class: "wa-meta" }, h("span", null, hhmm(m.createdAt)), ticks(m)),
       m.status === "failed" && m.error ? h("div", { class: "wa-err" }, friendlyError(m.error)) : null);
   };
 
-  function render() {
-    const list = conversations();
+  function renderList() {
+    const list = conversations().filter((c) => !query || `${c.name ?? ""} ${c.phone} ${c.last.text ?? ""}`.toLowerCase().includes(query));
     listEl.replaceChildren(...(list.length ? list.map((c) => h("button", { class: `wa-conv${!composing && c.phone === selected ? " is-on" : ""}`, type: "button", role: "listitem",
-      onClick: () => { selected = c.phone; composing = false; render(); } },
-      h("span", { class: "wa-av", "aria-hidden": "true" }, (c.name || "#").trim().charAt(0).toUpperCase()),
-      h("span", { class: "wa-cinfo" }, h("strong", null, c.name || shown(c.phone)), h("small", { class: "muted" }, String(c.last.text ?? "").slice(0, 60) || "—")),
-      h("small", { class: "wa-ctime muted" }, when(c.last.createdAt)))) : [h("p", { class: "muted small wa-empty" }, loadFailed ? "Historique indisponible." : "Aucun message pour le moment.")]));
-    const cur = list.find((c) => c.phone === selected);
-    headEl.replaceChildren(...[h("strong", null, composing ? "Nouvelle conversation" : cur ? (cur.name || shown(cur.phone)) : "Conversation"), !composing && cur?.name ? h("small", { class: "muted" }, shown(cur.phone)) : null].filter(Boolean)); // replaceChildren(null) écrirait « null »
-    const near = threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 80;
+      onClick: () => { selected = c.phone; composing = false; open = true; render(); threadEl.scrollTop = threadEl.scrollHeight; } },
+      avatar(c.phone, c.name),
+      h("span", { class: "wa-cinfo" }, h("span", { class: "wa-crow" }, h("strong", null, c.name || shown(c.phone)), h("small", { class: "wa-ctime" }, listTime(c.last.createdAt))),
+        h("span", { class: "wa-clast" }, c.last.direction === "outbound" ? ticks(c.last) : null, h("span", null, String(c.last.text ?? "").slice(0, 70) || "—"))))) : [h("p", { class: "wa-empty" }, loadFailed ? "Historique indisponible." : query ? "Aucune discussion trouvée." : "Aucun message pour le moment.")]));
+  }
+
+  function render() {
+    document.body.classList.toggle("wa-open", open);
+    root.classList.toggle("is-open", open);
+    renderList();
+    const cur = conversations().find((c) => c.phone === selected);
+    const hasChat = composing || Boolean(cur);
+    emptyEl.hidden = hasChat; headEl.hidden = !hasChat; threadEl.hidden = !hasChat; form.hidden = !hasChat; toRow.hidden = !composing;
+    headEl.replaceChildren(...[
+      h("button", { class: "wa-back", type: "button", "aria-label": "Retour aux discussions", onClick: () => { open = false; composing = false; render(); } }, svg(BACK)),
+      composing ? h("span", { class: "wa-av wa-av-new", "aria-hidden": "true" }, icon("user")) : avatar(selected, cur?.name),
+      h("div", { class: "wa-ctitle" }, h("strong", null, composing ? "Nouvelle discussion" : cur ? (cur.name || shown(cur.phone)) : ""), !composing && cur?.name ? h("small", null, shown(cur.phone)) : null),
+    ].filter(Boolean)); // replaceChildren(null) écrirait « null »
+    const near = threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 120;
     const thread = composing ? [] : messages.filter((m) => m.phone === selected);
-    threadEl.replaceChildren(...(thread.length ? thread.map(bubble) : [h("p", { class: "muted small wa-empty" }, composing ? "Saisissez un numéro et votre message." : "Choisissez une conversation.")]));
+    const nodes = []; let lastDay = "";
+    for (const m of thread) { const k = dayKey(m.createdAt); if (k !== lastDay) { lastDay = k; nodes.push(h("div", { class: "wa-day" }, h("span", null, dayLabel(m.createdAt)))); } nodes.push(bubble(m)); }
+    threadEl.replaceChildren(...(nodes.length ? nodes : [h("p", { class: "wa-empty" }, composing ? "Saisissez un numéro puis votre message." : "Aucun message avec ce numéro.")]));
     if (near) threadEl.scrollTop = threadEl.scrollHeight;
-    form.replaceChildren(...(composing ? [phoneInput] : []), textInput, h("div", { class: "wa-send" }, h("p", { class: "small muted" }, "Message libre : le contact doit avoir écrit il y a moins de 24 h."), sendButton), result);
   }
 
   async function load(silent) {
     try {
       messages = (await api("/whatsapp/messages?limit=500")).messages ?? []; loadFailed = false;
-      if (!selected && !composing && messages.length) selected = messages[messages.length - 1].phone;
+      if (!selected && !composing && messages.length && !matchMedia("(max-width: 720px)").matches) selected = conversations()[0].phone;
     } catch (error) { loadFailed = true; if (!silent) toast(error?.message || "Historique indisponible.", true); }
     render();
   }
 
   async function loadStatus() {
     try {
-      const info = await api("/whatsapp/status"); configured = Boolean(info.configured);
+      const info = await api("/whatsapp/status"); const configured = Boolean(info.configured);
       const url = `${location.origin}${info.webhookPath}`;
-      statusEl.replaceChildren(h("span", { class: `pill ${configured ? "pill-green" : ""}` }, configured ? "Connecté à Meta" : "Non configuré"));
+      statusEl.replaceChildren(h("span", { class: `wa-pill${configured ? " is-ok" : ""}` }, configured ? "Connecté à Meta" : "Non configuré"));
       infoEl.hidden = false;
       infoEl.replaceChildren(h("summary", null, "Configuration Meta"),
         h("p", { class: "small" }, "Adresse du webhook (à coller chez Meta) :"),
-        h("div", { class: "row" }, h("code", { class: "wa-url" }, url), h("button", { class: "btn btn-small", type: "button", onClick: async () => { try { await navigator.clipboard.writeText(url); toast("Adresse copiée."); } catch { toast("Copie impossible.", true); } } }, "Copier")),
+        h("div", { class: "wa-urlrow" }, h("code", { class: "wa-url" }, url), h("button", { class: "wa-btn", type: "button", onClick: async () => { try { await navigator.clipboard.writeText(url); toast("Adresse copiée."); } catch { toast("Copie impossible.", true); } } }, "Copier")),
         h("p", { class: "small muted" }, "Jeton de vérification : la valeur de WHATSAPP_VERIFY_TOKEN. Abonnement à cocher chez Meta : messages."));
       if (!configured) infoEl.open = true;
     } catch (error) {
-      statusEl.replaceChildren(h("span", { class: "pill" }, error?.message || "Accès refusé"));
+      statusEl.replaceChildren(h("span", { class: "wa-pill" }, error?.message || "Accès refusé"));
       infoEl.hidden = false; infoEl.replaceChildren(h("p", { class: "small" }, "Cette page est réservée aux administrateurs connectés."));
     }
   }
 
-  const root = h("section", { class: "wa stack" },
-    h("div", { class: "wa-head" }, h("div", null, h("p", { class: "rx-kicker" }, "Messagerie"), h("h1", { class: "title" }, "WhatsApp")), statusEl),
-    h("p", { class: "muted" }, "Conversations avec vos contacts WhatsApp. Mise à jour automatique toutes les 8 secondes."),
+  const root = h("section", { class: "wa" },
+    h("div", { class: "wa-top" }, h("div", { class: "wa-title" }, h("span", { class: "wa-logo", "aria-hidden": "true" }, icon("message")), h("h1", null, "WhatsApp")), statusEl),
     infoEl,
-    h("div", { class: "wa-grid card" },
+    h("div", { class: "wa-app" },
       h("aside", { class: "wa-side" },
-        h("div", { class: "wa-sidehead" }, h("strong", null, "Conversations"),
-          h("button", { class: "btn btn-small", type: "button", onClick: () => { composing = true; render(); phoneInput.focus(); } }, "Nouveau")), listEl),
-      h("section", { class: "wa-main" }, headEl, threadEl, form)));
+        h("div", { class: "wa-shead" }, h("strong", null, "Discussions"),
+          h("button", { class: "wa-btn", type: "button", onClick: () => { composing = true; open = true; render(); toInput.focus(); } }, icon("plus"), "Nouvelle discussion")),
+        h("div", { class: "wa-search" }, icon("search"), search), listEl),
+      h("section", { class: "wa-main" }, emptyEl, headEl, toRow, threadEl, result, form)));
 
   mount(app, root);
   render();
   await Promise.all([loadStatus(), load(true)]);
-  const timer = setInterval(() => { if (!root.isConnected) return clearInterval(timer); if (!document.hidden) load(true); }, POLL_MS);
+  const timer = setInterval(() => {
+    if (!root.isConnected) { clearInterval(timer); document.body.classList.remove("wa-open"); return; }
+    if (!document.hidden) load(true);
+  }, POLL_MS);
 }
 
 function loadCss() {

@@ -21,4 +21,4 @@ test("les erreurs Meta fréquentes sont expliquées en français", async () => {
 
 test("un numéro malien à 8 chiffres reçoit l'indicatif 223", () => assert.match(read("server/services/whatsapp-inbox.js"), /if \(to\.length === 8\) to = `223\$\{to\}`/));
 
-test("l'en-tête de conversation n'écrit jamais « null » (replaceChildren(null))", () => assert.match(read("public/js/pages/whatsapp.js"), /headEl\.replaceChildren\(\.\.\.\[[^\n]*\]\.filter\(Boolean\)\)/));
+test("l'en-tête de conversation n'écrit jamais « null » (replaceChildren(null))", () => assert.match(read("public/js/pages/whatsapp.js"), /headEl\.replaceChildren\(\.\.\.\[[\s\S]*?\]\.filter\(Boolean\)\)/));
