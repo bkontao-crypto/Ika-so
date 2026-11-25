@@ -46,6 +46,7 @@ const routes = [
   [/^\/confiance$/, "trust", "trustPage"],
   [/^\/agence$/, "agency", "agencyPage"],
   [/^\/paiements$/, "payments", "paymentsPage"],
+  [/^\/whatsapp$/, "whatsapp", "whatsappPage"],
   [/^\/boite$/, "inbox", "inboxPage"],
   [/^\/boite\/([^/]+)$/, "inbox", "threadPage", dec],
 ];

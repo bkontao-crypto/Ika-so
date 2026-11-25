@@ -79,7 +79,8 @@ export function createWhatsAppInbox({ db, whatsapp, logger = console }) {
 
     /** Envoie un message texte via Meta et l'enregistre. Meta peut refuser (ex. contact sans échange depuis 24 h) : l'échec est enregistré et expliqué. */
     async send({ userId, phone, message }) {
-      const to = digits(phone);
+      let to = digits(phone);
+      if (to.length === 8) to = `223${to}`; // numéro local malien saisi sans indicatif
       if (to.length < 8 || to.length > 15) throw badRequest("Numéro invalide : indicatif du pays puis numéro, sans « + » (ex. 22370000000).");
       const text = String(message ?? "").trim();
       if (!text) throw badRequest("Le message est vide.");
