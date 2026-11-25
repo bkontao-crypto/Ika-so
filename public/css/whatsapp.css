@@ -58,7 +58,6 @@
 .wa-ctitle { display: flex; flex-direction: column; min-width: 0; }
 .wa-ctitle strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wa-ctitle small { color: var(--wa-sub); }
-.wa-back { display: none; border: 0; background: transparent; color: var(--wa-text); width: 36px; height: 36px; border-radius: 50%; place-items: center; cursor: pointer; margin-left: -8px; }
 .wa-svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .wa-newto { display: flex; align-items: center; gap: 8px; padding: 8px 16px; background: var(--wa-head); border-bottom: 1px solid var(--wa-line); color: var(--wa-sub); }
 .wa-newto[hidden], .wa-chead[hidden], .wa-thread[hidden], .wa-compose[hidden], .wa-placeholder[hidden] { display: none; }
@@ -97,8 +96,7 @@
   .wa-main { display: none; }
   .wa.is-open .wa-main { display: flex; position: fixed; inset: 0; z-index: 1300; }
   .wa.is-open .wa-main .wa-placeholder { display: none; }
-  .wa-back { display: inline-grid; }
-  .wa-bubble { max-width: 86%; }
+    .wa-bubble { max-width: 86%; }
   .wa-thread { padding: 12px 10px; }
   body.wa-open .bottom-nav { display: none !important; }
   body.wa-open { padding-bottom: 0 !important; overflow: hidden; }
