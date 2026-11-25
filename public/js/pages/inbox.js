@@ -32,12 +32,21 @@ export async function inboxPage() {
   let tab = currentRoute().params.get("onglet") || "alertes";
   if (!["alertes", "messages", "visites"].includes(tab)) tab = "alertes";
   let filter = "all"; let query = ""; let activeId = null; let active = null;
-  let dateFrom = ""; let dateTo = ""; // filtre « entre deux dates » des alertes (AAAA-MM-JJ, heure locale)
+  let from = ""; let to = ""; // filtre « entre deux dates » (AAAA-MM-JJ), commun aux trois onglets
   const [notes, searches, threads, visits, prefs, team] = await Promise.all([api("/me/notifications"), api("/me/searches"), api("/me/threads"), api("/me/visits"), api("/me/alert-prefs").catch(() => ({ mode: "INSTANT" })), api("/me/team-requests").catch(() => ({ received: [] }))]);
   const unreadNotes = () => notes.filter((n) => !n.read).length;
   const pendingVisits = () => visits.filter((v) => v.asOwner && v.status === "PENDING").length;
   const reload = async () => { await refreshUnread(); inboxPage(); };
   const catOf = (n) => (n.kind === "TEAM_REQUEST" ? "equipe" : "annonces");
+  // Jour local entier : « du » commence à 00:00, « au » finit à 23:59:59 (le jour choisi est inclus).
+  const inRange = (iso) => {
+    if (!from && !to) return true;
+    const t = new Date(iso).getTime();
+    if (!Number.isFinite(t)) return false;
+    if (from && t < new Date(`${from}T00:00:00`).getTime()) return false;
+    if (to && t > new Date(`${to}T23:59:59.999`).getTime()) return false;
+    return true;
+  };
   const markRead = async (n) => {
     if (n.read) return;
     n.read = true; draw();
@@ -51,6 +60,16 @@ export async function inboxPage() {
   const search = h("input", { type: "text", "aria-label": "Rechercher", placeholder: "Rechercher (ACI 2000, Hamdallaye...)", onInput: (e) => { query = e.target.value.trim().toLowerCase(); drawPanel(); } });
   const tabsNav = h("nav", { class: "bx-tabs", "aria-label": "Onglets de la boîte", role: "tablist" });
   const host = h("div", { id: "inbox-body" });
+
+  // ---- Filtre entre deux dates (créé une fois : les champs gardent le focus) ----
+  const dateCss = "font:inherit;font-size:.75rem;padding:.4rem .6rem;border:1px solid var(--bx-border);border-radius:.75rem;background:var(--bx-white);color:var(--bx-slate)";
+  const fromInput = h("input", { type: "date", "aria-label": "Du (date de début)", style: dateCss, onChange: (e) => { from = e.target.value; if (from && to && from > to) { to = from; toInput.value = to; } syncRange(); drawPanel(); } });
+  const toInput = h("input", { type: "date", "aria-label": "Au (date de fin)", style: dateCss, onChange: (e) => { to = e.target.value; if (from && to && to < from) { from = to; fromInput.value = from; } syncRange(); drawPanel(); } });
+  const clearRange = h("button", { type: "button", class: "bx-a is-no", hidden: true, onClick: () => { from = ""; to = ""; fromInput.value = ""; toInput.value = ""; syncRange(); drawPanel(); } }, "Effacer les dates");
+  const syncRange = () => { clearRange.hidden = !from && !to; };
+  const rangeBar = h("div", { class: "bx-range", role: "group", "aria-label": "Filtrer entre deux dates", style: "display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:.5rem;margin-top:.75rem;font-size:.75rem;color:var(--bx-slate)" },
+    icon("calendar"), h("span", null, "Du"), fromInput, h("span", null, "au"), toInput, clearRange);
+
   const drawHead = () => {
     const n = unreadNotes();
     pill.hidden = n === 0; pillText.textContent = n === 1 ? "1 alerte non lue" : `${n} alertes non lues`;
@@ -61,15 +80,6 @@ export async function inboxPage() {
 
   // ---- Alertes ----
   const alertsPanel = () => {
-    const inRange = (iso) => {
-      if (!dateFrom && !dateTo) return true;
-      const t = Date.parse(iso); if (!Number.isFinite(t)) return false;
-      let a = dateFrom, b = dateTo; if (a && b && a > b) [a, b] = [b, a];
-      return (!a || t >= new Date(`${a}T00:00:00`).getTime()) && (!b || t <= new Date(`${b}T23:59:59.999`).getTime());
-    };
-    const dateIn = (label, value, onSet) => h("label", { class: "bx-dt" }, h("span", null, label), h("input", { type: "date", value, "aria-label": label === "Du" ? "Date de début" : "Date de fin", onChange: (e) => { onSet(e.target.value); drawPanel(); } }));
-    const dates = h("div", { class: "bx-dates", role: "group", "aria-label": "Filtrer par dates" }, icon("calendar"), dateIn("Du", dateFrom, (v) => { dateFrom = v; }), dateIn("au", dateTo, (v) => { dateTo = v; }),
-      dateFrom || dateTo ? h("button", { type: "button", class: "bx-fp", onClick: () => { dateFrom = ""; dateTo = ""; drawPanel(); } }, "Effacer les dates") : null);
     const matches = (n) => {
       const okF = filter === "all" || (filter === "unread" && !n.read) || filter === catOf(n);
       const okQ = !query || `${n.title ?? ""} ${n.body ?? ""} ${KIND[n.kind] ?? ""}`.toLowerCase().includes(query);
@@ -109,8 +119,7 @@ export async function inboxPage() {
       h("div", { class: "bx-tools" },
         h("div", { class: "bx-filters", role: "group", "aria-label": "Filtrer les alertes" }, fp("all", "Toutes (", h("span", null, String(notes.length)), ")"), fp("unread", "Non lues (", h("span", null, String(unreadNotes())), ")"), fp("equipe", "Équipe"), fp("annonces", "Annonces & Messages")),
         h("button", { type: "button", class: `bx-btn ${unreadNotes() ? "" : "is-off"}`, onClick: async () => { try { await api("/me/notifications/read", { method: "POST", body: {} }); notes.forEach((n) => { n.read = true; }); bxToast("Toutes les alertes ont été marquées comme lues"); refreshUnread(); draw(); } catch (error) { fail(error); } } }, icon("check-check"), h("span", null, "Tout marquer lu"))),
-      dates,
-      rows.length ? h("ul", { class: "bx-list" }, rows.map(card)) : (notes.length ? empty("Aucune alerte trouvée", "Essayez de modifier vos filtres ou votre recherche.") : empty("Aucune alerte pour le moment", "Les nouvelles alertes apparaîtront ici.")),
+      rows.length ? h("ul", { class: "bx-list" }, rows.map(card)) : (notes.length ? empty("Aucune alerte trouvée", "Essayez de modifier vos filtres, vos dates ou votre recherche.") : empty("Aucune alerte pour le moment", "Les nouvelles alertes apparaîtront ici.")),
       h("section", { class: "bx-sec" },
         h("h2", { "data-ic": "x" }, "Mes recherches enregistrées"),
         h("p", null, "Depuis l'accueil, utilisez « Enregistrer cette recherche »."),
@@ -137,7 +146,7 @@ export async function inboxPage() {
     } catch (error) { fail(error); }
   };
   const messagesPanel = () => {
-    const list = threads.filter((t) => !query || `${t.otherName ?? ""} ${t.title ?? ""} ${t.lastBody ?? ""}`.toLowerCase().includes(query));
+    const list = threads.filter((t) => (!query || `${t.otherName ?? ""} ${t.title ?? ""} ${t.lastBody ?? ""}`.toLowerCase().includes(query)) && inRange(t.lastMessageAt));
     if (!threads.length) return [h("div", { class: "bx-empty" }, h("div", { class: "bx-eic" }, icon("message")), h("h3", null, "Aucun message"), h("p", null, "Écrivez à un annonceur depuis une fiche d'annonce."))];
     if (!active || active.id !== activeId) loadActive();
     const cur = threads.find((t) => t.id === activeId) ?? threads[0];
@@ -191,6 +200,7 @@ export async function inboxPage() {
   }
   const visitsPanel = () => {
     const pend = pendingVisits();
+    const shown = visits.filter((v) => inRange(v.proposedAt)); // la date d'une visite est celle du créneau proposé
     const card = (v) => {
       const st = v.status === "PENDING" ? ["is-wait", "clock", "En attente de confirmation"] : v.status === "ACCEPTED" ? ["", "check-circle", "Visite confirmée"] : ["is-off", "x", VISIT[v.status] === "Annulée" ? "Visite annulée" : "Visite refusée"];
       let foot = null;
@@ -211,7 +221,7 @@ export async function inboxPage() {
     return [
       h("div", { class: "bx-vh" }, h("div", null, h("h2", { "data-ic": "x" }, "Demandes et planning de visites"), h("p", null, "Confirmez ou reprogrammez les créneaux demandés par vos prospects.")),
         pend ? h("div", { class: "bx-wait" }, h("i"), h("span", null, pend === 1 ? "1 visite en attente de confirmation" : `${pend} visites en attente de confirmation`)) : null),
-      visits.length ? h("ul", { class: "bx-grid" }, visits.map(card)) : h("div", { class: "bx-empty" }, h("div", { class: "bx-eic" }, icon("calendar-check")), h("h3", null, "Aucune visite"), h("p", null, "Demandez-en une depuis une fiche d'annonce.")),
+      shown.length ? h("ul", { class: "bx-grid" }, shown.map(card)) : visits.length ? h("div", { class: "bx-empty" }, h("div", { class: "bx-eic" }, icon("calendar-check")), h("h3", null, "Aucune visite trouvée"), h("p", null, "Aucune visite sur cette période. Modifiez ou effacez les dates.")) : h("div", { class: "bx-empty" }, h("div", { class: "bx-eic" }, icon("calendar-check")), h("h3", null, "Aucune visite"), h("p", null, "Demandez-en une depuis une fiche d'annonce.")),
     ];
   };
 
@@ -225,7 +235,8 @@ export async function inboxPage() {
           h("div", null, h("div", { class: "bx-h1row" }, h("h1", { class: "bx-h1" }, "Boîte"), pill),
             h("p", { class: "bx-sub" }, "Gérez vos alertes d'annonces, vos échanges clients et vos visites immobilières."))),
         h("div", { class: "bx-search" }, icon("search"), search)),
-      h("div", { class: "bx-bar" }, tabsNav, h("div", { class: "bx-date" }, icon("calendar"), h("span", null, `${frDay(new Date().toISOString())} • Bamako`)))),
+      h("div", { class: "bx-bar" }, tabsNav, h("div", { class: "bx-date" }, icon("calendar"), h("span", null, `${frDay(new Date().toISOString())} • Bamako`))),
+      rangeBar),
     host));
   draw();
 }
