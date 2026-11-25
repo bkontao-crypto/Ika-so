@@ -91,9 +91,9 @@ test("WhatsApp : webhook signé enregistré, statuts qui n'en reculent pas, droi
     const inbound = (id, text) => ({ object: "whatsapp_business_account", entry: [{ id: "1", changes: [{ field: "messages", value: { messaging_product: "whatsapp", contacts: [{ profile: { name: "Awa Test" }, wa_id: phone }], messages: [{ from: phone, id, timestamp: "1700000000", type: "text", text: { body: text } }] } }] }] });
     const countRows = async () => (await db.query("select count(*)::int as n from ika_whatsapp_messages where phone_number = $1", [phone]))[0].n;
 
-    // Message reçu : enregistré seulement si la signature est valide.
-    assert.equal((await webhook(inbound(`wamid.IN1${tag}`, "Bonjour"), false)).status, 403, "sans signature : le webhook existant refuse");
-    assert.equal((await webhook(inbound(`wamid.IN1${tag}`, "Bonjour"), true, true)).status, 403, "mauvaise signature : refus");
+    // Message reçu : enregistré seulement si la signature est valide (le webhook existant répond 401 sinon).
+    assert.equal((await webhook(inbound(`wamid.IN1${tag}`, "Bonjour"), false)).status, 401, "sans signature : refus");
+    assert.equal((await webhook(inbound(`wamid.IN1${tag}`, "Bonjour"), true, true)).status, 401, "mauvaise signature : refus");
     assert.equal(await countRows(), 0, "rien n'est enregistré sans signature valide");
     assert.equal((await webhook(inbound(`wamid.IN1${tag}`, "Bonjour"))).status, 200);
     assert.equal((await webhook(inbound(`wamid.IN1${tag}`, "Bonjour"))).status, 200, "relivraison par Meta");
