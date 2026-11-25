@@ -44,7 +44,15 @@ export function mfaSecurityCard() {
       body.push(
         h("p", null, "1. Dans votre application d'authentification, ajoutez un compte avec cette clé :"),
         h("pre", { class: "input", style: "white-space:pre-wrap;user-select:all", "aria-label": "Clé secrète" }, spaced(view.secret)),
-        h("a", { class: "btn", href: view.otpauthUri }, "Ouvrir dans mon application"),
+        h("div", { class: "row" },
+          // otpauth:// ne s'ouvre que si une application d'authentification est installée sur CET appareil (surtout un téléphone) ; sinon rien ne se passe : on prévient.
+          h("a", { class: "btn", href: view.otpauthUri, onClick: () => {
+            let left = false; const onBlur = () => { left = true; };
+            window.addEventListener("blur", onBlur, { once: true }); document.addEventListener("visibilitychange", onBlur, { once: true });
+            setTimeout(() => { window.removeEventListener("blur", onBlur); document.removeEventListener("visibilitychange", onBlur); if (!left) toast("Aucune application ne s'est ouverte. Copiez la clé et ajoutez-la à la main dans votre application d'authentification.", true); }, 1800);
+          } }, "Ouvrir dans mon application"),
+          h("button", { class: "btn", type: "button", onClick: async () => { try { await navigator.clipboard.writeText(view.secret); toast("Clé copiée."); } catch { toast("Copie impossible : sélectionnez la clé ci-dessus.", true); } } }, "Copier la clé")),
+        h("p", { class: "small muted" }, "« Ouvrir dans mon application » fonctionne sur un téléphone où une application d'authentification est installée. Sur ordinateur, copiez la clé et saisissez-la dans l'application (Google Authenticator, Authy, Microsoft Authenticator…)."),
         h("p", null, "2. Saisissez le code à 6 chiffres qu'elle affiche :"),
         h("form", { class: "stack", onSubmit: async (e) => {
           e.preventDefault();
