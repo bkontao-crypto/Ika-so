@@ -1,6 +1,6 @@
 // Owner Control Center : coquille (menu, barre du haut, palette Ctrl+K, thème) et routeur par adresse « #/… ».
 // Le contrôle d'accès est fait par le serveur à chaque appel ; ici on n'affiche que ce que le serveur accepte.
-import { api, h, ico, toast, initials, empty } from "./ui.js";
+import { api, h, ico, toast, initials, empty, panel } from "./ui.js";
 import { overviewView } from "./v-overview.js";
 import { activityView, traceView } from "./v-activity.js";
 import * as M from "./v-modules.js";
@@ -19,7 +19,7 @@ const NAV = [
   ["Annonces & modération", "list", [
     ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["discover", "flag", "Publications Découvrir"], ["alerts", "bell", "Alertes programmées"], ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }]]],
   ["Clients & croissance", "funnel", [
-    ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"]]],
+    ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"], ["whatsapp", "mail", "WhatsApp"]]],
   ["Paramètres du site", "gear", [
     ["rules", "gear", "Conditions & exceptions"], ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["ai", "sparkles", "Assistance IA"]]],
   ["Système & sécurité", "database", [
@@ -27,7 +27,13 @@ const NAV = [
 ];
 const FLAT = NAV.flatMap(([, , items]) => items).map(([id, icon, label]) => ({ id, icon, label }));
 const CAT_LABELS = { admin: "Administration", account: "Comptes", security: "Connexions", listing: "Annonces", engagement: "Interactions", safety: "Confiance", finance: "Paiements", growth: "Marketing", system: "Système", traffic: "Fréquentation" };
-const VIEWS = { charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+// WhatsApp : la boîte de messages est une page du site (#/whatsapp) ; ici, une porte d'entrée réservée au Superadmin.
+const whatsappView = () => h("div", { class: "view" }, panel("WhatsApp", "Messages reçus et envoyés avec vos contacts WhatsApp (Meta).",
+  h("div", { class: "stack" },
+    h("p", null, "Ouvrez la boîte WhatsApp pour lire les messages reçus, répondre et écrire à un numéro. L'adresse du webhook et le jeton à saisir chez Meta s'y trouvent aussi (bloc « Configuration Meta »)."),
+    h("div", null, h("a", { class: "btn primary", href: "/#/whatsapp" }, "Ouvrir la boîte WhatsApp")))));
+
+const VIEWS = { whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView, mfa: mfaView };
 
