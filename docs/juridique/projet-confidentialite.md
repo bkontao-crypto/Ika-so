@@ -20,13 +20,13 @@
 
 ## Ce que nous ne recueillons pas
 - **Aucune adresse IP n'est enregistrée** par l'application : elle sert seulement, en mémoire, à freiner les abus, et n'est ni stockée ni écrite dans les journaux. ⛔ L'hébergeur, lui, peut en conserver : à vérifier dans ses conditions.
-- Aucun traceur publicitaire, pas de CDN, pas d'analytique tierce. Le seul service tiers chargé par le navigateur est le fond de carte Mapbox, **uniquement si vous l'acceptez** (« Cartes et services externes »). Voir `registre-cookies-et-prestataires.md`.
+- **Aucun traceur publicitaire n'est actif aujourd'hui** : pas de CDN, pas d'analytique tierce. Les pixels de mesure publicitaire (Meta : Facebook et Instagram ; Google Ads ; TikTok) sont **prévus mais éteints par défaut** : l'équipe doit d'abord les activer, et ils ne se chargent alors que pour les personnes qui ont accepté « Marketing ». Si un pixel est activé, l'adresse IP, la page vue et un identifiant publicitaire sont transmis à son prestataire (sociétés établies hors du Mali) ; cette politique sera mise à jour avant toute activation. Autre service tiers chargé par le navigateur : le fond de carte Mapbox, **uniquement si vous acceptez** « Cartes et services externes ». Voir `registre-cookies-et-prestataires.md`.
 - Numéro de carte : jamais (le paiement passe par le fournisseur de paiement choisi ⛔).
 
 ## Cookies et stockage dans votre appareil
 - Un cookie de **session** (`ika_session`, HttpOnly, 30 jours) pour vous garder connecté ; un cookie court (`ika_oauth`, 10 minutes) seulement pendant une connexion par Google. Ils sont nécessaires et ne demandent pas d'accord.
 - Dans votre appareil : votre choix de confidentialité (6 mois), le brouillon d'annonce de votre compte, votre thème clair ou sombre, et une copie des dernières annonces publiques pour la lecture hors connexion. Rien de privé (messages, compte) n'y est gardé.
-- Vos choix : « Gérer mes choix » dans le pied de page. Tout service facultatif est refusé tant que vous n'avez rien accepté : **Statistiques** (comptage des pages vues, sans identifiant ni cookie) et **Cartes et services externes** (fond de carte Mapbox, société américaine, qui reçoit alors votre adresse IP).
+- Vos choix : « Gérer mes choix » dans le pied de page, et dans « Mon profil » (Paramètres et confidentialité). Quatre choix : **Préférences** (mémoriser vos réglages d'affichage), **Statistiques** (comptage des pages vues, sans identifiant ni cookie), **Cartes et services externes** (fond de carte Mapbox, société américaine, qui reçoit alors votre adresse IP) et **Marketing et publicité** (pixels publicitaires, éteints tant que l'équipe ne les active pas). Tout service facultatif est refusé tant que vous n'avez pas répondu ; en cliquant sur « Continuer », vous acceptez les quatre choix, et vous pouvez retirer chacun à tout moment.
 - Liste complète, durées et prestataires : `registre-cookies-et-prestataires.md`.
 
 ## Transferts hors du Mali (art. 11)
