@@ -9,11 +9,13 @@ import { createCounters, createLogger, requestLogger } from "./lib/logger.js";
 import { buildRoutes } from "./routes/index.js";
 import { buildMfaRoutes } from "./routes/mfa.js";
 import { buildSeoRoutes } from "./routes/seo.js";
+import { buildWhatsAppInboxRoutes } from "./routes/whatsapp-inbox.js";
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 
 // `mfa` : { service, sessions } (voir server/index.js). Absent = aucune MFA (comportement d'avant, inchangé).
-export function createApp({ services, config, logger = createLogger({ level: "error" }), health = async () => undefined, mfa = null }) {
+// `whatsappInbox` : historique WhatsApp (server/services/whatsapp-inbox.js). Absent = aucune boîte WhatsApp (comportement d'avant, inchangé).
+export function createApp({ services, config, logger = createLogger({ level: "error" }), health = async () => undefined, mfa = null, whatsappInbox = null }) {
   const app = express();
   const counters = createCounters();
   app.disable("x-powered-by");
@@ -91,6 +93,18 @@ export function createApp({ services, config, logger = createLogger({ level: "er
 
   if (mfa) services.accounts.setStaffGate?.((profile) => mfa.service.staffGate(profile)); // MFA obligatoire pour le personnel
   if (mfa) app.use("/api/mfa", buildMfaRoutes({ mfa, accounts: services.accounts, requireUser, limiter, clearSession }));
+  if (whatsappInbox) {
+    // Le webhook Meta existant (routes/index.js) reste l'unique point d'entrée : on y enregistre d'abord les messages (signature vérifiée), puis il continue comme avant.
+    app.post("/api/webhooks/whatsapp", async (req, res, next) => {
+      try {
+        await whatsappInbox.captureWebhook({ rawBody: req.rawBody, signature: req.headers["x-hub-signature-256"], body: req.body });
+      } catch (error) {
+        logger.error("whatsapp_enregistrement_echec", { error: String(error?.message ?? error) });
+      }
+      next();
+    });
+    app.use("/api/whatsapp", buildWhatsAppInboxRoutes({ inbox: whatsappInbox, accounts: services.accounts, requireUser, limiter }));
+  }
   app.use("/api", buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }));
 
   app.use("/api", (req, res) => res.status(404).json({ error: "Introuvable." }));
