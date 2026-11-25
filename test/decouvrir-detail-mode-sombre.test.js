@@ -39,3 +39,14 @@ test("« Écrire » n'est plus au pied de la carte : il est dans le détail, sur
   assert.match(soc, /sc-sidehead[\s\S]*title \? h\("strong", null, title\)[\s\S]*action\?\.\(\)/, "nom puis action sur la même ligne");
   assert.match(read("css/social.css"), /\.sc-sidehead\{display:flex;[^}]*justify-content:space-between/);
 });
+
+test("photo du détail : un clic l'ouvre en plein écran (croix, flèches, balayage), le détail suit la dernière photo vue", () => {
+  const soc = read("js/components/social.js");
+  assert.match(soc, /export function openFullscreen\(photos, start, onChange\)/);
+  assert.match(soc, /class: "sc-big"[\s\S]*onClick: full/, "la photo du détail est cliquable");
+  assert.match(soc, /touchend[\s\S]*Math\.abs\(dx\) > 60/, "balayage");
+  assert.match(soc, /openFullscreen\(photos, i, \(j\) =>/, "le détail suit la photo affichée en plein écran");
+  const css = read("css/social.css");
+  assert.match(css, /\.sc-full\{position:fixed;inset:0;width:100vw;[^}]*height:100dvh/);
+  assert.match(css, /\.sc-fullimg\{[^}]*object-fit:contain/);
+});
