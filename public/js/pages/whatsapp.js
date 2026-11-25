@@ -27,7 +27,6 @@ function svg(paths, cls = "") {
   for (const [d, fill] of paths) { const p = document.createElementNS(NS, "path"); p.setAttribute("d", d); p.setAttribute(fill ? "fill" : "stroke-linecap", fill ? "currentColor" : "round"); el.append(p); }
   return el;
 }
-const BACK = [["M15 5l-7 7 7 7"]];
 const SEND = [["M3.4 20.4l17.4-7.9a.6.6 0 000-1.1L3.4 3.6a.6.6 0 00-.8.7L5 11l9 1-9 1-2.4 6.7a.6.6 0 00.8.7z", true]];
 const TICK1 = [["M5 12.5l4.5 4.5L19 7.5"]];
 const TICK2 = [["M2 12.5l4.5 4.5L16 7.5"], ["M9.5 16.5l.9.9L21 7.5"]];
@@ -90,6 +89,12 @@ export async function whatsappPage() {
     } finally { sendButton.disabled = false; }
   } }, h("div", { class: "wa-field" }, textInput), sendButton);
 
+  // Petit écran : la discussion s'ouvre par-dessus la liste ; le bouton « précédent » du téléphone (ou du navigateur) la referme.
+  const small = () => matchMedia("(max-width: 720px)").matches;
+  function openChat() { if (small() && !open) history.pushState({ waChat: true }, ""); open = true; }
+  const onPop = () => { if (open) { open = false; composing = false; render(); } };
+  window.addEventListener("popstate", onPop);
+
   function conversations() {
     const byPhone = new Map();
     for (const m of messages) {
@@ -119,7 +124,7 @@ export async function whatsappPage() {
   function renderList() {
     const list = conversations().filter((c) => !query || `${c.name ?? ""} ${c.phone} ${c.last.text ?? ""}`.toLowerCase().includes(query));
     listEl.replaceChildren(...(list.length ? list.map((c) => h("button", { class: `wa-conv${!composing && c.phone === selected ? " is-on" : ""}`, type: "button", role: "listitem",
-      onClick: () => { selected = c.phone; composing = false; open = true; render(); threadEl.scrollTop = threadEl.scrollHeight; } },
+      onClick: () => { selected = c.phone; composing = false; openChat(); render(); threadEl.scrollTop = threadEl.scrollHeight; } },
       avatar(c.phone, c.name),
       h("span", { class: "wa-cinfo" }, h("span", { class: "wa-crow" }, h("strong", null, c.name || shown(c.phone)), h("small", { class: "wa-ctime" }, listTime(c.last.createdAt))),
         h("span", { class: "wa-clast" }, c.last.direction === "outbound" ? ticks(c.last) : null, h("span", null, String(c.last.text ?? "").slice(0, 70) || "—"))))) : [h("p", { class: "wa-empty" }, loadFailed ? "Historique indisponible." : query ? "Aucune discussion trouvée." : "Aucun message pour le moment.")]));
@@ -133,7 +138,6 @@ export async function whatsappPage() {
     const hasChat = composing || Boolean(cur);
     emptyEl.hidden = hasChat; headEl.hidden = !hasChat; threadEl.hidden = !hasChat; form.hidden = !hasChat; toRow.hidden = !composing;
     headEl.replaceChildren(...[
-      h("button", { class: "wa-back", type: "button", "aria-label": "Retour aux discussions", onClick: () => { open = false; composing = false; render(); } }, svg(BACK)),
       composing ? h("span", { class: "wa-av wa-av-new", "aria-hidden": "true" }, icon("user")) : avatar(selected, cur?.name),
       h("div", { class: "wa-ctitle" }, h("strong", null, composing ? "Nouvelle discussion" : cur ? (cur.name || shown(cur.phone)) : ""), !composing && cur?.name ? h("small", null, shown(cur.phone)) : null),
     ].filter(Boolean)); // replaceChildren(null) écrirait « null »
@@ -176,7 +180,7 @@ export async function whatsappPage() {
     h("div", { class: "wa-app" },
       h("aside", { class: "wa-side" },
         h("div", { class: "wa-shead" }, h("strong", null, "Discussions"),
-          h("button", { class: "wa-btn", type: "button", onClick: () => { composing = true; open = true; render(); toInput.focus(); } }, icon("plus"), "Nouvelle discussion")),
+          h("button", { class: "wa-btn", type: "button", onClick: () => { composing = true; openChat(); render(); toInput.focus(); } }, icon("plus"), "Nouvelle discussion")),
         h("div", { class: "wa-search" }, icon("search"), search), listEl),
       h("section", { class: "wa-main" }, emptyEl, headEl, toRow, threadEl, result, form)));
 
@@ -184,7 +188,7 @@ export async function whatsappPage() {
   render();
   await Promise.all([loadStatus(), load(true)]);
   const timer = setInterval(() => {
-    if (!root.isConnected) { clearInterval(timer); document.body.classList.remove("wa-open"); return; }
+    if (!root.isConnected) { clearInterval(timer); window.removeEventListener("popstate", onPop); document.body.classList.remove("wa-open"); return; }
     if (!document.hidden) load(true);
   }, POLL_MS);
 }
