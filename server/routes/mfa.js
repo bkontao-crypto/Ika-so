@@ -44,6 +44,12 @@ export function buildMfaRoutes({ mfa, accounts, requireUser, limiter, clearSessi
     res.json(await mfa.service.setRequired(userId, req.body.required));
   });
 
+  // Emplacements Superadmin (principal, secondaire) : lecture seule, Superadmin seulement.
+  router.get("/superadmins", async (req, res) => {
+    await accounts.requireStaff(requireUser(req), "SUPERADMIN");
+    res.json(await mfa.service.superadminSlots());
+  });
+
   router.get("/status", async (req, res) => res.json(await mfa.service.status(requireUser(req))));
 
   router.post("/begin", async (req, res) => res.json(await mfa.service.begin(requireUser(req))));
