@@ -79,7 +79,7 @@ export async function whatsappPage() {
       h("span", { class: "wa-cinfo" }, h("strong", null, c.name || shown(c.phone)), h("small", { class: "muted" }, String(c.last.text ?? "").slice(0, 60) || "—")),
       h("small", { class: "wa-ctime muted" }, when(c.last.createdAt)))) : [h("p", { class: "muted small wa-empty" }, loadFailed ? "Historique indisponible." : "Aucun message pour le moment.")]));
     const cur = list.find((c) => c.phone === selected);
-    headEl.replaceChildren(h("strong", null, composing ? "Nouvelle conversation" : cur ? (cur.name || shown(cur.phone)) : "Conversation"), !composing && cur?.name ? h("small", { class: "muted" }, shown(cur.phone)) : null);
+    headEl.replaceChildren(...[h("strong", null, composing ? "Nouvelle conversation" : cur ? (cur.name || shown(cur.phone)) : "Conversation"), !composing && cur?.name ? h("small", { class: "muted" }, shown(cur.phone)) : null].filter(Boolean)); // replaceChildren(null) écrirait « null »
     const near = threadEl.scrollHeight - threadEl.scrollTop - threadEl.clientHeight < 80;
     const thread = composing ? [] : messages.filter((m) => m.phone === selected);
     threadEl.replaceChildren(...(thread.length ? thread.map(bubble) : [h("p", { class: "muted small wa-empty" }, composing ? "Saisissez un numéro et votre message." : "Choisissez une conversation.")]));
