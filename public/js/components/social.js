@@ -116,11 +116,45 @@ export function socialBar(type, id, { onComments, inline = true, openComments = 
 }
 
 /** Photo en plein écran : précédente / suivante, et à droite j'aime, partage et commentaires de la publication. */
+/**
+ * Photo en plein écran (tout l'écran, rien d'autre) : ouverte au clic sur la photo du détail de la publication.
+ * Flèches du clavier, boutons ‹ ›, balayage du doigt ; fermeture par la croix, Échap ou un clic hors de la photo.
+ * `onChange(i)` prévient le détail de la photo affichée en dernier.
+ */
+export function openFullscreen(photos, start, onChange) {
+  loadSocialCss();
+  let i = Math.max(0, Math.min(start ?? 0, photos.length - 1));
+  const img = h("img", { class: "sc-fullimg", alt: "", draggable: "false" });
+  const counter = h("span", { class: "sc-pos" });
+  const show = () => { img.src = photos[i]; img.alt = `Photo ${i + 1} sur ${photos.length}`; counter.textContent = photos.length > 1 ? `${i + 1} / ${photos.length}` : ""; onChange?.(i); };
+  const move = (d) => { if (photos.length < 2) return; i = (i + d + photos.length) % photos.length; show(); };
+  const dlg = h("dialog", { class: "sc-full", "aria-label": "Photo en plein écran" },
+    h("button", { type: "button", class: "sc-close", "aria-label": "Fermer la photo", onClick: () => dlg.close() }, icon("x")),
+    photos.length > 1 ? h("button", { type: "button", class: "sc-nav prev", "aria-label": "Photo précédente", onClick: () => move(-1) }, "‹") : null,
+    img,
+    photos.length > 1 ? h("button", { type: "button", class: "sc-nav next", "aria-label": "Photo suivante", onClick: () => move(1) }, "›") : null, counter);
+  dlg.addEventListener("keydown", (e) => { if (e.key === "ArrowLeft") move(-1); if (e.key === "ArrowRight") move(1); });
+  dlg.addEventListener("click", (e) => { if (e.target === dlg) dlg.close(); });
+  // Balayage d'un doigt vers la gauche ou la droite (pas pendant un zoom à deux doigts).
+  let x0 = null; let y0 = 0;
+  dlg.addEventListener("touchstart", (e) => { x0 = e.touches.length === 1 && (window.visualViewport?.scale ?? 1) <= 1.02 ? e.touches[0].clientX : null; y0 = e.touches[0].clientY; }, { passive: true });
+  dlg.addEventListener("touchend", (e) => {
+    if (x0 === null) return;
+    const dx = e.changedTouches[0].clientX - x0; const dy = e.changedTouches[0].clientY - y0; x0 = null;
+    if (Math.abs(dx) > 60 && Math.abs(dy) < 50) move(dx < 0 ? 1 : -1);
+  }, { passive: true });
+  const onHash = () => dlg.close();
+  window.addEventListener("hashchange", onHash);
+  dlg.addEventListener("close", () => { window.removeEventListener("hashchange", onHash); dlg.remove(); });
+  show(); document.body.append(dlg); dlg.showModal();
+}
+
 export function openLightbox(photos, start, { type, id, title, action, body } = {}) {
   loadSocialCss();
   const withPhotos = photos.length > 0;
   let i = Math.max(0, Math.min(start ?? 0, photos.length - 1));
-  const img = h("img", { class: "sc-big", alt: "" });
+  const full = () => openFullscreen(photos, i, (j) => { if (j !== i) { i = j; show(); } });
+  const img = h("img", { class: "sc-big", alt: "", role: "button", tabindex: "0", title: "Voir en plein écran", onClick: full, onKeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); full(); } } });
   const counter = h("span", { class: "sc-pos" });
   const show = () => { if (!withPhotos) return; img.src = photos[i]; img.alt = `Photo ${i + 1} sur ${photos.length}`; counter.textContent = photos.length > 1 ? `${i + 1} / ${photos.length}` : ""; };
   const move = (d) => { if (!withPhotos) return; i = (i + d + photos.length) % photos.length; show(); };
