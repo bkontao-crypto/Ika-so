@@ -89,6 +89,7 @@ export function createApp({ services, config, logger = createLogger({ level: "er
     }
   });
 
+  if (mfa) services.accounts.setStaffGate?.((profile) => mfa.service.staffGate(profile)); // MFA obligatoire pour le personnel
   if (mfa) app.use("/api/mfa", buildMfaRoutes({ mfa, accounts: services.accounts, requireUser, limiter, clearSession }));
   app.use("/api", buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }));
 

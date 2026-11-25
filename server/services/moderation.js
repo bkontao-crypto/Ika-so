@@ -276,9 +276,18 @@ export function createModeration(ctx, accounts, engagement) {
             if (others[0].n === 0) throw forbidden("Impossible de rétrograder le dernier super administrateur actif.");
           }
         }
+        // Deux emplacements Superadmin exactement (principal, secondaire), jamais de troisième ; l'emplacement suit le rôle.
+        let slot = null;
+        if (role === "SUPERADMIN") {
+          const taken = await tx.query("select user_id, superadmin_slot from ika_profiles where staff_role = 'SUPERADMIN'");
+          const mine = taken.find((r) => r.user_id === targetId);
+          if (!mine && taken.length >= 2) throw forbidden("Les deux emplacements de super administrateur sont déjà occupés.");
+          const used = new Set(taken.map((r) => r.superadmin_slot));
+          slot = mine?.superadmin_slot ?? ["PRINCIPAL", "SECONDARY"].find((x) => !used.has(x)) ?? null; // surplus ancien sans emplacement : reste sans
+        }
         const updated = await tx.query(
-          "update ika_profiles set staff_role = $2 where user_id = $1 returning user_id",
-          [targetId, role],
+          "update ika_profiles set staff_role = $2, superadmin_slot = $3 where user_id = $1 returning user_id",
+          [targetId, role, slot],
         );
         if (!updated[0]) throw notFound("Compte introuvable.");
         // Garde-fou final : il doit toujours rester au moins un SUPERADMIN actif.

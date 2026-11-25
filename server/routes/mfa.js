@@ -32,6 +32,18 @@ export function buildMfaRoutes({ mfa, accounts, requireUser, limiter, clearSessi
     res.json({ ok: true });
   });
 
+  // Réglage « MFA obligatoire » : Superadmin seulement (Superadmin dès l'activation ; Admin et Modérateurs après 14 jours).
+  router.get("/required", async (req, res) => {
+    await accounts.requireStaff(requireUser(req), "SUPERADMIN");
+    res.json(await mfa.service.requirement());
+  });
+  router.put("/required", async (req, res) => {
+    const userId = requireUser(req);
+    await accounts.requireStaff(userId, "SUPERADMIN");
+    if (typeof req.body?.required !== "boolean") throw badRequest("Indiquez required : true ou false.");
+    res.json(await mfa.service.setRequired(userId, req.body.required));
+  });
+
   router.get("/status", async (req, res) => res.json(await mfa.service.status(requireUser(req))));
 
   router.post("/begin", async (req, res) => res.json(await mfa.service.begin(requireUser(req))));
