@@ -4,6 +4,7 @@ import { go, needLogin } from "/js/core/router.js";
 import { listingCard } from "/js/components/listing-card.js";
 import { field, passwordField } from "/js/components/ui.js";
 import { linkBar } from "/js/components/profile-tabs.js";
+import { mfaSecurityCard } from "/js/components/mfa-security.js";
 
 const STATUS_LABEL = { PENDING: "En attente", PUBLISHED: "En ligne", REJECTED: "Refusée", SOLD: "Vendue", RENTED: "Louée", ARCHIVED: "Archivée", EXPIRED: "Expirée", DRAFT: "Brouillon" };
 
@@ -219,6 +220,7 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
       h("div", { class: "row" },
         h("a", { class: "btn btn-primary", href: "#/devenir-annonceur?type=particulier" }, "Annonceur particulier (gratuit)"),
         h("a", { class: "btn", href: "#/devenir-annonceur?type=agence" }, "Devenir agence"))),
+    mfaSecurityCard(),
     newsletterCard(),
     h("article", { class: "card pad stack" },
       h("h2", null, "Mes données"),

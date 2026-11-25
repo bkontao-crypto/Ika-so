@@ -7,6 +7,8 @@ import path from "node:path";
 
 const root = path.resolve(import.meta.dirname, "..");
 const routes = [...fs.readFileSync(path.join(root, "server/routes/index.js"), "utf8").matchAll(/router\.(get|post|put|delete|patch)\(\s*"([^"]+)"/g)].map((m) => [m[1].toUpperCase(), m[2]]);
+// Routes MFA : fichier à part, monté sous /api/mfa (server/app.js).
+routes.push(...[...fs.readFileSync(path.join(root, "server/routes/mfa.js"), "utf8").matchAll(/router\.(get|post|put|delete|patch)\(\s*"([^"]+)"/g)].map((m) => [m[1].toUpperCase(), `/mfa${m[2]}`]));
 const seg = (p) => p.split("/").filter(Boolean);
 const exists = (method, p) => routes.some(([rm, rp]) => rm === method && seg(rp).length === seg(p).length && seg(rp).every((s, i) => s.startsWith(":") || seg(p)[i].startsWith(":") || s === seg(p)[i]));
 

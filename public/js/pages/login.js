@@ -49,6 +49,7 @@ export async function loginPage() {
           }
           await api(reg ? "/auth/register" : "/auth/login", { method: "POST", body });
           await refreshSession();
+          if (!reg && !S.user && (await api("/mfa/pending").catch(() => ({ pending: false }))).pending) return go(`/verification?next=${encodeURIComponent(next)}`);
           if (reg) trackConversion("registration");
           toast(reg ? "Compte créé." : "Connecté.");
           go(next.startsWith("/") ? next : "/");

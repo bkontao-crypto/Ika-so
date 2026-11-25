@@ -416,5 +416,16 @@
   "source": "alertes.js · GET/POST /me/alerts, PUT /me/alerts/:id, /pause, /extend, /delete, /history ; alerts.js, engagement.js (moteur)",
   "rights": "Compte connecté, ses propres alertes ; équipe : suspension (module modération), formules Boost (superadmin)",
   "step": "E04"
+ },
+ {
+   "id": "S45",
+   "title": "Vérification en deux étapes (MFA)",
+   "route": "#/verification",
+   "status": "Existant",
+   "need": "Terminer la connexion d'un compte protégé par la double authentification.",
+   "journey": "Mot de passe (ou Google) → saisie du code de l'appli ou d'un code de secours → connecté ; bouton Abandonner.",
+   "source": "mfa-login.js, mfa-security.js · GET /mfa/pending, POST /mfa/login, /mfa/cancel, /mfa/begin, /mfa/confirm, /mfa/backup-codes, /mfa/disable",
+   "rights": "Compte ayant activé la MFA, session en attente de code ; activation et réglages depuis Mon compte (compte connecté)",
+   "step": "E03"
  }
 ]
