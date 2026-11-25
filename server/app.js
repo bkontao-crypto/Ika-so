@@ -7,11 +7,13 @@ import { consentCspHosts } from "./lib/consent-services.js";
 import { SESSION_COOKIE, clearedSessionCookie, securityHeaders, sameOriginOnly, sessionCookie } from "./lib/web.js";
 import { createCounters, createLogger, requestLogger } from "./lib/logger.js";
 import { buildRoutes } from "./routes/index.js";
+import { buildMfaRoutes } from "./routes/mfa.js";
 import { buildSeoRoutes } from "./routes/seo.js";
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 
-export function createApp({ services, config, logger = createLogger({ level: "error" }), health = async () => undefined }) {
+// `mfa` : { service, sessions } (voir server/index.js). Absent = aucune MFA (comportement d'avant, inchangé).
+export function createApp({ services, config, logger = createLogger({ level: "error" }), health = async () => undefined, mfa = null }) {
   const app = express();
   const counters = createCounters();
   app.disable("x-powered-by");
@@ -56,11 +58,20 @@ export function createApp({ services, config, logger = createLogger({ level: "er
   });
 
   // Session : cookie opaque, seul son hachage est en base. Un compte bloqué n'a plus de session.
+  // MFA : pour un compte qui l'a activée, une session non vérifiée n'est PAS connectée (req.user = null) ; seules les routes /api/mfa/pending|login|cancel la voient.
   app.use("/api", async (req, res, next) => {
     try {
       const token = parseCookies(req.headers.cookie)[SESSION_COOKIE];
       req.sessionToken = token;
       req.user = token ? await services.accounts.sessionUser(token) : null;
+      req.mfaPendingUserId = null;
+      if (req.user && mfa) {
+        const state = await mfa.sessions.state(token);
+        if (state.enabled && !state.verified) {
+          req.mfaPendingUserId = req.user.id;
+          req.user = null;
+        }
+      }
       next();
     } catch (error) {
       next(error);
@@ -78,6 +89,7 @@ export function createApp({ services, config, logger = createLogger({ level: "er
     }
   });
 
+  if (mfa) app.use("/api/mfa", buildMfaRoutes({ mfa, accounts: services.accounts, requireUser, limiter, clearSession }));
   app.use("/api", buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }));
 
   app.use("/api", (req, res) => res.status(404).json({ error: "Introuvable." }));
