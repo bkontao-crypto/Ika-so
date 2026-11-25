@@ -4,7 +4,7 @@ import { watchDwell } from "/js/core/analytics.js";
 import { needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 import { initials } from "/js/components/espace.js";
-import { socialBar } from "/js/components/social.js";
+import { openFullscreen, socialBar } from "/js/components/social.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
@@ -32,7 +32,11 @@ export async function listingPage(id) {
     ownerSummary.replaceChildren(h("p", { class: "muted small" }, "Informations annonceur indisponibles."), h("a", { class: "btn btn-small btn-outline", href: `#/annonceur/${encodeURIComponent(item.ownerId)}` }, "Voir le profil"));
   });
   let photo = 0;
-  const main = h("img", { src: item.photos[0] ?? item.imageUrl, alt: item.title });
+  const all = item.photos.length ? item.photos : [item.imageUrl].filter(Boolean);
+  // Clic sur la photo : plein écran, avec défilement gauche/droite (flèches, clavier, balayage) s'il y a plusieurs photos.
+  const openFull = () => { if (all.length) openFullscreen(all, photo, (i) => { photo = i; main.src = all[i]; drawThumbs(); }); };
+  const main = h("img", { src: item.photos[0] ?? item.imageUrl, alt: item.title, class: "gallery-zoom", role: "button", tabindex: "0", "aria-label": "Afficher la photo en plein écran",
+    onClick: openFull, onKeydown: (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openFull(); } } });
   const thumbs = h("div", { class: "thumbs" });
   const drawThumbs = () => mount(thumbs, item.photos.length > 1
     ? item.photos.map((url, i) => h("button", { class: "thumb", type: "button", "aria-label": `Photo ${i + 1}`, "aria-current": String(i === photo), onClick: () => { photo = i; main.src = url; drawThumbs(); } }, h("img", { src: url, alt: "" })))

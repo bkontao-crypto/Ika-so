@@ -484,3 +484,4 @@ body.page-loading #app { min-height: 100vh; }
 :root[data-theme="dark"] .sponsor-banner .section-kicker{color:var(--gold-text)}
 .profile-dropdown .profile-logout { display: block; width: 100%; margin-top: 4px; padding: 11px 14px; border: 0; border-top: 1px solid var(--line); border-radius: 10px; background: none; text-align: left; font: inherit; font-weight: 700; font-size: .88rem; color: #b42318; cursor: pointer; }
 .profile-dropdown .profile-logout:hover { background: #fdecea; }
+.gallery-zoom { cursor: zoom-in; }
