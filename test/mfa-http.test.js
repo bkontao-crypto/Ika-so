@@ -92,11 +92,13 @@ test("MFA à la connexion : session en attente tant que le code n'est pas saisi,
     const d = await login();
     assert.equal((await call("/api/mfa/login", { method: "POST", cookie: d, body: { code: backupCodes[0] } })).status, 401, "code de secours déjà utilisé");
 
-    // Abandon : la session en attente est fermée.
+    // Abandon : la session en attente D est fermée (restent : inscription, A, B, C).
+    const sessionsBefore = (await db.query("select count(*)::int as n from ika_sessions s join ika_users u on u.id = s.user_id where u.email = $1", [email]))[0].n;
     const cancel = await call("/api/mfa/cancel", { method: "POST", cookie: d });
     assert.equal(cancel.status, 200);
     assert.equal(await pending(d), false, "session fermée");
-    assert.equal((await db.query("select count(*)::int as n from ika_sessions s join ika_users u on u.id = s.user_id where u.email = $1", [email]))[0].n, 3, "sessions A, B, C restantes");
+    const sessionsAfter = (await db.query("select count(*)::int as n from ika_sessions s join ika_users u on u.id = s.user_id where u.email = $1", [email]))[0].n;
+    assert.equal(sessionsAfter, sessionsBefore - 1, "exactement une session supprimée");
 
     // Désactivation depuis une session vérifiée : les connexions suivantes redeviennent directes.
     assert.equal((await call("/api/mfa/disable", { method: "POST", cookie: c, body: { code: backupCodes[1] } })).status, 200);
