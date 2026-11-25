@@ -9,6 +9,9 @@ import { createServices } from "./services/index.js";
 import { createSmsSender } from "./lib/sms.js";
 import { createEmailSender } from "./lib/email.js";
 import { createNotifier } from "./lib/notifier.js";
+import { parseKey } from "./lib/totp.js";
+import { createMfa } from "./services/mfa.js";
+import { createMfaSessions } from "./services/mfa-session.js";
 
 const config = getConfig();
 if (!config.databaseUrl) {
@@ -24,6 +27,18 @@ if (config.production && config.bootstrapAdmin && !config.bootstrapAdminEmail) {
 if (!config.production && !["development", "test"].includes(config.nodeEnv)) {
   console.error("NODE_ENV doit valoir « production » (hébergement) ou « development » (poste local). Sans lui, le premier inscrit deviendrait administrateur.");
   process.exit(1);
+}
+
+// Double authentification : la clé qui chiffre les secrets vient de l'environnement (MFA_ENCRYPTION_KEY : 32 octets, 64 caractères hexadécimaux ou base64).
+// Absente, la MFA ne peut pas être activée (refus 503) ; présente mais invalide, le démarrage est refusé pour ne jamais stocker un secret avec une mauvaise clé.
+let mfaKey = null;
+if (process.env.MFA_ENCRYPTION_KEY && process.env.MFA_ENCRYPTION_KEY.trim()) {
+  try {
+    mfaKey = parseKey(process.env.MFA_ENCRYPTION_KEY);
+  } catch (error) {
+    console.error(String(error?.message ?? error));
+    process.exit(1);
+  }
 }
 
 const db = createDb(config.databaseUrl);
@@ -54,7 +69,9 @@ if (config.bootstrapAdmin) {
 if (config.production && !config.backup.dirConfigured) {
   logger.warn("backup_dir_absent", { effet: "les sauvegardes vont dans ./backups : sur un disque éphémère elles disparaissent au redéploiement ; posez BACKUP_DIR sur un disque persistant et copiez-les hors du serveur (scripts/backup.sh)" });
 }
-const app = createApp({ services, config, logger, health: () => db.query("select 1") });
+if (!mfaKey) logger.info("mfa_non_configuree", { effet: "la double authentification ne peut pas être activée ; posez MFA_ENCRYPTION_KEY (32 octets) pour l'autoriser" });
+const mfa = { service: createMfa({ db, key: mfaKey }), sessions: createMfaSessions({ db }) };
+const app = createApp({ services, config, logger, health: () => db.query("select 1"), mfa });
 // Sauvegardes automatiques et alertes : démarrées ici (processus serveur), pas dans createApp, pour ne pas lancer de minuteries dans les tests.
 services.stats.startScheduler();
 
