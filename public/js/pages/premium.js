@@ -41,6 +41,8 @@ export async function premiumPage() {
   if (from && from !== "page-premium") api("/premium/click", { method: "POST", body: { from } }).catch(() => {});
   const access = S.user ? await api("/me/center/access").catch(() => null) : null;
   const phoneOk = Boolean(access?.phoneVerified); const premium = Boolean(access?.premium);
+  // Le numéro n'est exigé avant paiement que si la règle officielle le dit et qu'aucune exception n'a été accordée à ce compte (même règle que le serveur).
+  const phoneNeeded = access?.phoneRequiredForPremium !== false;
   // Formules Premium payables en ligne (vide si les paiements ne sont pas ouverts ou si aucun prix n'est fixé).
   const offers = S.user ? ((await api("/offers").catch(() => ({ offers: [] }))).offers ?? []).filter((o) => o.kind === "PREMIUM") : [];
   const fcfa = (n) => `${Number(n).toLocaleString("fr-FR")} FCFA`;
@@ -73,7 +75,7 @@ export async function premiumPage() {
 
     offers.length && !access?.unlimited ? h("section", { class: "card pad stack pm-buy", id: "pm-buy" },
       h("h2", null, premium ? "Renouveler le Premium" : "Choisir ma formule Premium"),
-      S.user && !phoneOk ? h("p", { class: "small pm-warn" }, "Votre numéro n'est pas encore confirmé : confirmez-le avant de payer (étape 1). Le centre de contrôle s'ouvre dès que le numéro est confirmé et l'abonnement actif.") : null,
+      S.user && !phoneOk && phoneNeeded ? h("p", { class: "small pm-warn" }, "Votre numéro n'est pas encore confirmé : confirmez-le avant de payer (étape 1). Le centre de contrôle s'ouvre dès que le numéro est confirmé et l'abonnement actif.") : null,
       premium && access?.premiumUntil ? h("p", { class: "small muted" }, `Votre Premium actuel court jusqu'au ${new Date(access.premiumUntil).toLocaleDateString("fr-FR")} ; les nouveaux jours s'ajoutent à la suite.`) : null,
       h("ul", { class: "pm-offers" }, offers.map((o) => h("li", { class: "pm-offer" },
         h("div", null, h("strong", null, o.label), h("p", { class: "small muted" }, `${o.days} jours · ${fcfa(o.priceXof)}`)),
