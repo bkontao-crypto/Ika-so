@@ -28,7 +28,7 @@
 .esp-nav{display:flex;align-items:center;gap:10px;width:100%;min-height:44px;padding:0 12px;border:0;border-radius:12px;background:none;color:inherit;font-weight:600;font-size:.88rem;text-align:left;text-decoration:none;cursor:pointer}
 .esp-nav:hover{background:rgba(255,255,255,.1)}
 .esp-nav.on{background:#f6ebc9;color:#053d27}
-.esp-nav em{margin-left:auto;font-style:normal;min-width:20px;padding:0 6px;border-radius:999px;background:#1fa463;color:#fff;font-size:.72rem;line-height:20px;text-align:center}
+.esp-nav em{margin-left:auto;font-style:normal;min-width:20px;padding:0 6px;border-radius:999px;background:#157347;color:#fff;font-size:.72rem;line-height:20px;text-align:center}
 .esp-prem{display:grid;gap:6px;margin-top:12px;padding:12px;border:1px solid rgba(255,255,255,.28);border-radius:14px;text-align:center}
 .esp-prem strong{color:#f3d58a}
 .esp-prem small{opacity:.85}
@@ -49,7 +49,7 @@
 .esp-sel{width:auto;min-height:40px;margin:0;padding:0 12px}
 .esp-legend{display:flex;gap:16px;font-size:.82rem;font-weight:600}
 .esp-legend span::before{content:"";display:inline-block;width:10px;height:10px;margin-right:6px;border-radius:50%;background:currentColor}
-.esp-legend .v{color:#0b8050}.esp-legend .c{color:#e9ad22}
+.esp-legend .v{color:#0b8050}.esp-legend .c{color:#8a5a00}
 .esp-chart{width:100%;height:auto}
 .esp-chart .g{stroke:var(--line);stroke-width:1}
 .esp-chart .ax{fill:var(--muted);font-size:10px}
@@ -63,7 +63,7 @@
 .esp-tiles strong{font:800 1.5rem var(--display,inherit)}
 .esp-tiles small{color:var(--muted)}
 .esp-delta{font-size:.78rem;font-weight:800}
-.esp-delta.up{color:#0b8050}.esp-delta.down{color:#b42318}
+.esp-delta.up{color:#08673f}.esp-delta.down{color:#b42318}
 .esp-listings{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
 .esp-listing{display:grid;gap:3px;align-content:start;padding:10px;border:1px solid var(--line);border-radius:14px;background:var(--surface,#fff)}
 .esp-limg{position:relative}
@@ -266,3 +266,8 @@ main>.pc-card{margin-bottom:16px}
 .dp-terms input{margin-top:3px;flex:none}
 .dp-history h3{font-size:1rem}
 .dp-hist{margin:0;padding-left:18px;font-size:.9rem;display:grid;gap:4px}
+:root[data-theme="dark"] .esp-delta.up,:root[data-theme="dark"] .esp-legend .v{color:#5fd3a0}
+:root[data-theme="dark"] .esp-delta.down{color:#ff8a80}
+:root[data-theme="dark"] .esp-legend .c{color:#f0b429}
+:root[data-theme="dark"] .esp-kpi em{color:var(--green-text)}
+:root[data-theme="dark"] .dir-score strong{color:var(--green-text)}

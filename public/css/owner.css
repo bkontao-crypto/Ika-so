@@ -85,7 +85,6 @@ main{min-width:0}
 .welcome p{color:var(--muted);font-size:12px;max-width:62ch}
 .actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .btn{border:1px solid var(--line);border-radius:9px;padding:9px 12px;background:var(--card);font-size:11.5px;font-weight:700;color:#31453a;display:inline-flex;align-items:center;gap:7px;text-decoration:none;transition:background .15s,border-color .15s,transform .1s;min-height:36px}
-:root[data-theme="dark"] .btn{color:var(--ink)}
 .btn:hover{border-color:#a9cdb7;background:var(--soft)}.btn:active{transform:scale(.98)}
 .btn.primary{background:var(--green);border-color:var(--green);color:#fff}.btn.primary:hover{background:#066239}
 .btn.dark{background:var(--forest);border-color:var(--forest);color:#fff}
@@ -283,7 +282,7 @@ dialog::backdrop{background:rgba(5,30,20,.55)}dialog .pad{padding:20px;display:g
 }
 
 /* Retour au site (barre du haut) et photo de profil du compte */
-.site-back{height:36px;padding:0 12px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:#42564a;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.site-back{height:36px;padding:0 12px;border:1px solid var(--line);background:var(--card);border-radius:10px;color:var(--ink);display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
 .site-back:hover{background:var(--ika-100,#e9f2e9)}
 .site-back svg{width:16px;height:16px}
 .avatar{overflow:hidden}
@@ -337,3 +336,4 @@ dialog .field .hint{color:var(--muted,#5b6b63);font-size:12px;margin-top:4px}
 .lisib-bad{border-color:#d9534f;background:color-mix(in srgb,#d9534f 8%,transparent)}
 .lisib-low{border-color:#e0a800;background:color-mix(in srgb,#e0a800 10%,transparent)}
 .lisib-sample{display:inline-block;padding:2px 8px;border-radius:6px;font-weight:600}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:1}

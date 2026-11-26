@@ -80,7 +80,7 @@
 .pa-btn.soft {
   background: var(--gold);
   border-color: var(--gold);
-  color: #1b1503;
+  color: var(--on-gold, #1b1503);
 }
 
 .btn-outline,
@@ -167,7 +167,7 @@
 
 .pill-green {
   background: color-mix(in srgb, var(--leaf) 15%, transparent);
-  color: var(--leaf);
+  color: var(--green-text, var(--leaf));
 }
 
 /* ---------- Champs de formulaire ---------- */
@@ -286,13 +286,8 @@ textarea:focus {
    Renforts dark mode et mappings supplémentaires (E02 suite)
    ============================================================ */
 
-:root[data-theme="dark"] .btn,
-:root[data-theme="dark"] .pa-btn,
-:root[data-theme="dark"] .mp-btn {
-  background: var(--card);
-  color: var(--ink);
-  border-color: var(--line);
-}
+/* Pas de règle « .btn » propre au mode sombre : plus prioritaire que les variantes (or, danger, discret…), elle effaçait leurs couleurs.
+   La règle de base ci-dessus utilise des variables, qui suivent déjà le thème. */
 
 :root[data-theme="dark"] .btn-primary,
 :root[data-theme="dark"] .pa-btn.primary,
