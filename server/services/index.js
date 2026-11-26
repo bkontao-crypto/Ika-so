@@ -77,7 +77,17 @@ const consentServices = createConsentServicesReader(superadminSettings);
   // Numéro confirmé exigé pour le Premium : condition officielle du superadmin, sauf exception tracée sur le compte.
   accounts.setAdvertiserPolicy(async () => (await ruleExceptions.official()).advertiserApplicationRequired);
   const phoneRequired = async (userId) => (await ruleExceptions.official()).phoneConfirmedForPremium && !(await ruleExceptions.activeKeys(userId)).has("phone");
-  const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
+  // Paiement confirmé par le fournisseur (appelé une seule fois par paiement, après validation de la transaction) :
+  // événement statistique, et pour un abonnement Premium une notification à l'annonceur. Meilleur effort : n'échoue jamais le webhook.
+  const onPaid = (fields) => {
+    analytics.emit("payment_completed", fields);
+    if (fields?.metadata?.kind === "PREMIUM" && fields.userId) {
+      (async () => {
+        await engagement.notify(fields.userId, { kind: "PREMIUM", title: "Paiement Premium confirmé", body: "Votre paiement est confirmé et votre Premium est activé. Retrouvez votre facture dans « Mes paiements ».", link: "#/devenir-premium" });
+      })().catch(() => undefined);
+    }
+  };
+  const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), onPaid, () => superadminSettings.get(POLICY_KEY), phoneRequired);
   const ownerDelegations = createOwnerDelegations({ db, accounts });
   const requestsHub = createRequestsHub({ db, ownerDelegations, notify: (userId, note) => engagement.notify(userId, note) });
   const social = createSocial({ db, accounts, notify: engagement.notify });
