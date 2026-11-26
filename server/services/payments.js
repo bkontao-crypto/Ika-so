@@ -284,7 +284,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy
         // Un seul événement « paiement confirmé » : seulement si CETTE notification fait passer le paiement à PAID (une 2e notification distincte pour un paiement déjà payé n'en produit pas).
         const moved = await tx.query("update ika_payments set status = 'PAID', paid_at = now() where id = $1 and status in ('PENDING','FAILED','EXPIRED') returning id", [p.id]);
         await apply(p.id, tx);
-        return moved[0] ? { ok: true, completed: { userId: p.user_id, listingId: p.listing_id, metadata: { kind: p.kind ?? "BOOST", ...(p.kind === "PREMIUM" ? { from: premiumOrigin(p.origin) } : {}) } } } : { ok: true, alreadyPaid: true };
+        return moved[0] ? { ok: true, completed: { userId: p.user_id, listingId: p.listing_id, paymentId: p.id, amountXof: p.amount_xof, metadata: { kind: p.kind ?? "BOOST", ...(p.kind === "PREMIUM" ? { from: premiumOrigin(p.origin) } : {}) } } } : { ok: true, alreadyPaid: true };
       });
       if (result.completed) onPaid?.(result.completed);
       return result.completed ? { ok: true } : result;
