@@ -94,7 +94,7 @@ export function appReturnPage(ticket) {
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <meta http-equiv="refresh" content="0;url=${escAttr(scheme)}">
-<title>Connexion réussie | IKA SÔ</title><link rel="stylesheet" href="/css/ika.css"></head>
+<title>Connexion réussie | IKA SÔ</title><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/ika.css"></head>
 <body><main class="container stack">
 <h1>Connexion réussie</h1>
 <p>Appuyez sur le bouton pour revenir dans l'application IKA SÔ. Le lien expire dans une minute.</p>
@@ -119,7 +119,7 @@ export function appFailPage(code) {
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<title>Connexion Google impossible | IKA SÔ</title><link rel="stylesheet" href="/css/ika.css"></head>
+<title>Connexion Google impossible | IKA SÔ</title><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/ika.css"></head>
 <body><main class="container stack">
 <h1>Connexion Google impossible</h1>
 <p role="alert">${escAttr(msg)}</p>

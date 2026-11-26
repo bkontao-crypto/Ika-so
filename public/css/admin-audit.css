@@ -1,4 +1,4 @@
-    body { font-family: system-ui, sans-serif; margin: 0; padding: 16px; background: var(--bg, #fff); color: var(--ink, #111); }
-    table th, table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eee; vertical-align: top; }
+
+    table th, table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
     .table { font-size: 14px; }
   

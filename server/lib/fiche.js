@@ -77,6 +77,7 @@ export function ficheHtml({ geo, listing, generatedAt = new Date(), mapboxToken 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <title>Fiche de parcelle — ${esc(listing.title)}</title>
+<link rel="stylesheet" href="/css/tokens.css">
 <link rel="stylesheet" href="/css/fiche.css">
 </head>
 <body>
