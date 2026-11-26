@@ -1,0 +1,46 @@
+/* IKA SO — couleurs communes (lot B1). Seul endroit où modifier la palette principale, en clair et en sombre.
+   Préfixe « --is- » : aucun conflit avec les anciennes variables. refonte.css y relie ses noms (--paper, --leaf, --gold…). */
+:root, :root[data-theme="light"] {
+  --is-paper: #f7f4ec;
+  --is-card: #fffdf8;
+  --is-surface-2: #f1ede2;
+  --is-line: #e6e1d3;
+  --is-line-strong: #cfc8b4;
+  --is-ink: #14201a;
+  --is-muted: #5c6a62;
+  --is-forest: #0b2a1d;
+  --is-leaf: #12734b;
+  --is-green-2: #0e5c3b;
+  --is-green-text: #12734b;
+  --is-green-ink: #0b2a1d;
+  --is-green-soft: #e3efe6;
+  --is-on-leaf: #ffffff;
+  --is-gold: #e8b23a;
+  --is-gold-soft: #fbf1d6;
+  --is-gold-text: #7a5a10;
+  --is-danger: #b3261e;
+  --is-warn: #b45309;
+  --is-info: #2563eb;
+}
+:root[data-theme="dark"] {
+  --is-paper: #07160f;
+  --is-card: #0e2a1e;
+  --is-surface-2: #123425;
+  --is-line: rgba(255, 255, 255, .09);
+  --is-line-strong: rgba(255, 255, 255, .18);
+  --is-ink: #fbf8f1;
+  --is-muted: #a0b0a6;
+  --is-forest: #04100a;
+  --is-leaf: #1e9e68;
+  --is-green-2: #16855a;
+  --is-green-text: #5fd3a0;
+  --is-green-ink: #e8f5ee;
+  --is-green-soft: rgba(30, 158, 104, .16);
+  --is-on-leaf: #04130c;
+  --is-gold: #f0b429;
+  --is-gold-soft: rgba(240, 180, 41, .14);
+  --is-gold-text: #ffd166;
+  --is-danger: #ff8a80;
+  --is-warn: #f5a524;
+  --is-info: #7cb0ff;
+}
