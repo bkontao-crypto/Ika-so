@@ -1,7 +1,7 @@
 /* Page WhatsApp : présentation de type messagerie (liste de discussions, bulles, coches), clair ou sombre selon le système.
    Palette propre à cette page (vert messagerie) : elle ne dépend pas de la couleur principale du site. */
 .wa {
-  --wa-bg: #f0f2f5; --wa-panel: #ffffff; --wa-head: #f0f2f5; --wa-chat: #efeae2; --wa-line: #e9edef; --wa-text: #111b21; --wa-sub: #667781;
+  --wa-bg: #f0f2f5; --wa-panel: #ffffff; --wa-head: #f0f2f5; --wa-chat: #efeae2; --wa-line: #e9edef; --wa-text: #111b21; --wa-sub: #54656f;
   --wa-green: #00a884; --wa-green-d: #008069; --wa-out: #d9fdd3; --wa-in: #ffffff; --wa-input: #ffffff; --wa-tick: #53bdeb; --wa-err: #c0392b; --wa-hover: #f5f6f6; --wa-sel: #f0f2f5;
   max-width: 1180px; margin: 0 auto; min-width: 0; color: var(--wa-text);
 }
@@ -101,3 +101,5 @@
   body.wa-open .bottom-nav { display: none !important; }
   body.wa-open { padding-bottom: 0 !important; overflow: hidden; }
 }
+.wa .wa-btn { background: var(--wa-green-d); }
+.wa .wa-search .wa-search-in::placeholder { color: var(--wa-sub); opacity: 1; }

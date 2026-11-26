@@ -28,7 +28,7 @@
 .mp-btn-outline { background: transparent; border-color: var(--line-strong); color: var(--ink); }
 .mp-btn-outline:hover:not(:disabled) { background: var(--surface-2); }
 .mp-btn-outline.danger { color: var(--danger); border-color: color-mix(in srgb, var(--danger) 35%, transparent); }
-.mp-btn-gold { background: var(--gold); color: #1b1503; }
+.mp-btn-gold { background: var(--gold); color: var(--on-gold, #1b1503); }
 .mp-btn-glass { background: rgba(7, 22, 15, .55); color: #fff; border-color: rgba(255, 255, 255, .25); backdrop-filter: blur(6px); min-height: 34px; padding: 5px 12px; font-size: .78rem; }
 .mp-btn.sm { min-height: 32px; padding: 4px 12px; font-size: .78rem; }
 .mp-btn.block, .mp-link.block { display: flex; margin-top: 12px; }

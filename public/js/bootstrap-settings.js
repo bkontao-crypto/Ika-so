@@ -14,7 +14,11 @@ export function applySettings(s) {
     const on = readableOn(s.colors.primary);
     if (on) root.style.setProperty("--on-leaf", on);
   }
-  if (s.colors?.accent) root.style.setProperty("--gold", s.colors.accent);
+  if (s.colors?.accent) {
+    root.style.setProperty("--gold", s.colors.accent);
+    const onGold = readableOn(s.colors.accent); // même règle pour le texte posé sur la couleur d'accent
+    if (onGold) root.style.setProperty("--on-gold", onGold);
+  }
 }
 
 // Masque les éléments portant data-module="crm|map|premium|whatsapp" désactivés.

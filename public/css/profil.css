@@ -127,3 +127,4 @@
   .pa-identity{gap:12px}
   .pa-who{margin-top:50px;min-width:0;flex:1 1 0}
 }
+:root[data-theme="dark"] .pa .pa-price,:root[data-theme="dark"] .pa-tabs button.active{color:var(--green-text)}
