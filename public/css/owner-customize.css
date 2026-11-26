@@ -1,0 +1,64 @@
+/* Personnalisation du site : coque moderne (onglets sur plusieurs lignes, suivi des modifications, espace de travail avec aperçu en direct).
+   Chargé après owner.css : ces règles complètent ou remplacent celles de « .ps-tabs ». */
+
+/* --- barre d'actions de la page --- */
+.cz-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.cz-actions [hidden]{display:none!important}
+.cz-dirty{display:none;align-items:center;gap:7px;font-size:12px;font-weight:600;color:#8a5a00;background:#fff6e0;border:1px solid #f0d38a;border-radius:10px;padding:7px 11px}
+.cz-dirty.on{display:inline-flex}
+.cz-dirty::before{content:"";width:7px;height:7px;border-radius:50%;background:#e0a100;animation:cz-pulse 1.4s ease-in-out infinite}
+@keyframes cz-pulse{50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.cz-dirty::before{animation:none}}
+[data-theme="dark"] .cz-dirty{color:#f5d48a;background:#3a2e12;border-color:#6b5420}
+
+/* --- onglets : tout est visible, sans défilement horizontal --- */
+.ps-tabs{flex-wrap:wrap;overflow:visible;gap:6px;position:static}
+.ps-tab{display:inline-flex;align-items:center}
+.ps-tab.dirty::after{content:"";width:7px;height:7px;border-radius:50%;background:#e0a100;margin-left:8px;flex:0 0 auto}
+.cz-hint{margin:-4px 2px 16px;color:var(--muted);font-size:13px}
+
+/* --- espace de travail : formulaire + aperçu --- */
+.cz-split{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:18px;align-items:start}
+.cz-split>.cz-form{display:grid;gap:16px;min-width:0}
+.cz-sticky{position:sticky;top:84px;min-width:0}
+@media (max-width:1100px){.cz-split{grid-template-columns:minmax(0,1fr)}.cz-sticky{position:static}}
+
+.cz-count{font-size:12px;color:var(--muted)}
+.cz-count.over{color:#b3261e;font-weight:700}
+.cz-fieldhead{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+
+.cz-seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cz-seg button{border:0;background:var(--card);color:var(--muted);font:inherit;font-size:12px;font-weight:600;padding:6px 12px;cursor:pointer}
+.cz-seg button[aria-pressed="true"]{background:var(--green);color:#fff}
+.cz-seg button:focus-visible{outline:2px solid var(--green);outline-offset:-2px}
+
+.cz-col{border:1px solid var(--line);border-radius:14px;padding:14px;background:var(--card);display:grid;gap:10px}
+.cz-colhead,.cz-link{display:grid;gap:8px;align-items:center}
+.cz-colhead{grid-template-columns:auto auto minmax(0,1fr) auto}
+.cz-link{grid-template-columns:auto auto minmax(0,1fr) minmax(0,1.2fr) auto}
+@media (max-width:640px){.cz-link{grid-template-columns:auto auto minmax(0,1fr) auto}.cz-link .cz-href{grid-column:1 / -1}}
+.cz-ib{min-width:34px;padding-left:8px;padding-right:8px}
+.cz-warn{font-size:12px;color:#8a5a00}
+.cz-foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* --- aperçu du pied de page (rendu approximatif, volontairement sombre comme le site) --- */
+.fp-frame{border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);box-shadow:var(--shadow);transition:max-width .25s}
+.fp-frame.mobile{max-width:330px;margin:0 auto}
+.fp-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;background:var(--soft);border-bottom:1px solid var(--line)}
+.fp-dots{display:inline-flex;gap:5px}
+.fp-dots i{width:9px;height:9px;border-radius:50%;background:#d9a09a}
+.fp-dots i:nth-child(2){background:#e6c77a}
+.fp-dots i:nth-child(3){background:#7fbf9d}
+.fp-url{font-size:11px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:7px;padding:2px 9px}
+.fp{background:#073d2b;color:#fff;padding:20px;display:grid;gap:18px}
+.fp-top{display:grid;gap:10px}
+.fp-brand{display:flex;align-items:center;gap:9px}
+.fp-logo{width:30px;height:30px;border-radius:9px;background:#087448;display:grid;place-items:center;font-size:11px;font-weight:800}
+.fp-top p{margin:0;font-size:12px;line-height:1.55;color:rgba(255,255,255,.78);overflow-wrap:anywhere}
+.fp-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:16px}
+.fp-frame.mobile .fp-cols{grid-template-columns:minmax(0,1fr)}
+.fp-col h4{margin:0 0 8px;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#a7e3c0;overflow-wrap:anywhere}
+.fp-col ul{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.fp-col li{font-size:12px;color:rgba(255,255,255,.8);overflow-wrap:anywhere}
+.fp-col li.fp-empty{font-style:italic;color:rgba(255,255,255,.4)}
+.fp-bottom{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid rgba(255,255,255,.14);padding-top:12px;font-size:11px;color:rgba(255,255,255,.7)}
