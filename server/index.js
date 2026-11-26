@@ -6,6 +6,7 @@ import { getConfig, smsConfigured } from "./config.js";
 import { createDb } from "./db.js";
 import { migrate } from "./migrate.js";
 import { createServices } from "./services/index.js";
+import { loadBrand } from "./lib/brand.js";
 import { createSmsSender } from "./lib/sms.js";
 import { createEmailSender } from "./lib/email.js";
 import { createNotifier } from "./lib/notifier.js";
