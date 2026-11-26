@@ -31,6 +31,7 @@ import { createDiscover } from "./discover.js";
 import { createRequestsHub } from "./requests-hub.js";
 import { POLICY_KEY } from "../lib/payment-policy.js";
 import { createNotifier } from "../lib/notifier.js";
+import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { createReviews } from "./reviews.js";
 import { createRights } from "./rights.js";
 import { createSeo } from "./seo.js";
@@ -78,14 +79,21 @@ const consentServices = createConsentServicesReader(superadminSettings);
   accounts.setAdvertiserPolicy(async () => (await ruleExceptions.official()).advertiserApplicationRequired);
   const phoneRequired = async (userId) => (await ruleExceptions.official()).phoneConfirmedForPremium && !(await ruleExceptions.activeKeys(userId)).has("phone");
   // Paiement confirmé par le fournisseur (appelé une seule fois par paiement, après validation de la transaction) :
-  // événement statistique, et pour un abonnement Premium une notification à l'annonceur. Meilleur effort : n'échoue jamais le webhook.
-  const onPaid = (fields) => {
-    analytics.emit("payment_completed", fields);
-    if (fields?.metadata?.kind === "PREMIUM" && fields.userId) {
+  // événement statistique ; notification sur le site pour un abonnement Premium ; reçu par les canaux hors du site que la personne a choisis.
+  // Meilleur effort : rien de tout cela ne peut faire échouer le webhook, et chaque envoi est indépendant des autres.
+  const onPaid = ({ userId, listingId, paymentId, amountXof, metadata }) => {
+    analytics.emit("payment_completed", { userId, listingId, metadata });
+    if (!userId) return;
+    if (metadata?.kind === "PREMIUM") {
       (async () => {
-        await engagement.notify(fields.userId, { kind: "PREMIUM", title: "Paiement Premium confirmé", body: "Votre paiement est confirmé et votre Premium est activé. Retrouvez votre facture dans « Mes paiements ».", link: "#/devenir-premium" });
+        await engagement.notify(userId, { kind: "PREMIUM", title: "Paiement Premium confirmé", body: "Votre paiement est confirmé et votre Premium est activé. Retrouvez votre facture dans « Mes paiements ».", link: "#/devenir-premium" });
       })().catch(() => undefined);
     }
+    (async () => {
+      const inv = paymentId ? (await db.query("select i.number, i.label, u.name from ika_invoices i join ika_users u on u.id = i.user_id where i.payment_id = $1", [paymentId]))[0] : null;
+      const receipt = formatReceiptEmail({ reference: inv?.number ?? paymentId, amountXof, offerName: inv?.label, date: new Date(), userName: inv?.name });
+      await notifier.notify(userId, { title: receipt.subject, body: receipt.text, html: receipt.html, channels: ["email", "sms", "whatsapp"] });
+    })().catch(() => undefined);
   };
   const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), onPaid, () => superadminSettings.get(POLICY_KEY), phoneRequired);
   const ownerDelegations = createOwnerDelegations({ db, accounts });
