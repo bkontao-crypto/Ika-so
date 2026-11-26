@@ -15,21 +15,21 @@
 :root, :root[data-theme="light"] {
   color-scheme: light;
   /* Surfaces */
-  --paper: #f7f4ec; --cream: #f7f4ec; --page: #f7f4ec;
-  --card: #fffdf8; --surface: #fffdf8; --surface-2: #f1ede2;
-  --line: #e6e1d3; --line-strong: #cfc8b4;
+  --paper: var(--is-paper); --cream: var(--is-paper); --page: var(--is-paper);
+  --card: var(--is-card); --surface: var(--is-card); --surface-2: var(--is-surface-2);
+  --line: var(--is-line); --line-strong: var(--is-line-strong);
   /* Texte */
-  --ink: #14201a; --muted: #5c6a62;
+  --ink: var(--is-ink); --muted: var(--is-muted);
   /* Identité */
-  --forest: #0b2a1d; --ika-900: #0b2a1d;
-  --leaf: #12734b; --green: #12734b; --green-2: #0e5c3b;
-  --ika-700: #12734b; --green-text: #12734b; --green-ink: #0b2a1d;
-  --ika-100: #e3efe6; --green-soft: #e3efe6;
-  --on-leaf: #ffffff;
+  --forest: var(--is-forest); --ika-900: var(--is-forest);
+  --leaf: var(--is-leaf); --green: var(--is-leaf); --green-2: var(--is-green-2);
+  --ika-700: var(--is-green-text); --green-text: var(--is-green-text); --green-ink: var(--is-green-ink);
+  --ika-100: var(--is-green-soft); --green-soft: var(--is-green-soft);
+  --on-leaf: var(--is-on-leaf);
   /* Doré discret (premium) */
-  --lime: #e8b23a; --gold: #e8b23a; --gold-soft: #fbf1d6; --gold-text: #7a5a10;
+  --lime: var(--is-gold); --gold: var(--is-gold); --gold-soft: var(--is-gold-soft); --gold-text: var(--is-gold-text);
   /* Fonctionnel */
-  --danger: #b3261e; --warn: #b45309; --info: #2563eb; --ok: #12734b;
+  --danger: var(--is-danger); --warn: var(--is-warn); --info: var(--is-info); --ok: var(--is-green-text);
   /* Forme */
   --radius: 20px; --radius-sm: 12px; --radius-lg: 28px;
   --shadow: 0 14px 40px rgba(20, 40, 28, .09);
@@ -42,17 +42,17 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --paper: #07160f; --cream: #07160f; --page: #07160f;
-  --card: #0e2a1e; --surface: #0e2a1e; --surface-2: #123425;
-  --line: rgba(255, 255, 255, .09); --line-strong: rgba(255, 255, 255, .18);
-  --ink: #fbf8f1; --muted: #a0b0a6;
-  --forest: #04100a; --ika-900: #04100a;
-  --leaf: #1e9e68; --green: #1e9e68; --green-2: #16855a;
-  --ika-700: #5fd3a0; --green-text: #5fd3a0; --green-ink: #e8f5ee;
-  --ika-100: rgba(30, 158, 104, .16); --green-soft: rgba(30, 158, 104, .16);
-  --on-leaf: #04130c;
-  --lime: #f0b429; --gold: #f0b429; --gold-soft: rgba(240, 180, 41, .14); --gold-text: #ffd166;
-  --danger: #ff8a80; --warn: #f5a524; --info: #7cb0ff; --ok: #5fd3a0;
+  --paper: var(--is-paper); --cream: var(--is-paper); --page: var(--is-paper);
+  --card: var(--is-card); --surface: var(--is-card); --surface-2: var(--is-surface-2);
+  --line: var(--is-line); --line-strong: var(--is-line-strong);
+  --ink: var(--is-ink); --muted: var(--is-muted);
+  --forest: var(--is-forest); --ika-900: var(--is-forest);
+  --leaf: var(--is-leaf); --green: var(--is-leaf); --green-2: var(--is-green-2);
+  --ika-700: var(--is-green-text); --green-text: var(--is-green-text); --green-ink: var(--is-green-ink);
+  --ika-100: var(--is-green-soft); --green-soft: var(--is-green-soft);
+  --on-leaf: var(--is-on-leaf);
+  --lime: var(--is-gold); --gold: var(--is-gold); --gold-soft: var(--is-gold-soft); --gold-text: var(--is-gold-text);
+  --danger: var(--is-danger); --warn: var(--is-warn); --info: var(--is-info); --ok: var(--is-green-text);
   --shadow: 0 14px 40px rgba(0, 0, 0, .35);
   --shadow-lg: 0 28px 70px rgba(0, 0, 0, .5);
   --ring: 0 0 0 3px rgba(240, 180, 41, .6);
