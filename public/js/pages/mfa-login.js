@@ -7,13 +7,22 @@ import { field } from "/js/components/ui.js";
 
 export async function mfaLoginPage() {
   const next = currentRoute().params.get("next") || "/";
-  const { pending } = await api("/mfa/pending").catch(() => ({ pending: false }));
+  const { pending, method, sentTo } = await api("/mfa/pending").catch(() => ({ pending: false }));
   if (!pending) return go("/connexion"); // rien à vérifier : session absente ou déjà complète
   let code = "";
   let busy = false;
+  const channel = method === "EMAIL" || method === "SMS"; // code reçu par e-mail ou SMS
+  const info = h("p", { class: "muted" }, channel ? `Envoi du code à ${sentTo ?? "votre contact"}…` : "Saisissez le code à 6 chiffres affiché par votre application d'authentification, ou l'un de vos codes de secours.");
+  const send = async (manual) => {
+    try {
+      const r = await api("/mfa/send-code", { method: "POST", body: {} });
+      info.textContent = `Un code à 6 chiffres a été envoyé ${r.method === "EMAIL" ? "par e-mail" : "par SMS"} à ${r.sentTo}. Il est valable ${r.expiresInMinutes} minutes. Vous pouvez aussi saisir un code de secours.`;
+      if (manual) toast("Nouveau code envoyé.");
+    } catch (error) { info.textContent = `${error?.message ?? "Envoi impossible."} Vous pouvez saisir un code de secours.`; if (manual) fail(error); }
+  };
   mount(app, h("div", { class: "card pad stack" },
     h("h1", { class: "title" }, "Vérification en deux étapes"),
-    h("p", { class: "muted" }, "Saisissez le code à 6 chiffres affiché par votre application d'authentification, ou l'un de vos codes de secours."),
+    info,
     h("form", { class: "stack", onSubmit: async (e) => {
       e.preventDefault();
       if (busy) return;
@@ -28,6 +37,7 @@ export async function mfaLoginPage() {
       field("Code de vérification", h("input", { class: "input", name: "code", autocomplete: "one-time-code", autocapitalize: "characters", spellcheck: "false", required: true, maxlength: "20", onInput: (e) => (code = e.target.value) })),
       h("div", { class: "auth-actions" },
         h("button", { class: "btn btn-primary", type: "submit" }, "Valider"),
+        channel ? h("button", { class: "btn", type: "button", onClick: () => send(true) }, "Renvoyer le code") : null,
         h("button", { class: "btn", type: "button", onClick: async () => {
           try { await api("/mfa/cancel", { method: "POST", body: {} }); } catch (error) { fail(error); return; }
           clearSession();
@@ -35,4 +45,5 @@ export async function mfaLoginPage() {
         } }, "Abandonner"))),
     h("p", { class: "small muted" }, "Après 5 codes faux, la vérification est bloquée 15 minutes.")));
   app.querySelector("input[name=code]")?.focus();
+  if (channel) send(false);
 }

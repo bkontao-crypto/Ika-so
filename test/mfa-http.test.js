@@ -50,7 +50,7 @@ test("MFA à la connexion : session en attente tant que le code n'est pas saisi,
     assert.equal(await privateStatus(a), 200);
     const status = await call("/api/mfa/status", { cookie: a });
     assert.equal(status.headers.get("cache-control"), "no-store");
-    assert.deepEqual(await status.json(), { enabled: false, pending: false, backupCodesLeft: 0 });
+    { const { enabled, pending, backupCodesLeft } = await status.json(); assert.deepEqual({ enabled, pending, backupCodesLeft }, { enabled: false, pending: false, backupCodesLeft: 0 }); }
     assert.equal((await call("/api/mfa/status")).status, 401, "MFA : connexion requise");
     assert.equal((await call("/api/mfa/login", { method: "POST", body: { code: "123456" } })).status, 400, "rien à vérifier sans session");
 
