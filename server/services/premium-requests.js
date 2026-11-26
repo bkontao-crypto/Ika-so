@@ -159,7 +159,10 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
       });
     },
 
-    /** Valide une étape du suivi de remboursement. Indépendantes ; la 3e validée clôt le suivi et notifie l'annonceur (décision finale). */
+    /**
+     * Valide une étape du suivi de remboursement. Indépendantes ; la 3e validée clôt le suivi et notifie l'annonceur (décision finale).
+     * L'étape 2 (« Remboursement effectué ») retire en même temps les jours Premium du paiement remboursé : l'argent rendu et la fin du Premium vont ensemble.
+     */
     async completeRefundStep(staffId, refundId, step, { note } = {}) {
       const n = refundStepNo(step);
       const why = String(note ?? "").trim().slice(0, 300);
@@ -170,6 +173,10 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         const inserted = await tx.query("insert into ika_premium_refund_steps (refund_id, step, done_by, note) values ($1, $2, $3, $4) on conflict (refund_id, step) do nothing returning step", [f.id, n, staffId, why]);
         if (!inserted[0]) throw conflict(`L'étape « ${REFUND_STEPS[n]} » est déjà validée.`);
         await moderationAudit?.log(staffId, { action: "PREMIUM_REFUND_STEP_DONE", targetType: "premium_refund", targetId: f.id, details: { userId: f.user_id, requestId: f.request_id, step: n, label: REFUND_STEPS[n], note: why } }).catch(() => {});
+        if (n === 2) {
+          const req = (await tx.query("select created_at from ika_premium_requests where id = $1", [f.request_id]))[0];
+          if (req) await payments?.refundForRejectedPremium?.(tx, { userId: f.user_id, requestCreatedAt: req.created_at, by: staffId });
+        }
         const done = Number((await tx.query("select count(*)::int as n from ika_premium_refund_steps where refund_id = $1", [f.id]))[0]?.n ?? 0);
         const complete = done === 3;
         if (complete) {
