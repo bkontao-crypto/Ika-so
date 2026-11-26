@@ -2,7 +2,8 @@
 // Étape 2a : service autonome, pas encore branché à la connexion ni aux routes (étape 2b).
 // `key` : clé de chiffrement des secrets (Buffer de 32 octets, voir parseKey). Sans elle, l'activation est refusée (503) : rien n'est stocké en clair.
 import { AppError, badRequest, conflict, forbidden, tooMany, unauthorized } from "../lib/errors.js";
-import { newId } from "../lib/security.js";
+import { randomInt } from "node:crypto";
+import { newId, sha256 } from "../lib/security.js";
 import {
   BACKUP_CODE_COUNT,
   decryptSecret,
@@ -18,10 +19,14 @@ import {
 const MAX_FAILURES = 5; // essais ratés tolérés…
 const GRACE_DAYS = 14; // Admin et Modérateurs : délai après l'activation de l'obligation (le Superadmin est concerné dès l'activation)
 const STAFF = new Set(["MODERATOR", "ADMIN", "SUPERADMIN"]);
+const METHODS = ["APP", "EMAIL", "SMS"];
+const OTP_MINUTES = 10; // validité d'un code reçu par e-mail ou SMS
+const OTP_MIN_GAP_SECONDS = 45; // délai minimal entre deux envois
+const OTP_PER_HOUR = 5;
 const LOCK_MINUTES = 15; // …avant un blocage de cette durée (comptés depuis la dernière réussite)
 
 export function createMfa(ctx) {
-  const { db, key = null } = ctx;
+  const { db, key = null, sendEmail = null, sendSms = null } = ctx;
 
   function requireKey() {
     if (!key) throw new AppError(503, "La double authentification n'est pas encore configurée sur ce serveur.");
@@ -45,20 +50,78 @@ export function createMfa(ctx) {
 
   /** Accepte un code de l'appli ou un code de secours, et le « consomme ». Retourne "TOTP", "BACKUP" ou null. */
   async function consumeCode(userId, rawCode, { requireConfirmed }) {
-    const row = (await db.query("select secret_enc, confirmed_at, last_step from ika_mfa_secrets where user_id = $1", [userId]))[0];
+    const row = (await db.query("select secret_enc, confirmed_at, last_step, method from ika_mfa_secrets where user_id = $1", [userId]))[0];
     if (!row || (requireConfirmed && !row.confirmed_at)) return null;
     const text = String(rawCode ?? "").trim().slice(0, 40);
+    if (row.method !== "APP") {
+      // Code reçu par e-mail ou SMS : 6 chiffres, valable 10 minutes, un seul usage (consommé atomiquement).
+      if (/^\d{6}$/.test(text)) {
+        const used = await db.query("update ika_mfa_otps set used_at = now() where user_id = $1 and code_hash = $2 and used_at is null and expires_at > now() returning id", [userId, hashOtp(userId, text)]);
+        if (used[0]) return "OTP";
+      }
+    } else {
     const step = verifyTotp(decryptSecret(row.secret_enc, key), text, { lastStep: row.last_step });
     if (step !== null) {
       // Atomique : si deux demandes arrivent avec le même code, une seule passe.
       const done = await db.query("update ika_mfa_secrets set last_step = $2 where user_id = $1 and (last_step is null or last_step < $2) returning user_id", [userId, step]);
       return done[0] ? "TOTP" : null;
     }
+    }
     if (row.confirmed_at && normalizeBackupCode(text).length === 10) {
       const used = await db.query("update ika_mfa_backup_codes set used_at = now() where user_id = $1 and code_hash = $2 and used_at is null returning id", [userId, hashBackupCode(text)]);
       if (used[0]) return "BACKUP";
     }
     return null;
+  }
+
+  const hashOtp = (userId, code) => sha256(`${userId}:${code}`);
+
+  /** Méthodes proposées aujourd'hui : l'application toujours (si la clé existe), l'e-mail et le SMS seulement si un fournisseur est configuré. */
+  const available = () => ({ app: Boolean(key), email: Boolean(key && sendEmail), sms: Boolean(key && sendSms) });
+
+  const maskEmail = (e) => { const [u, d = ""] = String(e).split("@"); return `${u.slice(0, 1)}${"•".repeat(Math.max(2, Math.min(5, u.length - 1)))}@${d}`; };
+  const maskPhone = (p) => { const d = String(p).replace(/\D/g, ""); return `+${d.slice(0, 3)} •• •• ${d.slice(-2)}`; };
+
+  /** Où envoyer le code : e-mail du compte, ou numéro de téléphone DÉJÀ vérifié (jamais un numéro non contrôlé). */
+  async function destination(userId, method) {
+    if (method === "EMAIL") {
+      const u = (await db.query("select email from ika_users where id = $1", [userId]))[0];
+      if (!u?.email) throw badRequest("Aucune adresse e-mail sur ce compte.");
+      return { to: u.email, masked: maskEmail(u.email) };
+    }
+    const p = (await db.query("select phone, phone_verified_at from ika_profiles where user_id = $1", [userId]))[0];
+    if (!p?.phone || !p.phone_verified_at) throw badRequest("Vérifiez d'abord votre numéro de téléphone dans votre profil pour recevoir les codes par SMS.");
+    return { to: p.phone, masked: maskPhone(p.phone) };
+  }
+
+  /** Envoie un code à usage unique (méthodes e-mail et SMS). Au plus un envoi toutes les 45 s et 5 par heure. */
+  async function sendCode(userId) {
+    const row = (await db.query("select method from ika_mfa_secrets where user_id = $1", [userId]))[0];
+    if (!row || row.method === "APP") throw badRequest("Cette méthode n'utilise pas de code envoyé.");
+    const sender = row.method === "EMAIL" ? sendEmail : sendSms;
+    if (!sender) throw new AppError(503, "L'envoi de codes n'est pas configuré sur ce serveur.");
+    const recent = (await db.query(
+      `select count(*) filter (where created_at > now() - ($2 || ' seconds')::interval)::int as gap, count(*)::int as hour
+       from ika_mfa_otps where user_id = $1 and created_at > now() - interval '1 hour'`,
+      [userId, String(OTP_MIN_GAP_SECONDS)],
+    ))[0];
+    if (Number(recent.gap) > 0) throw tooMany(`Patientez ${OTP_MIN_GAP_SECONDS} secondes avant de demander un nouveau code.`);
+    if (Number(recent.hour) >= OTP_PER_HOUR) throw tooMany("Trop de codes demandés. Réessayez dans une heure, ou utilisez un code de secours.");
+    const dest = await destination(userId, row.method);
+    const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+    const id = newId("otp");
+    await db.transaction(async (tx) => {
+      await tx.query("update ika_mfa_otps set used_at = now() where user_id = $1 and used_at is null", [userId]); // l'ancien code n'est plus valable
+      await tx.query("insert into ika_mfa_otps (id, user_id, code_hash, expires_at) values ($1, $2, $3, now() + ($4 || ' minutes')::interval)", [id, userId, hashOtp(userId, code), String(OTP_MINUTES)]);
+    });
+    try {
+      if (row.method === "EMAIL") await sender({ to: dest.to, subject: "Ika So : votre code de vérification", text: `Votre code de vérification Ika So : ${code}\n\nIl est valable ${OTP_MINUTES} minutes et ne sert qu'une fois. Ne le communiquez à personne, même à l'équipe Ika So.` });
+      else await sender(dest.to, `Ika So : votre code ${code} (valable ${OTP_MINUTES} min). Ne le partagez avec personne.`);
+    } catch {
+      await db.query("delete from ika_mfa_otps where id = $1", [id]);
+      throw new AppError(502, "L'envoi du code a échoué. Réessayez dans un instant, ou utilisez un code de secours.");
+    }
+    return { method: row.method, sentTo: dest.masked, expiresInMinutes: OTP_MINUTES };
   }
 
   async function backupLeft(userId) {
@@ -139,24 +202,45 @@ export function createMfa(ctx) {
     },
 
     async status(userId) {
-      const row = (await db.query("select confirmed_at from ika_mfa_secrets where user_id = $1", [userId]))[0];
-      return { enabled: Boolean(row?.confirmed_at), pending: Boolean(row && !row.confirmed_at), backupCodesLeft: row?.confirmed_at ? await backupLeft(userId) : 0 };
+      const row = (await db.query("select confirmed_at, method from ika_mfa_secrets where user_id = $1", [userId]))[0];
+      const phone = (await db.query("select phone_verified_at from ika_profiles where user_id = $1", [userId]))[0];
+      return {
+        enabled: Boolean(row?.confirmed_at), pending: Boolean(row && !row.confirmed_at), backupCodesLeft: row?.confirmed_at ? await backupLeft(userId) : 0,
+        method: row?.method ?? null, available: available(), phoneVerified: Boolean(phone?.phone_verified_at),
+      };
+    },
+
+    available,
+    sendCode,
+
+    /** Méthode de la vérification en attente (page de connexion) : pour afficher la bonne consigne. Jamais de secret. */
+    async pendingInfo(userId) {
+      const row = (await db.query("select method from ika_mfa_secrets where user_id = $1 and confirmed_at is not null", [userId]))[0];
+      if (!row) return { method: null, sentTo: null };
+      if (row.method === "APP") return { method: "APP", sentTo: null };
+      const dest = await destination(userId, row.method).catch(() => null);
+      return { method: row.method, sentTo: dest?.masked ?? null };
     },
 
     /** Début d'activation : nouveau secret à scanner. Inactif tant qu'un premier code valide n'a pas été saisi. */
-    async begin(userId) {
+    async begin(userId, method = "APP") {
       requireKey();
+      if (!METHODS.includes(method)) throw badRequest("Méthode inconnue : choisissez APP, EMAIL ou SMS.");
       const user = (await db.query("select email from ika_users where id = $1", [userId]))[0];
       if (!user) throw unauthorized("Connexion requise.");
-      const secret = generateSecret();
+      if (method === "EMAIL" && !sendEmail) throw badRequest("Le code par e-mail n'est pas disponible sur ce serveur.");
+      if (method === "SMS" && !sendSms) throw badRequest("Le code par SMS n'est pas disponible sur ce serveur.");
+      if (method !== "APP") await destination(userId, method); // refuse tout de suite un numéro non vérifié
+      const secret = generateSecret(); // pour les méthodes e-mail et SMS : valeur de remplissage, jamais communiquée ni acceptée
       const rows = await db.query(
-        `insert into ika_mfa_secrets (user_id, secret_enc) values ($1, $2)
-         on conflict (user_id) do update set secret_enc = excluded.secret_enc, last_step = null, created_at = now()
+        `insert into ika_mfa_secrets (user_id, secret_enc, method) values ($1, $2, $3)
+         on conflict (user_id) do update set secret_enc = excluded.secret_enc, method = excluded.method, last_step = null, created_at = now()
          where ika_mfa_secrets.confirmed_at is null returning user_id`,
-        [userId, encryptSecret(secret, key)],
+        [userId, encryptSecret(secret, key), method],
       );
       if (!rows[0]) throw conflict("La double authentification est déjà activée.");
-      return { secret, otpauthUri: otpauthUri(secret, user.email) };
+      if (method === "APP") return { method, secret, otpauthUri: otpauthUri(secret, user.email) };
+      return sendCode(userId);
     },
 
     /** Fin d'activation : un code valide prouve que l'appli est bien configurée. Retourne les codes de secours (montrés une seule fois). */

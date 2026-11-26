@@ -3,6 +3,7 @@
 import { api, fail, h, toast } from "/js/dom.js";
 import { field } from "/js/components/ui.js";
 
+const METHOD_LABEL = { APP: "par application d'authentification", EMAIL: "par code e-mail", SMS: "par code SMS" };
 const spaced = (secret) => String(secret).replace(/(.{4})/g, "$1 ").trim();
 
 export function mfaSecurityCard() {
@@ -25,9 +26,14 @@ export function mfaSecurityCard() {
         h("button", { class: "btn btn-primary", type: "button", onClick: refresh }, "J'ai noté mes codes")));
   }
 
+  const isChannel = () => view.status?.method === "EMAIL" || view.status?.method === "SMS";
+  const sendCode = async () => { try { const r = await api("/mfa/send-code", { method: "POST", body: {} }); toast(`Code envoyé à ${r.sentTo}.`); } catch (error) { fail(error); } };
+
   function codeForm(label, danger, action) {
     let code = "";
     return h("form", { class: "stack", onSubmit: async (e) => { e.preventDefault(); try { await action(code); } catch (error) { fail(error); } } },
+      isChannel() ? h("p", { class: "small" }, "Demandez un code, puis saisissez-le ci-dessous (ou utilisez un code de secours).") : null,
+      isChannel() ? h("div", null, h("button", { class: "btn", type: "button", onClick: sendCode }, "Recevoir un code")) : null,
       codeInput("code", (v) => (code = v)),
       h("div", { class: "row" },
         h("button", { class: `btn ${danger ? "btn-dark" : "btn-primary"}`, type: "submit" }, label),
@@ -60,6 +66,19 @@ export function mfaSecurityCard() {
         } },
           codeInput("code", (v) => (code = v)),
           h("div", { class: "row" }, h("button", { class: "btn btn-primary", type: "submit" }, "Activer"), h("button", { class: "btn", type: "button", onClick: refresh }, "Annuler"))));
+    } else if (view.step === "channel") {
+      let code = "";
+      body.push(
+        h("p", null, `Un code à 6 chiffres a été envoyé ${view.method === "EMAIL" ? "par e-mail" : "par SMS"} à ${view.sentTo}. Saisissez-le pour activer la protection :`),
+        h("form", { class: "stack", onSubmit: async (e) => {
+          e.preventDefault();
+          try { const r = await api("/mfa/confirm", { method: "POST", body: { code } }); toast("Double authentification activée."); show({ step: "codes", codes: r.backupCodes }); } catch (error) { fail(error); }
+        } },
+          field("Code à 6 chiffres", h("input", { class: "input", name: "code", inputmode: "numeric", autocomplete: "one-time-code", spellcheck: "false", required: true, maxlength: "6", onInput: (e) => (code = e.target.value) })),
+          h("div", { class: "row" },
+            h("button", { class: "btn btn-primary", type: "submit" }, "Activer"),
+            h("button", { class: "btn", type: "button", onClick: async () => { try { const r = await api("/mfa/send-code", { method: "POST", body: {} }); toast("Nouveau code envoyé."); view.sentTo = r.sentTo; draw(); } catch (error) { fail(error); } } }, "Renvoyer le code"),
+            h("button", { class: "btn", type: "button", onClick: refresh }, "Annuler"))));
     } else if (view.step === "regenerate") {
       body.push(h("p", { class: "small" }, "Les anciens codes de secours cesseront de fonctionner."),
         codeForm("Renouveler mes codes", false, async (code) => { const r = await api("/mfa/backup-codes", { method: "POST", body: { code } }); show({ step: "codes", codes: r.backupCodes }); }));
@@ -69,16 +88,27 @@ export function mfaSecurityCard() {
     } else {
       const s = view.status;
       if (s.enabled) {
-        body.push(h("p", null, h("span", { class: "pill pill-green" }, "Activée")),
+        body.push(h("p", null, h("span", { class: "pill pill-green" }, "Activée"), " ", h("span", { class: "small muted" }, METHOD_LABEL[s.method] ?? "")),
           h("p", { class: "small muted" }, `Codes de secours restants : ${s.backupCodesLeft}.${s.backupCodesLeft <= 2 ? " Pensez à les renouveler." : ""}`),
           h("div", { class: "row" },
-            h("button", { class: "btn", type: "button", onClick: () => show({ step: "regenerate" }) }, "Renouveler les codes de secours"),
-            h("button", { class: "btn", type: "button", onClick: () => show({ step: "disable" }) }, "Désactiver")));
+            h("button", { class: "btn", type: "button", onClick: () => show({ step: "regenerate", status: view.status }) }, "Renouveler les codes de secours"),
+            h("button", { class: "btn", type: "button", onClick: () => show({ step: "disable", status: view.status }) }, "Désactiver")));
       } else {
-        body.push(h("p", { class: "small muted" }, "Ajoute un code à usage unique, généré par une application d'authentification, à chaque connexion. Recommandé pour protéger votre compte."),
-          h("button", { class: "btn btn-primary", type: "button", onClick: async () => {
-            try { const r = await api("/mfa/begin", { method: "POST", body: {} }); show({ step: "setup", secret: r.secret, otpauthUri: r.otpauthUri }); } catch (error) { fail(error); }
-          } }, "Activer la double authentification"));
+        const av = s.available ?? { app: true };
+        const start = async (method) => {
+          try {
+            const r = await api("/mfa/begin", { method: "POST", body: { method } });
+            if (method === "APP") show({ step: "setup", secret: r.secret, otpauthUri: r.otpauthUri });
+            else show({ step: "channel", method, sentTo: r.sentTo, status: s });
+          } catch (error) { fail(error); }
+        };
+        const choice = (method, title, text, on, hint) => h("button", { class: "card pad", type: "button", disabled: !on, style: `text-align:left;width:100%;cursor:${on ? "pointer" : "not-allowed"};opacity:${on ? 1 : 0.6}`, onClick: () => start(method) },
+          h("strong", { style: "display:block" }, title), h("span", { class: "small muted", style: "display:block;margin-top:4px" }, on ? text : hint));
+        body.push(h("p", { class: "small muted" }, "Ajoute un code à usage unique à chaque connexion. Recommandé pour protéger votre compte. Choisissez comment recevoir ce code :"),
+          h("div", { class: "stack" },
+            choice("APP", "Application d'authentification (recommandé)", "Google Authenticator, Authy, Microsoft Authenticator, 2FAS… Fonctionne sans réseau.", av.app, "Indisponible sur ce serveur."),
+            choice("EMAIL", "Code par e-mail", "Un code vous est envoyé à l'adresse de votre compte à chaque connexion.", av.email, "Indisponible : l'envoi d'e-mails n'est pas encore configuré sur ce serveur."),
+            choice("SMS", "Code par SMS", "Un code est envoyé par SMS à votre numéro vérifié.", av.sms && s.phoneVerified, av.sms ? "Vérifiez d'abord votre numéro de téléphone dans votre profil." : "Indisponible : l'envoi de SMS n'est pas encore configuré sur ce serveur.")));
       }
     }
     card.replaceChildren(...body);

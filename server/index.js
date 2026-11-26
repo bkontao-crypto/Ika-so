@@ -71,7 +71,7 @@ if (config.production && !config.backup.dirConfigured) {
   logger.warn("backup_dir_absent", { effet: "les sauvegardes vont dans ./backups : sur un disque éphémère elles disparaissent au redéploiement ; posez BACKUP_DIR sur un disque persistant et copiez-les hors du serveur (scripts/backup.sh)" });
 }
 if (!mfaKey) logger.info("mfa_non_configuree", { effet: "la double authentification ne peut pas être activée ; posez MFA_ENCRYPTION_KEY (32 octets) pour l'autoriser" });
-const mfa = { service: createMfa({ db, key: mfaKey }), sessions: createMfaSessions({ db }) };
+const mfa = { service: createMfa({ db, key: mfaKey, sendEmail, sendSms: smsConfigured(config) ? sendSms : null }), sessions: createMfaSessions({ db }) };
 const whatsappInbox = createWhatsAppInbox({ db, whatsapp: services.whatsapp, logger });
 const app = createApp({ services, config, logger, health: () => db.query("select 1"), mfa, whatsappInbox });
 // Sauvegardes automatiques et alertes : démarrées ici (processus serveur), pas dans createApp, pour ne pas lancer de minuteries dans les tests.

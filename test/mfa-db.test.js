@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 
 const url = process.env.DATABASE_URL_TEST;
 const skip = url ? false : "DATABASE_URL_TEST absent : test PostgreSQL ignoré.";
+// Les champs de base du statut (les méthodes disponibles et la méthode choisie sont contrôlées dans mfa-methodes-db.test.js).
+const base = async (p) => { const { enabled, pending, backupCodesLeft } = await p; return { enabled, pending, backupCodesLeft }; };
 const outcome = async (p) => { try { const r = await p; return { ok: true, r }; } catch (e) { return { ok: false, status: e.status, message: e.message }; } };
 
 test("MFA : activation, rejeu refusé, codes de secours, blocage après 5 échecs, renouvellement, désactivation", { skip }, async () => {
@@ -24,7 +26,7 @@ test("MFA : activation, rejeu refusé, codes de secours, blocage après 5 échec
     await accounts.register({ name: "Test MFA", email, password: "motdepasse1", acceptTerms: true });
     const userId = (await db.query("select id from ika_users where email = $1", [email]))[0].id;
 
-    assert.deepEqual(await mfa.status(userId), { enabled: false, pending: false, backupCodesLeft: 0 });
+    assert.deepEqual(await base(mfa.status(userId)), { enabled: false, pending: false, backupCodesLeft: 0 });
     assert.equal((await outcome(mfa.verify(userId, "123456"))).status, 401, "sans MFA activée, rien n'est accepté");
 
     // Activation : le secret est chiffré en base, inactif tant qu'un code valide n'est pas saisi.
@@ -33,12 +35,12 @@ test("MFA : activation, rejeu refusé, codes de secours, blocage après 5 échec
     assert.match(begun.otpauthUri, /^otpauth:\/\/totp\//);
     const stored = (await db.query("select secret_enc from ika_mfa_secrets where user_id = $1", [userId]))[0].secret_enc;
     assert.ok(!stored.includes(begun.secret), "secret jamais en clair");
-    assert.deepEqual(await mfa.status(userId), { enabled: false, pending: true, backupCodesLeft: 0 });
+    assert.deepEqual(await base(mfa.status(userId)), { enabled: false, pending: true, backupCodesLeft: 0 });
     assert.equal((await outcome(mfa.verify(userId, totpCode(begun.secret)))).status, 401, "un secret non confirmé ne valide aucune connexion");
     assert.equal((await outcome(mfa.confirm(userId, "abcdef"))).status, 400, "mauvais code refusé");
     const { backupCodes } = await mfa.confirm(userId, totpCode(begun.secret));
     assert.equal(backupCodes.length, 10);
-    assert.deepEqual(await mfa.status(userId), { enabled: true, pending: false, backupCodesLeft: 10 });
+    assert.deepEqual(await base(mfa.status(userId)), { enabled: true, pending: false, backupCodesLeft: 10 });
     const hashes = (await db.query("select code_hash from ika_mfa_backup_codes where user_id = $1", [userId])).map((r) => r.code_hash);
     assert.ok(backupCodes.every((c) => !hashes.includes(c)), "codes de secours jamais en clair");
     assert.equal((await outcome(mfa.begin(userId))).status, 409, "déjà activée");
@@ -70,7 +72,7 @@ test("MFA : activation, rejeu refusé, codes de secours, blocage après 5 échec
 
     // Désactivation avec un code valide : tout est supprimé.
     assert.equal((await mfa.disable(userId, renewed.backupCodes[0])).ok, true);
-    assert.deepEqual(await mfa.status(userId), { enabled: false, pending: false, backupCodesLeft: 0 });
+    assert.deepEqual(await base(mfa.status(userId)), { enabled: false, pending: false, backupCodesLeft: 0 });
     assert.equal((await db.query("select count(*)::int as n from ika_mfa_backup_codes where user_id = $1", [userId]))[0].n, 0);
     const actions = (await db.query("select action from ika_audit where actor_id = $1 and action like 'MFA_%' order by created_at", [userId])).map((r) => r.action);
     assert.deepEqual(actions, ["MFA_ENABLED", "MFA_BACKUP_REGENERATED", "MFA_DISABLED"]);

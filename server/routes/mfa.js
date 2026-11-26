@@ -14,7 +14,10 @@ export function buildMfaRoutes({ mfa, accounts, requireUser, limiter, clearSessi
   });
 
   // Y a-t-il une vérification MFA à faire pour la session en cours ?
-  router.get("/pending", (req, res) => res.json({ pending: Boolean(req.mfaPendingUserId) }));
+  router.get("/pending", async (req, res) => res.json({ pending: Boolean(req.mfaPendingUserId), ...(req.mfaPendingUserId ? await mfa.service.pendingInfo(req.mfaPendingUserId) : {}) }));
+
+  // Envoie un code par e-mail ou SMS (méthodes « EMAIL » et « SMS ») : session en attente de vérification, ou session connectée (activation, renouvellement, désactivation).
+  router.post("/send-code", async (req, res) => res.json(await mfa.service.sendCode(req.mfaPendingUserId || requireUser(req))));
 
   // Termine la connexion : le code (appli ou secours) rend la session pleinement valide.
   router.post("/login", async (req, res) => {
@@ -52,7 +55,7 @@ export function buildMfaRoutes({ mfa, accounts, requireUser, limiter, clearSessi
 
   router.get("/status", async (req, res) => res.json(await mfa.service.status(requireUser(req))));
 
-  router.post("/begin", async (req, res) => res.json(await mfa.service.begin(requireUser(req))));
+  router.post("/begin", async (req, res) => res.json(await mfa.service.begin(requireUser(req), String(req.body?.method ?? "APP").toUpperCase())));
 
   router.post("/confirm", async (req, res) => {
     const result = await mfa.service.confirm(requireUser(req), code(req));
