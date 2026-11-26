@@ -24,3 +24,7 @@ test("tokens.css est chargé avant les autres feuilles et disponible hors connex
   assert.ok(page.indexOf("/css/tokens.css") > 0 && page.indexOf("/css/tokens.css") < page.indexOf("/css/ika.css"));
   assert.match(lire("sw.js"), /"\/css\/tokens\.css"/);
 });
+
+test("modern.css ne redéfinit plus la palette commune (lot B2)", () => {
+  assert.doesNotMatch(lire("css/modern.css"), /(^|[;{\s])--(green|green-2|green-soft|gold|gold-soft|ink|muted|line|surface|page)\s*:/);
+});
