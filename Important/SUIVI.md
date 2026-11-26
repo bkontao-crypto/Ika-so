@@ -3,6 +3,51 @@
 Mis à jour le 21 novembre 2026 (décisions du propriétaire sur Découvrir : navigation mobile, vidéos, modération, WhatsApp, conditions) — auparavant : 21 novembre 2026 (cadre du profil dans la carte annonceur de la fiche annonce) — auparavant : 21 novembre 2026 (onglet « Découvrir » : publications de la communauté) — auparavant : 21 novembre 2026 (conditions officielles et exceptions tracées) — auparavant : 21 novembre 2026 (suivi de remboursement Premium en 3 étapes) — auparavant : 21 novembre 2026 (Premium en 3 étapes : décisions du propriétaire, SMS à la décision finale) — auparavant : 20 novembre 2026 (Premium : le numéro confirmé est la certification) — auparavant : 20 novembre 2026 (Premium : numéro confirmé par SMS obligatoire) — auparavant : 19 novembre 2026 (aperçu des pièces et saisie des motifs) — auparavant : 19 novembre 2026 (Premium sans certification : explications) — auparavant : 19 novembre 2026 (photo de profil dans l'en-tête) — auparavant : 19 novembre 2026 (DEC-003 tranchée) — auparavant : 19 novembre 2026 (écran « Délégations de modules ») — auparavant : 19 novembre 2026 (PDF du CRM et de l'audit de modération) — auparavant : 19 novembre 2026 (mise en page professionnelle des PDF) — auparavant : 19 novembre 2026 (exports PDF en plus du CSV) — auparavant : 19 novembre 2026 (Super Administrateur : habitudes de connexion) — auparavant : 19 novembre 2026 (lien « Gérer mes choix » sur les pages serveur) — auparavant : 19 novembre 2026 (cookies, lot C : registre des cookies et prestataires) — auparavant : 18 novembre 2026 (cookies, lot B : Statistiques soumises au consentement) — auparavant : 16 novembre 2026 (bouton afficher/masquer le mot de passe) — auparavant : 7 novembre 2026 (branchement des 22 événements analytiques et harmonisation de la palette) — auparavant : 6 novembre 2026 (profil public) — avant : 4 novembre 2026 (cartographie : étapes 4 et 5, suppression d'un sommet). Dernier lot « base réelle » : 2 novembre 2026, soir (lot 7, première exécution du lot 6 sur un vrai PostgreSQL). Ce fichier est livré avec chaque version : il dit **ce qui est fait (et prouvé)**, **ce qui reste**, et **ce qui attend une décision**.
 Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜ à faire · ⛔ décision du propriétaire attendue
 
+## Couleurs — lot B3 : pages séparées (26 novembre 2026, branche refactor/couleurs-b3, aucune migration)
+
+- À réaliser : relier à la palette commune les pages Quartiers/SEO, la fiche, Mes leads, le Journal d'audit, puis `ika.css`.
+- Réalisé : `ika.css` et `seo.css` pointent vers `tokens.css` ; fiche passée du bleu aux couleurs IKA SÔ ; Mes leads et Journal d'audit habillés (en-tête, retour au site, clair/sombre, `pages-isolees.css`) ; pages de retour Google reliées ; couleurs d'administration appliquées aux boutons des pages SEO ; débordements mobiles corrigés.
+- Vérifié : `npm test` sans échec ; `seo-contrast.py` : 78 pages, 0 texte illisible (un défaut en sombre, causé par un second bloc de couleurs dans `ika.css`, a été détecté et corrigé avant fusion) ; copie locale, 1280 et 390 px, clair et sombre : 8 pages sans texte faible ni débordement, fiche (point GPS d'exemple, rendu direct) aussi ; test rouge/bleu sur une fiche publique. Application : 116 comparaisons ; clair identique ; en sombre, seule différence : le fond du `body` passe de #0d1b17 (reste d'ancienne palette) à #07160f (palette commune).
+- Non vérifié : production ; vrais téléphones ; retour Google dans l'application Android ; fiche avec fond Mapbox et impression ; `/mentions-legales` (404 en local) ; 24 tests nécessitant PostgreSQL.
+- À faire : B4 (Messagerie, Owner Center). Le contour Mapbox de la fiche reste jaune.
+- Risques : apparence changée sur les pages citées. Retour arrière : `git revert -m 1 <commit de fusion>`.
+
+## Couleurs — lot B2 : doublons du site public (26 novembre 2026, branche refactor/couleurs-b2, aucune migration)
+
+- À réaliser : supprimer les définitions de couleurs en double du site public.
+- Réalisé : 17 déclarations de palette retirées de `public/css/modern.css` (toutes déjà remplacées par `refonte.css`). `ika.css` conservé : les pages SEO et les pages de connexion Google en dépendent (traité en B3). Les couleurs écrites en dur dans les règles ne sont pas concernées.
+- Vérifié : `npm test` sans échec ; copie locale, Chromium : styles de couleur calculés identiques avant/après sur les 29 écrans de l'application, 1280 et 390 px, clair et sombre (116 sur 116).
+- Non vérifié : production ; vrais téléphones ; survol, focus, fenêtres ouvertes ; 24 tests nécessitant PostgreSQL non exécutés.
+- À faire : B3 (pages SEO, fiche, Mes leads, Journal d'audit, puis nettoyage de `ika.css`), B4 (Messagerie, Owner Center).
+- Risques : faible. Retour arrière : `git revert -m 1 <commit de fusion>`.
+
+## Couleurs — lot B1 : couleurs communes (26 novembre 2026, branche refactor/couleurs-b1, aucune migration)
+
+- À réaliser : définir la palette principale à un seul endroit, sans changer l'apparence.
+- Réalisé : `public/css/tokens.css` (20 couleurs communes `--is-*`, clair et sombre) ; `refonte.css` relie ses 29 noms à cette palette ; chargé par `index.html` et le cache hors connexion. Test `css-couleurs-communes`.
+- Vérifié : `npm test` sans échec ; copie locale, Chromium 1280 px : styles de couleur calculés identiques avant/après sur les 29 écrans de l'application, clair et sombre (58 sur 58, après une seconde passe avec chargement complet pour 9 écrans).
+- Non vérifié : production ; mobile ; états au survol et au focus ; 24 tests nécessitant PostgreSQL non exécutés.
+- À faire : B2 (site public : supprimer les doublons de `ika.css` et `modern.css`), B3 (pages SEO, fiche, Mes leads, Journal d'audit), B4 (Messagerie, Owner Center).
+- Risques : faible. Retour arrière : `git revert -m 1 <commit de fusion>`.
+
+## Profil : « Paramètres & Confidentialité » déborde sur téléphone (26 novembre 2026, branche fix/profil-parametres-responsive, aucune migration)
+
+- À réaliser : signalement du propriétaire : sur téléphone, l'onglet déborde, champs très longs, responsive inactif.
+- Cause : sous 900 px, `.mp-grid` passait en `1fr` (largeur minimale = contenu) ; les grilles `.mp-stack` / `.mp-more` n'avaient pas de colonne bornée : la page faisait 679 px de large sur un écran de 375 px.
+- Réalisé (CSS seul, `mon-profil.css`) : colonnes `minmax(0, 1fr)` ; dans « Autres réglages du compte » : cartes en grille adaptative, champs à 100 % de la carte, retour à la ligne des textes longs (e-mail, clé MFA), cases à cocher alignées avec leur texte. Version du service worker mise à jour.
+- Vérifié : Chromium, copie locale avec API simulée : largeur de page = largeur d'écran à 320, 375, 768 et 1280 px (avant : 679 px à 375 px) ; `npm test` 527 réussis, 0 échec.
+- Non vérifié : production, vrais téléphones, états MFA « configuration » et formulaire de suppression ouverts.
+- Retour arrière : `git revert -m 1 <commit de fusion>`.
+
+## Couleurs — lot A : correctifs de l'audit (26 novembre 2026, branche fix/couleurs-lot-a, aucune migration)
+
+- À réaliser : option A de l'audit des couleurs (boutons en mode sombre, texte sur la couleur d'accent, textes peu lisibles, test automatique).
+- Réalisé : suppression des règles sombres sur `.btn` qui effaçaient les variantes (site : or, danger, discret, lime ; Owner : principal, sombre, danger, fantôme) ; texte des boutons dorés calculé selon la couleur d'accent (`--on-gold`) ; contrastes corrigés (pastilles, Se déconnecter, Retour au site, Centre, bandeau d'alerte, Messagerie, WhatsApp, profil annonceur, textes d'exemple). Nouveau test `css-couleurs-boutons`.
+- Vérifié : `npm test` (voir commit, aucun échec) ; Chromium, copie locale avec base de test (Express et pilote remplacés par des substituts) : 1280 px et 390 px, clair et sombre. Textes sous le seuil avant correction : voir audit ; après : aucun en clair ; en sombre, les 5 restants (profil et liste des annonceurs) corrigés puis ces écrans retestés sur ordinateur : aucun. Accent bleu : texte des boutons dorés devenu blanc.
+- Non vérifié : production, vrais téléphones, survol et focus, fenêtres ouvertes, textes sur photos et dégradés ; 24 tests nécessitant PostgreSQL non exécutés.
+- À faire : option B (système de couleurs unique, par lots) ; débordement mobile de la page d'un quartier et du Journal d'audit (déjà présent avant ce lot).
+- Risques : aspect des boutons en mode sombre changé (ils retrouvent leurs couleurs). Retour arrière : `git revert -m 1 <commit de fusion>`.
+
 ## Page WhatsApp : bouton « Retour » retiré (25 novembre 2026, branche fix/whatsapp-sans-retour, aucune migration)
 
 - Incident : ma fusion précédente (28cf5cf, page WhatsApp style messagerie) a été poussée avec 1 test en échec (`no-back-buttons` : décision du propriétaire du 16/11, pas de bouton « Retour » sur le site public) : le contrôle des tests n'avait pas bloqué l'enchaînement. `main` est resté rouge environ 5 minutes ; aucune donnée touchée.

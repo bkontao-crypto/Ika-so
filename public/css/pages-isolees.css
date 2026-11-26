@@ -1,0 +1,10 @@
+/* « Mes leads » et « Journal d'audit » : habillage commun, couleurs de tokens.css (clair et sombre). */
+body.page-isolee { margin: 0; padding: 0; background: var(--paper); color: var(--ink); font-family: var(--font); }
+.pi-head { display: flex; justify-content: space-between; gap: 12px; align-items: center; padding: 14px 16px; background: var(--forest); }
+.pi-head a { color: #fff; text-decoration: none; font-weight: 700; }
+.page-isolee #app { padding: 16px; max-width: 1200px; margin: 0 auto; min-width: 0; overflow-x: auto; }
+.page-isolee #app > * { min-width: 0; }
+.page-isolee input:not([type=checkbox]):not([type=radio]), .page-isolee select, .page-isolee textarea { background: var(--card); color: var(--ink); border: 1px solid var(--line-strong); border-radius: 10px; padding: 9px 12px; font: inherit; max-width: 100%; }
+.page-isolee ::placeholder { color: var(--muted); opacity: 1; }
+.page-isolee pre, .page-isolee td { white-space: pre-wrap; overflow-wrap: anywhere; }
+.page-isolee *, .page-isolee *::before, .page-isolee *::after { box-sizing: border-box; }

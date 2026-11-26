@@ -1,28 +1,12 @@
 /* Design system modernisé IKA SO — basé sur la référence HTML */
+/* Couleurs : voir tokens.css (palette commune), reliée aux noms --page, --ink… par refonte.css. */
 :root {
-  --green: #075b35;
-  --green-2: #0b7546;
-  --green-soft: #eaf5ee;
-  --gold: #e9ad22;
-  --gold-soft: #fff6df;
-  --ink: #17231c;
-  --muted: #718078;
-  --line: #e7ece8;
-  --surface: #fff;
-  --page: #f5f8f5;
   --shadow: 0 14px 40px rgba(20,55,35,.08);
   --radius: 20px;
   --font: "DM Sans", system-ui, -apple-system, sans-serif;
   --display: Manrope, "DM Sans", system-ui, sans-serif;
 }
 [data-theme="dark"] {
-  --ink: #eef5ef;
-  --muted: #a6b5aa;
-  --line: #2c3b32;
-  --surface: #17231c;
-  --page: #101a14;
-  --green-soft: #1c3828;
-  --gold-soft: #3b321c;
   --shadow: 0 14px 40px rgba(0,0,0,.22);
 }
 body { background: var(--page); color: var(--ink); font-family: var(--font); }
