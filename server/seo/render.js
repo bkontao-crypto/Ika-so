@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { listingPath, zoneSlug } from "../lib/slug.js";
 import { GUIDES, GUIDE_NOTICE } from "./guides.js";
-import { brand } from "../lib/brand.js";
+import { brand, brandUpper } from "../lib/brand.js";
 
 export const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -33,7 +33,7 @@ export function setSite(value) { site = value ?? {}; }
 /** index.html (application) avec titre, description, mots-clés et logo du propriétaire quand ils sont réglés ; sans réglage, le fichier reste identique. */
 export function brandIndexHtml(page, s = {}) {
   const attr = (v) => esc(String(v).replace(/\s+/g, " ").trim());
-  let out = page;
+  let out = page.replaceAll("{{SITE_NAME_UPPER}}", esc(brandUpper())).replaceAll("{{SITE_NAME}}", esc(brand())); // nom du site (réglage du Superadmin)
   if (s.title) out = out.replace(/<title>[\s\S]*?<\/title>/, () => `<title>${attr(s.title)}</title>`);
   if (s.description) out = out.replace(/<meta name="description" content="[^"]*">/, () => `<meta name="description" content="${attr(s.description)}">`);
   if (s.keywords) out = out.replace(/(<meta name="description"[^>]*>)/, (m) => `${m}\n  <meta name="keywords" content="${attr(s.keywords)}">`);
