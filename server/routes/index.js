@@ -8,7 +8,6 @@ import { Router } from "express";
 import { AppError, forbidden } from "../lib/errors.js";
 import { sha256 } from "../lib/security.js";
 import { clean, readDraft } from "../lib/web.js";
-import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
 import { appFailPage, appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie, verifyIdToken } from "../lib/google-oauth.js";
 
@@ -1091,30 +1090,10 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/me/payments", async (req, res) => res.json(await payments.mine(requireUser(req))));
   router.get("/me/payments/:id/invoice", async (req, res) => res.json(await payments.invoice(requireUser(req), id(req))));
   // Appelé par le fournisseur, pas par un navigateur : pas de session, la signature fait foi.
+  // Le reçu et les notifications après paiement sont envoyés par le service lui-même (onPaid, services/index.js) : la route ne fait que relayer.
   router.post("/payments/webhook", async (req, res) => {
     limiter.hit(`hook:${req.ip}`, 120, 60_000);
-    const result = await payments.webhook(req.rawBody, req.headers);
-    // Notification best-effort après paiement réussi (E08)
-    if (result?.status === "succeeded" || result?.paid) {
-      const userId = result.userId || result.user_id;
-      if (userId && notifier?.notify) {
-        const receipt = formatReceiptEmail({
-          reference: result.reference || result.id,
-          amountXof: result.amountXof || result.amount,
-          offerName: result.offerName || result.offer,
-          date: result.paidAt || result.createdAt,
-          invoiceUrl: result.invoiceUrl,
-          userName: result.userName,
-        });
-        await notifier.notify(userId, {
-          title: receipt.subject,
-          body: receipt.text,
-          html: receipt.html,
-          channels: ["email", "sms", "whatsapp"],
-        }).catch(() => {});
-      }
-    }
-    res.json(result);
+    res.json(await payments.webhook(req.rawBody, req.headers));
   });
   router.get("/staff/offers", async (req, res) => res.json(await payments.adminOffers(await requireOwnerGate(req, "payments"))));
   router.post("/staff/offers/:id", async (req, res) => res.json(await payments.setOffer(await requireOwnerGate(req, "payments"), id(req), { priceXof: req.body?.priceXof, active: req.body?.active === true })));
