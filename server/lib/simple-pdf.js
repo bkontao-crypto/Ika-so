@@ -101,6 +101,7 @@ const cellOf = (c) => (c !== null && typeof c === "object" && !(c instanceof Dat
  *  - notes : [texte, ...] (encadré)
  * Retourne un Buffer PDF valide (table des références avec les vrais décalages).
  */
+const pdfName = () => brand().replace(/[()\\]/g, "");
 export function buildPdf(doc) {
   const pages = []; let ops = []; let y = H;
   const startPage = (first) => {
@@ -235,7 +236,7 @@ export function buildPdf(doc) {
   const infoNo = 5 + pages.length * 2;
   const utf16 = (str) => `<FEFF${[...String(str)].map((ch) => ch.charCodeAt(0).toString(16).padStart(4, "0")).join("")}>`;
   const when = toDate(doc.generatedAt); const stamp = when ? `/CreationDate (D:${when.getUTCFullYear()}${two(when.getUTCMonth() + 1)}${two(when.getUTCDate())}${two(when.getUTCHours())}${two(when.getUTCMinutes())}${two(when.getUTCSeconds())}Z) ` : "";
-  objects[infoNo] = `<< /Title ${utf16(doc.title ?? "Rapport")} /Author (${brand()}) /Creator (${brand()}) /Producer (${brand()}) ${stamp}>>`;
+  objects[infoNo] = `<< /Title ${utf16(doc.title ?? "Rapport")} /Author (${pdfName()}) /Creator (${pdfName()}) /Producer (${pdfName()}) ${stamp}>>`;
 
   const parts = [Buffer.from("%PDF-1.4\n", "latin1")]; const offsets = []; let pos = parts[0].length;
   for (let n = 1; n < objects.length; n++) {

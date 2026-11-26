@@ -12,6 +12,12 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - À faire : corrections par lots, détaillées dans le rapport ; les lots 2 et 4 attendent une décision du propriétaire.
 - Non vérifié : vrais téléphones, thème sombre activé par le bouton, états survol et focus, fenêtres modales.
 
+## Re-vérification du nom du site (26 novembre 2026, aucune migration)
+
+- Réalisé : nouveau balayage complet du dépôt avec la liste fournie ; guides pratiques (`server/seo/guides.js`) passés de constante à fonction `guides()` (gardaient l'ancien nom) ; nom du magasin PayDunya lu à l'appel ; métadonnées PDF nettoyées des parenthèses du nom.
+- Vérifié : `npm test` 540/540 ; 15 rendus serveur (SEO, guides, pages juridiques, PDF, reçu, TOTP, badge Étoile, page Google) sans l'ancien nom ; 15 pages publiques dans Chromium sans l'ancien nom ; restes de code = identifiants techniques seulement (clés de stockage, cookies/événements `ika-consent`, `ika-owner-*`, en-tête `x-ika-signature`, fichiers CSS `ika.css`, `logo-ika-so.webp`, `ikaso://`, sauvegardes, paramètres SQL `ika.audit_purge`).
+- Non vérifié : production ; pages internes Owner Center ; vrais envois e-mail/SMS.
+
 ## Correctifs du nom du site (26 novembre 2026, aucune migration)
 
 - Réalisé : jeton `{{SITE_NAME}}` visible dans l'onglet (l'accueil est servi par `routes/seo.js` : remplacement ajouté) ; logo du pied de page « IKA SO » (écrit en deux morceaux dans `index.html`) maintenant `{{SITE_NAME_LOGO}}` (dernier mot en doré) et mis à jour à chaud côté navigateur ; tests dans `test/brand.test.js`.

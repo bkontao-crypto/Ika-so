@@ -23,7 +23,7 @@ export function readIpn(rawBody) {
   return out;
 }
 
-export function createPaydunyaProvider({ masterKey, privateKey, token, mode = "test", publicUrl, storeName = brand(), fetchImpl = fetch }) {
+export function createPaydunyaProvider({ masterKey, privateKey, token, mode = "test", publicUrl, storeName = null, fetchImpl = fetch }) {
   const base = HOSTS[mode === "live" ? "live" : "test"];
   const headers = { "Content-Type": "application/json", "PAYDUNYA-MASTER-KEY": masterKey, "PAYDUNYA-PRIVATE-KEY": privateKey, "PAYDUNYA-TOKEN": token };
   const masterHash = createHash("sha512").update(masterKey).digest("hex");
@@ -34,7 +34,7 @@ export function createPaydunyaProvider({ masterKey, privateKey, token, mode = "t
         method: "POST", headers, signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({
           invoice: { total_amount: payment.amountXof, description: String(payment.label ?? brand()).slice(0, 120), customer: payment.customer ? { name: payment.customer.name ?? "", email: payment.customer.email ?? "", phone: payment.customer.phone ?? "" } : undefined },
-          store: { name: storeName },
+          store: { name: storeName || brand() },
           custom_data: { payment_id: payment.id },
           actions: { return_url: `${publicUrl}/#/paiements`, cancel_url: `${publicUrl}/#/paiements`, callback_url: `${publicUrl}/api/payments/webhook` },
         }),

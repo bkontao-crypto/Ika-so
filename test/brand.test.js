@@ -85,3 +85,12 @@ test("logo du pied de page : dernier mot en doré, texte protégé", async () =>
   const out = (await import("../server/seo/render.js")).brandIndexHtml(readFileSync("public/index.html", "utf8"), {});
   assert.match(out, /IKA <span class="logo-gold">SO<\/span><small>/);
 });
+
+test("guides pratiques : le nom est lu au moment du rendu", async () => {
+  const { guides } = await import("../server/seo/guides.js");
+  setBrand("Sô Danaya");
+  assert.match(JSON.stringify(guides()), /Sô Danaya/);
+  assert.doesNotMatch(JSON.stringify(guides()), /Ika So/);
+  setBrand("");
+  assert.match(JSON.stringify(guides()), /Ika So/);
+});
