@@ -275,6 +275,8 @@ export function createReviews(ctx, accounts, profiles = null, notify = null) {
         await db.query("insert into ika_team_links (id, requester_id, target_id, role) values ($1, $2, $3, $4)", [id, userId, target.id, String(role ?? "").trim().slice(0, 80) || null]);
       } catch (error) {
         if (error?.code === "23505") throw conflict("Une invitation est déjà en attente entre vos deux comptes.");
+        // Plafond d'un compte Premium (déclencheur de la migration 096) : message clair plutôt qu'une erreur serveur.
+        if (error?.code === "IK010") throw conflict("Plafond atteint : un compte Premium peut avoir au plus 10 comptes délégués (invitations en attente comprises). Retirez ou annulez une invitation pour en ajouter une autre.");
         throw error;
       }
       const me = (await db.query("select coalesce(nullif(p.full_name, ''), u.name) as name from ika_users u left join ika_profiles p on p.user_id = u.id where u.id = $1", [userId]))[0];
