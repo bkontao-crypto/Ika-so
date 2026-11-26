@@ -73,3 +73,15 @@ test("page d'accueil servie par le SEO : le jeton {{SITE_NAME}} est remplacé", 
   assert.match(out, /<meta name="site-name" content="Kèlè &amp; Co">/);
   setBrand("");
 });
+
+test("logo du pied de page : dernier mot en doré, texte protégé", async () => {
+  const { brandLogoHtml } = await import("../server/lib/brand.js");
+  const { esc } = await import("../server/seo/render.js");
+  setBrand("Sô Danaya");
+  assert.equal(brandLogoHtml(esc), 'SÔ <span class="logo-gold">DANAYA</span>');
+  setBrand("Dugukolo");
+  assert.equal(brandLogoHtml(esc), "DUGUKOLO");
+  setBrand("");
+  const out = (await import("../server/seo/render.js")).brandIndexHtml(readFileSync("public/index.html", "utf8"), {});
+  assert.match(out, /IKA <span class="logo-gold">SO<\/span><small>/);
+});
