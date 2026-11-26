@@ -4,6 +4,7 @@ import { api, h, ico, toast, initials, empty, panel } from "./ui.js";
 import { overviewView } from "./v-overview.js";
 import { activityView, traceView } from "./v-activity.js";
 import * as M from "./v-modules.js";
+import { customizeView } from "./v-customize.js";
 import { usersView, userCenterView } from "./v-users.js";
 import { chartsView, healthView, premiumFunnelView } from "./v-trafic.js";
 import { mfaView } from "./v-mfa.js";
@@ -36,7 +37,7 @@ const whatsappView = () => h("div", { class: "view" }, panel("WhatsApp", "Messag
 
 const VIEWS = { whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
-  backups: M.backupsView, customize: (c) => M.customizeView(c, "identity"), settings: (c) => M.customizeView(c, "identity"), homepage: (c) => M.customizeView(c, "homepage"), seo: (c) => M.customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView, mfa: mfaView };
+  backups: M.backupsView, customize: (c) => customizeView(c, "identity"), settings: (c) => customizeView(c, "identity"), homepage: (c) => customizeView(c, "homepage"), seo: (c) => customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView, mfa: mfaView };
 
 const root = document.getElementById("root");
 const leaveHooks = [];
