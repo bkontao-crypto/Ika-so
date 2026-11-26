@@ -13,6 +13,17 @@ const snippet = (t) => { const s = String(t ?? "").replace(/\s+/g, " ").trim(); 
 const pct = (now, before) => (before > 0 ? Math.round(((now - before) / before) * 100) : now > 0 ? null : 0); // null = « nouveau » : pas de pourcentage possible quand la période précédente vaut 0
 
 export function createAdvertiserCenter({ db, accounts, ruleExceptions }) {
+  /**
+   * Le numéro confirmé est-il exigé pour DEMANDER ou PAYER le Premium ? Condition officielle du superadmin, sauf exception « téléphone »
+   * tracée sur ce compte. Même règle que le paiement en ligne et la demande manuelle : l'écran s'en sert pour ne pas bloquer à tort.
+   * (L'ouverture du centre de contrôle suit, elle, la règle de certification : voir `eligible`.)
+   */
+  async function phoneRequiredForPremium(userId) {
+    if (!ruleExceptions) return true;
+    const official = await ruleExceptions.official();
+    return Boolean(official.phoneConfirmedForPremium) && !(await ruleExceptions.activeKeys(userId)).has("phone");
+  }
+
   async function access(userId) {
     const rows = await db.query(
       `select p.staff_role, p.premium_until, p.phone_verified_at, p.phone_channel, p.agency_verified_at, p.agency_name, p.full_name, p.display_role, p.account_status,
@@ -23,7 +34,7 @@ export function createAdvertiserCenter({ db, accounts, ruleExceptions }) {
     if (p.account_status === "RESTRICTED") throw Object.assign(forbidden("Compte restreint : le centre de contrôle est indisponible."), { code: "RESTRICTED" });
     // Super Administrateur : tous les avantages Premium sans exception, sans durée ni condition de certification (rien n'est écrit en base).
     if (p.staff_role === "SUPERADMIN") {
-      return { premium: true, certified: true, phoneVerified: true, certificationOk: true, eligible: true, unlimited: true, premiumUntil: null, daysLeft: null,
+      return { premium: true, certified: true, phoneVerified: true, certificationOk: true, eligible: true, unlimited: true, premiumUntil: null, daysLeft: null, phoneRequiredForPremium: false,
         certification: { satisfied: true, byException: false, byAcquired: false, eligible: true, rule: "Super Administrateur : tous les avantages sont ouverts." }, name: p.full_name, role: p.display_role, status: p.account_status };
     }
     // Conditions officielles configurables (+ exception tracée « certification »). Sans service de règles : règle historique (numéro confirmé).
@@ -35,7 +46,7 @@ export function createAdvertiserCenter({ db, accounts, ruleExceptions }) {
       const byAcquired = !result.satisfied && !byException && Boolean(await ruleExceptions.acquired(userId));
       cert = { satisfied: result.satisfied, byException, byAcquired, eligible: result.satisfied || byException || byAcquired, rule: describeGroups(groups) };
     }
-    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at), certificationOk: cert ? cert.eligible : undefined }), certification: cert, name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
+    return { ...premiumAccess({ premiumUntil: p.premium_until, agencyVerified: p.agency_verified_at, titleChecked: p.title_checked, phoneVerified: Boolean(p.phone_verified_at), certificationOk: cert ? cert.eligible : undefined }), phoneRequiredForPremium: await phoneRequiredForPremium(userId), certification: cert, name: p.agency_verified_at && p.agency_name ? p.agency_name : p.full_name, role: p.display_role, status: p.account_status };
   }
 
   async function series(userId, days, shift) {
