@@ -28,3 +28,12 @@ test("tokens.css est chargé avant les autres feuilles et disponible hors connex
 test("modern.css ne redéfinit plus la palette commune (lot B2)", () => {
   assert.doesNotMatch(lire("css/modern.css"), /(^|[;{\s])--(green|green-2|green-soft|gold|gold-soft|ink|muted|line|surface|page)\s*:/);
 });
+
+test("lot B3 : pages SEO, fiche, retour Google et pages isolées chargent la palette commune", () => {
+  const source = (f) => readFileSync(new URL(`../${f}`, import.meta.url), "utf8");
+  for (const f of ["server/seo/render.js", "server/lib/fiche.js", "server/lib/google-oauth.js", "public/crm-leads.html", "public/admin-audit.html"]) {
+    assert.match(source(f), /\/css\/tokens\.css/, f);
+  }
+  assert.doesNotMatch(lire("css/fiche.css"), /#1559bd|#102b55/i);
+  assert.doesNotMatch(lire("css/seo.css").split("html { background")[0], /--s-(bg|ink|link|btn|line|muted):\s*#/);
+});

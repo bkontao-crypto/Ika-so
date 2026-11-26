@@ -21,7 +21,7 @@ let assetStamp = { at: 0, value: "0" };
 export function assetVersion() {
   if (Date.now() - assetStamp.at < 5000) return assetStamp.value;
   const hash = createHash("sha1");
-  try { for (const f of ["css/ika.css", "css/seo.css", "js/seo-theme.js"]) hash.update(readFileSync(new URL(f, PUBLIC_DIR))); } catch { hash.update("absent"); }
+  try { for (const f of ["css/tokens.css", "css/ika.css", "css/seo.css", "js/seo-theme.js"]) hash.update(readFileSync(new URL(f, PUBLIC_DIR))); } catch { hash.update("absent"); }
   assetStamp = { at: Date.now(), value: hash.digest("hex").slice(0, 10) };
   return assetStamp.value;
 }
@@ -57,10 +57,11 @@ ${site.keywords ? `<meta name="keywords" content="${esc(cut(site.keywords, 200))
 <meta property="og:type" content="website"><meta property="og:site_name" content="Ika So"><meta property="og:locale" content="fr_ML">
 <meta property="og:title" content="${esc(cut(title, 90))}"><meta property="og:description" content="${esc(cut(description, 200))}">
 <meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(img)}">
-<meta name="theme-color" content="#102c25">
+<meta name="theme-color" content="#0b2a1d">
 <meta name="color-scheme" content="light dark">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="manifest" href="/manifest.webmanifest">
+<link rel="stylesheet" href="/css/tokens.css?v=${assetVersion()}">
 <link rel="stylesheet" href="/css/ika.css?v=${assetVersion()}">
 <link rel="stylesheet" href="/css/seo.css?v=${assetVersion()}">
 <script src="/js/seo-theme.js?v=${assetVersion()}"></script>

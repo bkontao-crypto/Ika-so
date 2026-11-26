@@ -1,25 +1,21 @@
 /* Pages publiques rendues par le serveur (quartiers, annonces, agences, guides, pages légales, 404).
-   AUTONOME : cette feuille définit elle-même toutes ses couleurs (clair ET sombre) et les pose ensemble sur html, body,
+   Cette feuille pose ensemble ses couleurs (clair ET sombre) sur html, body,
    en-tête, cartes, boutons, pastilles, tableaux et pied de page. Elle ne dépend d'aucune variable de ika.css : même si
    un ancien ika.css est encore en mémoire sur l'appareil, le fond et le texte ne peuvent jamais être de la même teinte.
    Contrôlé automatiquement (npm run check-seo-contrast : contraste ≥ 4,5 sur 11 pages, clair, sombre et ika.css absent). */
+/* Couleurs : palette commune tokens.css, chargée juste avant (même numéro de version). Mode sombre : tokens.css change les valeurs. */
 :root {
   color-scheme: light;
-  --s-bg: #f6f5ef; --s-surface: #ffffff; --s-fact: #f6f5ef;
-  --s-ink: #17231e; --s-strong: #102c25; --s-muted: #4f5c55; --s-line: #dcd9cb;
-  --s-link: #1e6b50; --s-btn: #1e6b50; --s-btn-ink: #ffffff;
-  --s-notice-bg: #eef8d2; --s-notice-line: #a9cf4a;
-  --s-pill-bg: #e9f2e9; --s-pill-ink: #102c25; --s-pilld-bg: #102c25; --s-pilld-ink: #ffffff;
-  --s-dot: #4d7a0a; --s-head-shadow: 0 3px 18px rgba(16, 44, 37, .08);
+  --s-bg: var(--is-paper); --s-surface: var(--is-card); --s-fact: var(--is-paper);
+  --s-ink: var(--is-ink); --s-strong: var(--is-green-ink); --s-muted: var(--is-muted); --s-line: var(--is-line);
+  --s-link: var(--is-green-text); --s-btn: var(--is-leaf); --s-btn-ink: var(--is-on-leaf);
+  --s-notice-bg: var(--is-gold-soft); --s-notice-line: var(--is-gold);
+  --s-pill-bg: var(--is-green-soft); --s-pill-ink: var(--is-green-ink); --s-pilld-bg: var(--is-forest); --s-pilld-ink: #ffffff;
+  --s-dot: var(--is-gold-text); --s-head-shadow: 0 3px 18px rgba(16, 44, 37, .08);
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --s-bg: #0d1b17; --s-surface: #14261f; --s-fact: #0d1b17;
-  --s-ink: #eef3ee; --s-strong: #e3f3ea; --s-muted: #a8b8af; --s-line: #2c473c;
-  --s-link: #8fe0b8; --s-btn: #1e6b50; --s-btn-ink: #ffffff;
-  --s-notice-bg: #2c3a12; --s-notice-line: #8aa63a;
-  --s-pill-bg: #1d372c; --s-pill-ink: #d8efe3; --s-pilld-bg: #2f5a49; --s-pilld-ink: #ffffff;
-  --s-dot: #c9ef75; --s-head-shadow: 0 3px 18px rgba(0, 0, 0, .35);
+  --s-pilld-bg: var(--is-surface-2); --s-head-shadow: 0 3px 18px rgba(0, 0, 0, .35);
 }
 
 html { background: var(--s-bg); color: var(--s-ink); }
@@ -31,7 +27,7 @@ body.seo-page .logo-word { color: var(--s-strong); }
 body.seo-page .logo-word i { color: var(--s-dot); }
 body.seo-page .logo-word small { color: var(--s-muted); }
 body.seo-page .site-nav a { color: var(--s-ink); }
-body.seo-page .btn-lime { background: #c9ef75; color: #102c25; }
+body.seo-page .btn-lime { background: var(--is-gold); color: var(--on-gold, #1b1503); }
 
 /* Texte */
 body.seo-page main h1, body.seo-page main h2, body.seo-page main h3, body.seo-page main .title { color: var(--s-strong); }
@@ -61,3 +57,6 @@ body.seo-page .pill-white { background: #ffffff; color: #102c25; }
 /* Pied de page */
 body.seo-page .seo-footer { color: var(--s-muted); }
 body.seo-page .seo-footer a { color: var(--s-link); }
+
+/* Téléphone : aucun contenu n'élargit la page. */
+body.seo-page main { min-width: 0; overflow-wrap: anywhere; }
