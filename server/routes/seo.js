@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { AppError } from "../lib/errors.js";
 import { listingPath, listingSlug, zoneFromSlug } from "../lib/slug.js";
-import { GUIDES } from "../seo/guides.js";
+import { guides } from "../seo/guides.js";
 import * as view from "../seo/render.js";
 import { renderMarkdown } from "../seo/legal.js";
 import { LEGAL_PAGES, legalPage } from "../seo/legal.js";
@@ -81,7 +81,7 @@ export function buildSeoRoutes({ seo, config }) {
   router.get("/agence/:id", guard(async (req, res) => html(res, view.agencyPage({ base: baseOf(req), agency: await seo.agency(req.params.id) }))));
   router.get("/guides", guard(async (req, res) => html(res, view.guidesIndex({ base: baseOf(req) }))));
   router.get("/guides/:slug", guard(async (req, res) => {
-    const guide = GUIDES.find((g) => g.slug === req.params.slug);
+    const guide = guides().find((g) => g.slug === req.params.slug);
     if (!guide) return missing(req, res);
     html(res, view.guidePage({ base: baseOf(req), guide }));
   }));

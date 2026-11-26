@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import * as v from "../../server/seo/render.js";
 import { legalPage, LEGAL_PAGES } from "../../server/seo/legal.js";
-import { GUIDES } from "../../server/seo/guides.js";
+import { guides } from "../../server/seo/guides.js";
 
 const out = process.argv[2] ?? "pages";
 mkdirSync(out, { recursive: true });
@@ -23,7 +23,7 @@ const pages = {
   "agences": v.agenciesPage({ base, agencies: [{ id: "a1", name: "Mali Habitat", listings: 2, reviews: { average: 4.5, count: 6 } }] }),
   "agence": v.agencyPage({ base, agency }),
   "guides": v.guidesIndex({ base }),
-  "guide": v.guidePage({ base, guide: GUIDES[0] }),
+  "guide": v.guidePage({ base, guide: guides()[0] }),
   "introuvable": v.notFoundPage({ base, path: "/x" }),
 };
 for (const p of LEGAL_PAGES) { const html = legalPage({ base, page: p }); if (html) pages[p.path.slice(1)] = html; }

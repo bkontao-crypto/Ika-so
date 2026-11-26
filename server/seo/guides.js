@@ -3,7 +3,8 @@ import { brand } from "../lib/brand.js";
 // À RELIRE par un professionnel malien avant l'ouverture publique (voir SUIVI.md).
 export const GUIDE_NOTICE = "Information générale, sans valeur de conseil juridique. Avant tout paiement, faites vérifier le document par un notaire et auprès des services compétents (cadastre, conservation foncière).";
 
-export const GUIDES = [
+// Fonction (et non constante) : le nom du site peut changer après le chargement du module.
+export const guides = () => [
   {
     slug: "acheter-un-terrain-a-bamako",
     title: "Acheter un terrain à Bamako : les étapes à suivre",

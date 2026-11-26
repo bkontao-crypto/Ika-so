@@ -3,7 +3,7 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { listingPath, zoneSlug } from "../lib/slug.js";
-import { GUIDES, GUIDE_NOTICE } from "./guides.js";
+import { guides, GUIDE_NOTICE } from "./guides.js";
 import { brand, brandLogoHtml, brandUpper } from "../lib/brand.js";
 
 export const esc = (value) =>
@@ -183,7 +183,7 @@ ${grid(agency.listings)}`;
 
 export function guidesIndex({ base }) {
   const body = `<h1 class="title">Guides pour acheter, vendre et louer</h1><p class="notice">${esc(GUIDE_NOTICE)}</p>
-<ul class="stack">${GUIDES.map((g) => `<li class="card pad stack"><h2><a href="/guides/${g.slug}">${esc(g.title)}</a></h2><p class="muted">${esc(g.summary)}</p></li>`).join("")}</ul>`;
+<ul class="stack">${guides().map((g) => `<li class="card pad stack"><h2><a href="/guides/${g.slug}">${esc(g.title)}</a></h2><p class="muted">${esc(g.summary)}</p></li>`).join("")}</ul>`;
   return layout({ base, path: "/guides", title: "Guides immobiliers pour le Mali | " + brand(), description: "Acheter un terrain à Bamako, vérifier un document foncier, repérer les arnaques : des guides simples, sans jargon.", body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Guides", "/guides"]])] });
 }
@@ -203,7 +203,7 @@ export function notFoundPage({ base, path }) {
     body: '<h1 class="title">Page introuvable</h1><p>Cette annonce ou cette page n\'est plus en ligne. <a href="/">Voir les annonces</a> · <a href="/quartiers">Quartiers</a></p>' });
 }
 
-export function sitemapXml({ base, entries, guides = GUIDES }) {
+export function sitemapXml({ base, entries, guides = guides() }) {
   const url = (path, at) => `<url><loc>${esc(base + path)}</loc>${at ? `<lastmod>${new Date(at).toISOString().slice(0, 10)}</lastmod>` : ""}</url>`;
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[
     url("/"), url("/quartiers"), url("/guides"), url("/agences"),
