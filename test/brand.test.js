@@ -62,3 +62,14 @@ test("aucun nom de site en dur dans le code du site et du serveur", () => {
   }
   assert.deepEqual(bad, [], "utiliser brand() / brandUpper() (ou {{SITE_NAME}} dans les pages HTML)");
 });
+
+test("page d'accueil servie par le SEO : le jeton {{SITE_NAME}} est remplacé", async () => {
+  const { brandIndexHtml } = await import("../server/seo/render.js");
+  const page = readFileSync("public/index.html", "utf8");
+  setBrand("Kèlè & Co");
+  const out = brandIndexHtml(page, {});
+  assert.doesNotMatch(out, /\{\{SITE_NAME/);
+  assert.match(out, /<title>Kèlè &amp; Co \|/);
+  assert.match(out, /<meta name="site-name" content="Kèlè &amp; Co">/);
+  setBrand("");
+});
