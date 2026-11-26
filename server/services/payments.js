@@ -171,6 +171,8 @@ export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy
       const price = Number(priceXof);
       if (!Number.isInteger(price) || price < 0 || price > MAX_PRICE_XOF) throw badRequest("Prix invalide (entier en FCFA).");
       if (active && price === 0) throw badRequest("Une offre active doit avoir un prix.");
+      // Règle de CinetPay : un montant qui n'est pas un multiple de 5 fait échouer le paiement chez le client. On refuse dès la saisie du prix.
+      if (provider?.name === "cinetpay" && price % 5 !== 0) throw badRequest("CinetPay n'accepte que des montants multiples de 5 FCFA.");
       await db.transaction(async (tx) => {
         const rows = await tx.query(
           "update ika_offers set price_xof = $2, active = $3, updated_at = now() where code = $1 returning code",
@@ -348,6 +350,23 @@ export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy
         await accounts.audit(userId, "PAYMENT_REFUND", p.listing_id, String(reason).slice(0, 300), tx);
         return { ok: true };
       });
+    },
+
+    /**
+     * Dossier Premium refusé après paiement : quand l'étape « Remboursement effectué » est validée, retire les jours Premium
+     * du paiement concerné, pour que le remboursement et la fin du Premium aillent ensemble. Le paiement concerné est le plus
+     * récent paiement Premium encore « payé » avant le dépôt du dossier (le dossier ne peut être déposé qu'après avoir payé).
+     * `q` : transaction de l'appelant. Sans paiement trouvé (déjà remboursé, ou jamais payé), ne fait rien. Reste « à confirmer » chez le fournisseur.
+     */
+    async refundForRejectedPremium(q, { userId, requestCreatedAt, by }) {
+      const p = (await q.query(
+        "select * from ika_payments where user_id = $1 and kind = 'PREMIUM' and status = 'PAID' and paid_at <= $2 order by paid_at desc limit 1 for update",
+        [userId, requestCreatedAt],
+      ))[0];
+      if (!p) return { refunded: false };
+      await refundPaid(q, p, { by, reason: "Dossier Premium refusé : remboursement effectué" });
+      await accounts.audit(by, "PAYMENT_REFUND", p.listing_id, `${p.id} remboursé (dossier Premium refusé)`, q);
+      return { refunded: true, paymentId: p.id };
     },
 
     expirePending,
