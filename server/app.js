@@ -11,7 +11,7 @@ import { buildMfaRoutes } from "./routes/mfa.js";
 import { buildSeoRoutes } from "./routes/seo.js";
 import { buildWhatsAppInboxRoutes } from "./routes/whatsapp-inbox.js";
 import { readFile } from "node:fs/promises";
-import { brand, brandUpper } from "./lib/brand.js";
+import { brand, brandLogoHtml, brandUpper } from "./lib/brand.js";
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 
@@ -124,7 +124,7 @@ export function createApp({ services, config, logger = createLogger({ level: "er
     const [file, type] = TEMPLATES[req.path];
     try {
       const esc = type === "application/manifest+json" ? escJson : escHtml;
-      const body = (await readFile(join(PUBLIC_DIR, file), "utf8")).replaceAll("{{SITE_NAME_UPPER}}", esc(brandUpper())).replaceAll("{{SITE_NAME}}", esc(brand()));
+      const body = (await readFile(join(PUBLIC_DIR, file), "utf8")).replaceAll("{{SITE_NAME_LOGO}}", brandLogoHtml(esc)).replaceAll("{{SITE_NAME_UPPER}}", esc(brandUpper())).replaceAll("{{SITE_NAME}}", esc(brand()));
       res.set("Content-Type", `${type}; charset=utf-8`).set("Cache-Control", config.production ? "no-cache" : "no-store").send(body);
     } catch (e) { next(e); }
   });

@@ -8,7 +8,7 @@ import { openConsentPanel } from "/js/components/consent-panel.js";
 import { trackPageView } from "/js/core/analytics.js";
 import { loadConsentServices } from "/js/core/services.js";
 import "/js/bootstrap-settings.js";
-import { brand, setBrand } from "./core/brand.js";
+import { brand, brandUpper, setBrand } from "./core/brand.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
 // Lien « Gérer mes choix » des pages rendues par le serveur : /?choix=1 ouvre le panneau puis retire le paramètre de l'adresse.
@@ -117,6 +117,13 @@ api("/platform-settings").then((s) => {
   document.title = document.title.split(before).join(s.platformName);
   const logo = document.querySelector(".brand-logo");
   if (logo) logo.alt = s.platformName;
+  const word = document.querySelector(".logo-word");
+  if (word) { // logo du pied de page : nom en majuscules, dernier mot en doré
+    const words = brandUpper().split(" "), last = words.length > 1 ? words.pop() : "";
+    const gold = Object.assign(document.createElement("span"), { className: "logo-gold", textContent: last });
+    const small = word.querySelector("small");
+    word.replaceChildren(words.join(" ") + (last ? " " : ""), ...(last ? [gold] : []), ...(small ? [small] : []));
+  }
   const foot = document.querySelector(".foot-copy");
   if (foot) replaceTextIn(foot, before, s.platformName); // texte seulement : le nom vient d'un réglage modifiable
 }).catch(() => undefined);

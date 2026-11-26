@@ -12,6 +12,12 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - À faire : corrections par lots, détaillées dans le rapport ; les lots 2 et 4 attendent une décision du propriétaire.
 - Non vérifié : vrais téléphones, thème sombre activé par le bouton, états survol et focus, fenêtres modales.
 
+## Correctifs du nom du site (26 novembre 2026, aucune migration)
+
+- Réalisé : jeton `{{SITE_NAME}}` visible dans l'onglet (l'accueil est servi par `routes/seo.js` : remplacement ajouté) ; logo du pied de page « IKA SO » (écrit en deux morceaux dans `index.html`) maintenant `{{SITE_NAME_LOGO}}` (dernier mot en doré) et mis à jour à chaud côté navigateur ; tests dans `test/brand.test.js`.
+- Vérifié : `npm test` 539/539. Non vérifié : production.
+- Non modifié : préfixe des numéros de facture `IKA-AAAA-n` (référence comptable à garder stable, décision du propriétaire).
+
 ## Nom du site modifiable par le Superadmin (26 novembre 2026, branche feat/nom-site-dynamique, aucune migration)
 
 - À réaliser : le Superadmin renomme le site (Owner Control > Identité & contact) et toutes les lignes qui portaient le nom en dur suivent ce nom.

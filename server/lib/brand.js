@@ -24,3 +24,11 @@ export function applyBrand(text) {
   if (current === DEFAULT_BRAND) return String(text ?? "");
   return String(text ?? "").replace(/IKA S[OÔ] Immobilier/gu, current).replace(/\bIKA S[OÔ](?![\p{L}])/gu, brandUpper()).replace(/\bIka S[oô](?![\p{L}])/gu, current);
 }
+
+/** Nom en majuscules pour le logo : le dernier mot en doré (ex. « IKA <span>SO</span> »). `esc` protège le texte. */
+export function brandLogoHtml(esc) {
+  const words = brandUpper().split(" ");
+  if (words.length < 2) return esc(words[0]);
+  const last = words.pop();
+  return `${esc(words.join(" "))} <span class="logo-gold">${esc(last)}</span>`;
+}
