@@ -38,7 +38,10 @@ export async function devenirPremiumPage() {
   const certified = Boolean(access?.certified);
   const premium = Boolean(access?.premium);
   const eligible = Boolean(access?.eligible);
-  const phoneOk = Boolean(access?.phoneVerified); // numéro confirmé par un vrai SMS : obligatoire pour demander ou payer le Premium
+  const phoneOk = Boolean(access?.phoneVerified); // numéro confirmé par un vrai SMS
+  // Le numéro n'est exigé pour demander ou payer que si la règle officielle le dit et qu'aucune exception n'a été accordée à ce compte (même règle que le serveur).
+  const phoneNeeded = access?.phoneRequiredForPremium !== false;
+  const canAct = phoneOk || !phoneNeeded;
   const offers = (offersRes.offers ?? []).filter((o) => o.kind === "PREMIUM");
   const online = Boolean(offersRes.enabled) && offers.length > 0;
   const maxMonths = offersRes.manualMaxMonths ?? 3;
@@ -82,7 +85,7 @@ export async function devenirPremiumPage() {
 
   // Conditions : chacune affiche son état réel et l'action qui la fait avancer.
   const conditions = [
-    { ok: phoneOk, title: "Numéro de téléphone confirmé", text: phoneOk ? "Votre numéro est confirmé." : "Obligatoire avant toute demande ou paiement : cela protège les utilisateurs et donne confiance à votre profil. Sans lui, aucun avantage Premium." },
+    { ok: canAct, title: "Numéro de téléphone confirmé", text: phoneOk ? "Votre numéro est confirmé." : !phoneNeeded ? "Non exigé pour demander ou payer le Premium : l'équipe vous en a dispensé. Il peut rester nécessaire pour ouvrir votre centre de contrôle." : "Obligatoire avant toute demande ou paiement : cela protège les utilisateurs et donne confiance à votre profil. Sans lui, aucun avantage Premium." },
     { ok: certified, title: "Badge de confiance (facultatif)", text: "Agence : registre de commerce vérifié. Particulier : titre foncier contrôlé sur une annonce. Il renforce la confiance mais n'est pas nécessaire pour ouvrir votre centre.",
       cta: certified ? null : h("a", { class: "btn btn-small", href: "#/profil" }, "Envoyer mes justificatifs") },
     { ok: premium, title: "Abonnement Premium actif",
@@ -143,7 +146,7 @@ export async function devenirPremiumPage() {
         h("h1", null, premium ? "Votre Premium" : "Devenir Premium"),
         h("p", { class: "dp-lead" }, "Un centre de contrôle complet pour les annonceurs dont le numéro est confirmé. Vérifiez les conditions, puis activez votre abonnement."),
         h("p", { class: "dp-status" }, status, " · ", phoneOk ? "Numéro confirmé" : "Numéro à confirmer")),
-      !phoneOk ? h("section", { class: "card pad stack dp-block", role: "status", id: "dp-phone" },
+      !canAct ? h("section", { class: "card pad stack dp-block", role: "status", id: "dp-phone" },
         h("h2", null, "Étape 1 : confirmez votre numéro de téléphone"),
         h("p", null, premium ? "Votre Premium est actif, mais ses avantages restent fermés tant que votre numéro n'est pas confirmé." : "Avant de demander ou payer le Premium, votre numéro doit être confirmé par un code."),
         h("p", { class: "small muted" }, "Pourquoi ? Pour protéger les utilisateurs et donner confiance à votre profil : un annonceur Premium est un annonceur joignable et identifiable."),
@@ -157,8 +160,8 @@ export async function devenirPremiumPage() {
             h("span", { class: "pm-num" }, c.ok ? icon("check") : String(i + 1)),
             h("div", null, h("strong", null, c.title), h("p", { class: "small muted" }, c.text), c.cta))))),
 
-      access?.unlimited ? h("section", { class: "card pad stack dp-block" }, h("h2", null, "Tous les avantages sont ouverts"), h("p", null, "En tant que Super Administrateur, vous bénéficiez de tous les avantages Premium, sans durée limite et sans demande ni paiement."), h("a", { class: "btn btn-gold", href: "#/centre" }, "Ouvrir mon centre de contrôle")) : phoneOk ? formules : lockedFormules,
-      !access?.unlimited && phoneOk && online && (premium || request) ? dossier("Mon dossier de certification", "Votre paiement est enregistré. Complétez votre dossier : l'équipe l'étudie en 3 étapes (étude, vérification, confirmation) et vous répond sous " + delayDays + " jours.") : null,
+      access?.unlimited ? h("section", { class: "card pad stack dp-block" }, h("h2", null, "Tous les avantages sont ouverts"), h("p", null, "En tant que Super Administrateur, vous bénéficiez de tous les avantages Premium, sans durée limite et sans demande ni paiement."), h("a", { class: "btn btn-gold", href: "#/centre" }, "Ouvrir mon centre de contrôle")) : canAct ? formules : lockedFormules,
+      !access?.unlimited && canAct && online && (premium || request) ? dossier("Mon dossier de certification", "Votre paiement est enregistré. Complétez votre dossier : l'équipe l'étudie en 3 étapes (étude, vérification, confirmation) et vous répond sous " + delayDays + " jours.") : null,
 
       h("section", { class: "dp-benefits" }, BENEFITS.map(([ic, t, d]) =>
         h("article", { class: "pm-keycard" }, h("span", { class: "pm-kic" }, icon(ic)), h("h2", null, t), h("p", { class: "small muted" }, d)))),
