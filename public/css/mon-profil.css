@@ -1,7 +1,8 @@
 /* Mon profil (#/profil) — mise en page de la maquette « Profil compte connecté », sur les variables du design system (clair / sombre). */
 .mp { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; padding-bottom: 40px; }
 .mp > * { min-width: 0; } /* sinon la largeur minimale du contenu (onglets, champs) élargit toute la page sur téléphone */
-.mp-stack { display: grid; gap: 20px; }
+.mp-stack { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+.mp-stack > *, .mp-more > *, .mp-grid > * { min-width: 0; }
 .mp-header { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
 .mp-cover { position: relative; height: 220px; background: linear-gradient(135deg, #0b3b27, #12734b); background-size: cover; background-position: center; }
 .mp-cover-tools { position: absolute; right: 14px; bottom: 14px; display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
@@ -98,10 +99,19 @@
 .mp-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: left .2s; }
 .mp-toggle.active { background: var(--green); }
 .mp-toggle.active::after { left: 22px; }
-.mp-more { display: grid; gap: 14px; }
+.mp-more { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; }
+/* « Autres réglages du compte » : champs, cartes et blocs pre ne dépassent jamais la largeur de l'écran. */
+.mp-more .grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.mp-more .card, .mp-more .stack, .mp-more form, .mp-more details { min-width: 0; max-width: 100%; }
+.mp-more .input, .mp-more input:not([type=checkbox]):not([type=radio]), .mp-more select, .mp-more textarea { width: 100%; max-width: 100%; min-width: 0; box-sizing: border-box; }
+.mp-more pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mp-more p, .mp-more h2, .mp-more label span { overflow-wrap: anywhere; }
+.mp-more label.row { flex-wrap: nowrap; align-items: flex-start; }
+.mp-more .row { flex-wrap: wrap; }
+.mp-more label.row > span { flex: 1; min-width: 0; }
 
 @media (max-width: 900px) {
-  .mp-grid { grid-template-columns: 1fr; }
+  .mp-grid { grid-template-columns: minmax(0, 1fr); }
   .mp-listing-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
