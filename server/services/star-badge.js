@@ -6,6 +6,7 @@ import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { parseProofFile } from "../lib/trust.js";
 import { storeDataUrl } from "../lib/file-storage.js";
 import { DEFAULT_STAR_POLICY, DOC_KINDS, STAR_ACCOUNT_TYPES, STAR_POLICY_KEY, STAR_STEPS, normalizeStarPolicy } from "../lib/star-badge-policy.js";
+import { brand } from "../lib/brand.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 const cleanPhone = (v) => String(v ?? "").replace(/[^\d+]/g, "").slice(0, 20);
@@ -203,7 +204,7 @@ export function createStarBadge({ db, accounts, superadminSettings, requestsHub,
         return { ok: true, status: "APPROVED", userId: r.user_id, validUntil: iso(upd[0].valid_until) };
       });
       if (out.status === "REJECTED") await say(out.userId, { title: "Demande de badge Étoile non retenue", body: `Motif : ${out.why}. Vous pouvez déposer une nouvelle demande.` });
-      else await say(out.userId, { title: "Votre compte est certifié : badge Étoile accordé", body: `Valable jusqu'au ${dateFr(out.validUntil)}. Votre identité a été vérifiée par l'équipe IKA SO.` });
+      else await say(out.userId, { title: "Votre compte est certifié : badge Étoile accordé", body: `Valable jusqu'au ${dateFr(out.validUntil)}. Votre identité a été vérifiée par l'équipe ${brand()}.` });
       return { ok: true, status: out.status, validUntil: out.validUntil ?? null };
     },
 

@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>IKA SO Immobilier | Trouvez. Achetez. Louez. Vivez mieux.</title>
+  <title>{{SITE_NAME}} | Trouvez. Achetez. Louez. Vivez mieux.</title>
+  <meta name="site-name" content="{{SITE_NAME}}">
   <meta name="description" content="Terrains et logements à Bamako : numéro contrôlé par code, annonces relues avant publication, contact direct par appel ou WhatsApp.">
   <meta name="theme-color" content="#0b2a1d">
   <meta name="color-scheme" content="light dark">
@@ -22,8 +23,8 @@
   <a class="sr-only" href="#app">Aller au contenu</a>
   <header class="site-header">
     <div class="site-header-inner">
-      <a class="logo brand" href="#/" aria-label="IKA SO, accueil">
-        <img class="brand-logo" src="/media/logo-ika-so.webp" width="210" height="94" alt="IKA SO Immobilier">
+      <a class="logo brand" href="#/" aria-label="{{SITE_NAME}}, accueil">
+        <img class="brand-logo" src="/media/logo-ika-so.webp" width="210" height="94" alt="{{SITE_NAME}}">
       </a>
       <form class="header-search" id="quickSearch" role="search">
         <svg viewBox="0 0 24 24" width="19" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3-3"/></svg>
@@ -75,7 +76,7 @@
         </nav>
       </div>
       <div class="foot-bottom">
-        <p class="foot-copy">© <span id="year"></span> IKA SO Immobilier. Tous droits réservés.</p>
+        <p class="foot-copy">© <span id="year"></span> {{SITE_NAME}}. Tous droits réservés.</p>
         <nav class="foot-links" aria-label="Pied de page">
           <a href="#/">Accueil</a><a href="#/favoris">Favoris</a><a href="#/profil">Mon compte</a><a href="/mentions-legales">Mentions légales</a><button type="button" class="foot-link-btn" id="consent-open">Gérer mes choix</button>
         </nav>
@@ -83,7 +84,7 @@
     </div>
   </footer>
   <nav class="bottom-nav" id="nav-bottom" aria-label="Navigation mobile"></nav>
-  <noscript><p class="banner">Ika So a besoin de JavaScript pour fonctionner.</p></noscript>
+  <noscript><p class="banner">{{SITE_NAME}} a besoin de JavaScript pour fonctionner.</p></noscript>
   <script type="module" src="/js/app.js"></script>
 </body>
 </html>

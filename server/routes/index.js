@@ -11,6 +11,7 @@ import { clean, readDraft } from "../lib/web.js";
 import { formatReceiptEmail } from "../lib/receipt-email.js";
 import { ficheHtml } from "../lib/fiche.js";
 import { appFailPage, appReturnPage, authorizationUrl, clearedStateCookie, exchangeCode, fetchProfile, newState, packState, readStateCookie, safeNext, sameState, stateCookie, verifyIdToken } from "../lib/google-oauth.js";
+import { brand, brandSlug } from "../lib/brand.js";
 
 const LOGIN_FAIL_WINDOW_MS = 15 * 60_000;
 
@@ -485,7 +486,7 @@ router.get("/listings/:id", async (req, res) => {
     if (!lead) return res.status(404).json({ error: "Lead introuvable" });
     if (!lead.contact_phone) return res.status(400).json({ error: "Pas de téléphone sur ce lead" });
     if (!whatsapp.isConfigured()) return res.status(503).json({ error: "WhatsApp Business non configuré" });
-    const text = clean(req.body?.text, 1000) || "Bonjour, suite à votre intérêt sur Ika So.";
+    const text = clean(req.body?.text, 1000) || "Bonjour, suite à votre intérêt sur " + brand() + ".";
     const out = await whatsapp.sendText(lead.contact_phone, text);
     // Journaliser dans les notes du lead
     await crm.update(userId, id(req), {
@@ -870,7 +871,7 @@ router.get("/listings/:id", async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`export:${userId}`, 3, 60 * 60_000);
     const data = await rights.exportData(userId);
-    res.setHeader("Content-Disposition", 'attachment; filename="mes-donnees-ika-so.json"');
+    res.setHeader("Content-Disposition", `attachment; filename="mes-donnees-${brandSlug()}.json"`);
     res.setHeader("Cache-Control", "no-store");
     res.json(data);
   });
@@ -982,7 +983,7 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/me/import/modele.xlsx", async (req, res) => {
     await imports.assertCanImport(requireUser(req));
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", 'attachment; filename="modele-import-ika-so.xlsx"');
+    res.setHeader("Content-Disposition", `attachment; filename="modele-import-${brandSlug()}.xlsx"`);
     res.setHeader("Cache-Control", "no-store");
     res.send(imports.modeleXlsx());
   });
@@ -1292,7 +1293,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     limiter.hit(`activity-export:${userId}`, 10, 60 * 60_000);
     const pdf = await ownerCenter.exportPdf(userId, feedQuery(req.query ?? {}));
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", "attachment; filename=mouvements-ika-so.pdf");
+    res.setHeader("Content-Disposition", `attachment; filename=mouvements-${brandSlug()}.pdf`);
     res.setHeader("Cache-Control", "no-store");
     res.send(pdf);
   });
@@ -1301,7 +1302,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
     limiter.hit(`activity-export:${userId}`, 10, 60 * 60_000);
     const csv = await ownerCenter.exportCsv(userId, feedQuery(req.query ?? {}));
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", "attachment; filename=mouvements-ika-so.csv");
+    res.setHeader("Content-Disposition", `attachment; filename=mouvements-${brandSlug()}.csv`);
     res.setHeader("Cache-Control", "no-store");
     res.send(csv);
   });

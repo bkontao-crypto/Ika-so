@@ -12,6 +12,7 @@ import { bulkImportBlock } from "/js/components/bulk-import.js";
 import { profileTabs } from "/js/components/profile-tabs.js";
 import { accountSettings } from "/js/pages/account.js";
 import { starBadgeCard } from "/js/components/star-badge-form.js";
+import { brand, brandSlug } from "../core/brand.js";
 
 const TABS = [["publications", "Publications"], ["apropos", "À propos"], ["videos", "Vidéos"], ["photos", "Photos"], ["annonces", "Mes annonces"], ["avis", "Avis"], ["abonnes", "Abonnés"], ["equipe", "Équipe"], ["parametres", "Paramètres & Confidentialité"]];
 const STATUS = { PENDING: ["amber", "⏳ En attente de validation"], REJECTED: ["red", "✕ Refusée"], EXPIRED: ["neutral", "Expirée"], SOLD: ["neutral", "Vendue"], RENTED: ["neutral", "Louée"], DRAFT: ["neutral", "Brouillon"] };
@@ -94,7 +95,7 @@ export async function profilePage() {
       ] },
       { title: "Contenu du profil", items: [
         { icon: "📝", label: "Mes publications", onClick: () => show("publications") },
-        { icon: "📥", label: "Exporter mes données", href: "/api/me/export", download: "mes-donnees-ika-so.json" },
+        { icon: "📥", label: "Exporter mes données", href: "/api/me/export", download: `mes-donnees-${brandSlug()}.json` },
       ] },
     ],
   });
@@ -189,7 +190,7 @@ export async function profilePage() {
       : h("div", null,
           pr.city ? h("div", { class: "mp-intro" }, h("span", null, "📍"), h("span", null, "Vit à ", h("b", null, pr.city))) : h("div", { class: "mp-intro" }, h("span", null, "📍"), h("button", { class: "mp-link", type: "button", onClick: () => { editingAbout = true; reload(); } }, "Ajouter ma ville")),
           h("div", { class: "mp-intro" }, h("span", null, "💼"), h("span", null, h("b", null, edit.role || "Membre"))),
-          h("div", { class: "mp-intro" }, h("span", null, "📅"), h("span", null, "A rejoint IKA SO en ", h("b", null, monthYear(pub?.memberSince) || "—"))),
+          h("div", { class: "mp-intro" }, h("span", null, "📅"), h("span", null, "A rejoint " + brand() + " en ", h("b", null, monthYear(pub?.memberSince) || "—"))),
           pr.zones.length ? h("div", { class: "mp-intro" }, h("span", null, "🗺️"), h("span", null, pr.zones.join(", "))) : null,
           pr.bio ? h("p", { class: "mp-bio" }, pr.bio) : null));
 
@@ -288,7 +289,7 @@ export async function profilePage() {
     h("div", { class: "mp-col" }, reviews.length
       ? reviews.map((r) => h("article", { class: "mp-card" }, h("div", { class: "mp-row between" }, h("strong", null, r.author), stars(r.rating)), h("p", { class: "mp-post" }, r.body),
           r.reply ? h("p", { class: "mp-reply" }, h("b", null, "Votre réponse : "), r.reply.body) : null, h("small", null, dateFr(r.createdAt))))
-      : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "⭐"), h("h3", null, "Aucun avis reçu"), h("p", null, "Les avis vous aident à bâtir votre réputation sur IKA SO."))));
+      : h("div", { class: "mp-card mp-empty" }, h("div", { class: "mp-empty-ic" }, "⭐"), h("h3", null, "Aucun avis reçu"), h("p", null, "Les avis vous aident à bâtir votre réputation sur " + brand() + "."))));
 
   /* ---------- Paramètres & Confidentialité ---------- */
   const toggle = (on, label, onChange) => h("button", { class: `mp-toggle${on ? " active" : ""}`, type: "button", role: "switch", "aria-checked": String(on), "aria-label": label, onClick: onChange });
@@ -366,7 +367,7 @@ export async function profilePage() {
   const parametresTab = h("div", { class: "mp-grid" },
     h("div", { class: "mp-col" },
       h("div", { class: "mp-card" }, h("h3", null, "Confidentialité"),
-        h("p", { class: "mp-hint" }, "Contrôlez les informations que vous partagez publiquement sur IKA SO."),
+        h("p", { class: "mp-hint" }, "Contrôlez les informations que vous partagez publiquement sur " + brand() + "."),
         setting("Afficher mon numéro", edit.hasPhone ? "Bouton « Appeler » visible sur mon profil. Le numéro n'est jamais écrit sur la page." : "Ajoutez d'abord un numéro à votre compte.",
           toggle(pr.showPhone, "Afficher mon numéro", () => edit.hasPhone && run(() => api("/me/public-profile", { method: "PUT", body: { showPhone: !pr.showPhone } }), "Préférence enregistrée."))),
         setting("Afficher WhatsApp", edit.hasPhone ? "Bouton « WhatsApp » visible sur mon profil." : "Ajoutez d'abord un numéro à votre compte.",
@@ -400,7 +401,7 @@ export async function profilePage() {
                   } }, "Retirer")
                 : h("a", { class: "mp-btn mp-btn-primary sm", href: "/api/auth/google?link=1" }, "Lier Google"))),
         h("div", { class: "mp-group" }, h("h4", null, "Données & Sécurité"),
-          setting("Exporter mes données", "Télécharger une copie de mes données", h("a", { class: "mp-btn mp-btn-outline", href: "/api/me/export", download: "mes-donnees-ika-so.json" }, "Exporter")),
+          setting("Exporter mes données", "Télécharger une copie de mes données", h("a", { class: "mp-btn mp-btn-outline", href: "/api/me/export", download: `mes-donnees-${brandSlug()}.json` }, "Exporter")),
           setting("Supprimer mon compte", "Action irréversible : voir « Mes données » plus bas", h("button", { class: "mp-btn mp-btn-outline danger", type: "button", onClick: () => { const d = settingsHost.querySelector("details"); d?.setAttribute("open", ""); (d ?? settingsHost).scrollIntoView({ behavior: "smooth", block: "center" }); } }, "Supprimer"))))));
   const settingsHost = h("div", { class: "mp-more" }, h("h3", null, "Autres réglages du compte"));
   accountSettings(reload, { embedded: true }).then((node) => settingsHost.append(node)).catch(() => {});

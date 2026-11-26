@@ -6,6 +6,7 @@ import { S, app } from "/js/core/state.js";
 import { field, select } from "/js/components/ui.js";
 import { icon } from "/js/icons.js";
 import { listingCard } from "/js/components/listing-card.js";
+import { brand, brandSlug } from "../core/brand.js";
 
 const DEFAULT_HERO = {
   image: "/media/villa-badala.jpg",
@@ -69,7 +70,7 @@ const initials = (name) => (String(name || "IK").trim().split(/\s+/).slice(0, 2)
         fontSize: "15px",
         lineHeight: "1.7"
       }
-    }, "Téléchargez gratuitement IKA SÔ et retrouvez toutes nos annonces immobilières sur votre smartphone."),
+    }, "Téléchargez gratuitement " + brand() + " et retrouvez toutes nos annonces immobilières sur votre smartphone."),
 
     h("div", {
       style: {
@@ -86,7 +87,7 @@ const initials = (name) => (String(name || "IK").trim().split(/\s+/).slice(0, 2)
 
     h("a", {
       href: "/downloads/ika-so.apk",
-      download: "IKA-SO.apk",
+      download: `${brandSlug()}.apk`,
       style: {
         display: "block",
         padding: "17px 10px",
@@ -99,7 +100,7 @@ const initials = (name) => (String(name || "IK").trim().split(/\s+/).slice(0, 2)
         fontSize: "16px"
       }
     },
-      "↓ Télécharger IKA SÔ",
+      "↓ Télécharger " + brand(),
       h("small", {
         style: {
           display: "block",
@@ -253,14 +254,14 @@ export async function renderHome() {
   const hoods = section("quartiers", sectionHead("Quartiers", "Explorer par quartier", "Parcourez les annonces d'un quartier, ou consultez les prix et repères par quartier.", ["/quartiers", "Tous les quartiers"], "quartiers"),
     h("div", { class: "rx-hoods" }, ZONES.map((z) => h("a", { class: "rx-hood", href: `#/annonces?zone=${encodeURIComponent(z.name)}` }, icon("pin"), z.name))));
 
-  const how = section("comment-ca-marche", sectionHead("Simple et clair", "Comment fonctionne IKA SO ?", null, null, "how"),
+  const how = section("comment-ca-marche", sectionHead("Simple et clair", "Comment fonctionne " + brand() + " ?", null, null, "how"),
     h("div", { class: "rx-steps" }, [
       ["Recherchez", "Filtrez par type de bien, quartier et budget, en grille, en liste ou sur la carte."],
       ["Contactez en confiance", "Appelez, écrivez sur WhatsApp ou utilisez la messagerie. Les numéros sont vérifiés par code SMS."],
       ["Visitez et vérifiez", "Demandez les documents, visitez le bien et faites contrôler le titre avant tout paiement."],
     ].map(([t, p], i) => card("how", i, t, p)).map(([t, p]) => h("article", { class: "rx-step" }, h("h3", null, t), h("p", null, p)))));
 
-  const trust = section("confiance", sectionHead("Confiance", "Pourquoi faire confiance à IKA SO ?", "Des repères concrets, et l'honnêteté sur leurs limites.", ["#/confiance", "Centre de confiance"], "trust"),
+  const trust = section("confiance", sectionHead("Confiance", "Pourquoi faire confiance à " + brand() + " ?", "Des repères concrets, et l'honnêteté sur leurs limites.", ["#/confiance", "Centre de confiance"], "trust"),
     h("div", { class: "rx-trust" }, [
       ["shield-check", "Annonces relues", "Chaque annonce est relue avant sa publication."],
       ["phone", "Numéro contrôlé", "Le téléphone de l'annonceur est vérifié par un code SMS."],

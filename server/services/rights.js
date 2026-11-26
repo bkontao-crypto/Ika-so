@@ -7,6 +7,7 @@
  */
 import { badRequest, conflict, forbidden } from "../lib/errors.js";
 import { newId, verifyPassword } from "../lib/security.js";
+import { brand } from "../lib/brand.js";
 
 export const DELETE_CONFIRM_WORD = "SUPPRIMER";
 const MEDIA = /\/api\/media\/([0-9a-f-]{36})/i;
@@ -25,7 +26,7 @@ export function createRights({ db }, accounts) {
       const many = (text) => db.query(text, [userId]);
       const data = {
         exportedAt: new Date().toISOString(),
-        notice: "Copie des données que Ika So conserve sur votre compte. Le mot de passe (haché) et le contenu des fichiers ne sont pas inclus.",
+        notice: "Copie des données que " + brand() + " conserve sur votre compte. Le mot de passe (haché) et le contenu des fichiers ne sont pas inclus.",
         account: await one("select id, email, name, created_at, terms_version, terms_accepted_at from ika_users where id = $1"),
         profile: await one("select full_name, phone, phone_verified_at, phone_channel, display_role, staff_role, account_status, status_reason, agency_name, agency_verified_at, created_at from ika_profiles where user_id = $1"),
         listings: await many("select l.*, (select coalesce(jsonb_agg(p.url order by p.position), '[]'::jsonb) from ika_listing_photos p where p.listing_id = l.id) as photos from ika_listings l where l.owner_id = $1 order by l.created_at"),

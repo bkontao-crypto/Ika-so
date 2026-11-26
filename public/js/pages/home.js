@@ -5,6 +5,7 @@ import { field, select } from "/js/components/ui.js";
 import { icon } from "/js/icons.js";
 import { listingCard, mapView } from "/js/components/listing-card.js";
 import { getPref, setPref } from "/js/core/prefs.js";
+import { brand, brandUpper } from "../core/brand.js";
 
 const BLANK = { transaction: "", category: "", zone: "", minPrice: "", maxPrice: "", q: "", sort: "", minSurface: "", bedrooms: "" };
 
@@ -30,7 +31,7 @@ export const homePage = async () => (await import("/js/pages/home-sections.js"))
 export const annoncesPage = () => listingsPage("annonces");
 
 /** Initiales d'un annonceur pour la pastille d'une publication sponsorisée. */
-const initials = (name) => (String(name || "IKA SO").trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "IK").toUpperCase();
+const initials = (name) => (String(name || brandUpper()).trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join("") || "IK").toUpperCase();
 
 async function listingsPage(mode) {
   const isHome = mode === "home";
@@ -336,7 +337,7 @@ async function listingsPage(mode) {
       return b;
     }));
   mount(app, h("section", { class: "section container", id: "annonces" },
-    h("div", { class: "section-head" }, h("div", null, h("span", { class: "section-kicker" }, "Sélection IKA SO"), h("h1", { class: "section-title" }, "Toutes les annonces"),
+    h("div", { class: "section-head" }, h("div", null, h("span", { class: "section-kicker" }, "Sélection " + brand()), h("h1", { class: "section-title" }, "Toutes les annonces"),
       h("p", { class: "section-desc" }, "Consultez, filtrez et enregistrez vos recherches."))),
     searchCard,
     h("div", { class: "toolbar" },

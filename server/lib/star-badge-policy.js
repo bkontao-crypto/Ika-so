@@ -1,3 +1,4 @@
+import { brand } from "./brand.js";
 // Réglages du badge Étoile décidés par le superadmin (clé « star_badge_policy » dans ika_superadmin_settings).
 // Rien n'est figé dans le code : activation, pièces exigées par type de compte, prix, durée, délai, conservation et textes se règlent ici.
 // Le badge est INDÉPENDANT du Premium : il atteste seulement qu'un compte est identifié.
@@ -29,7 +30,7 @@ export const DEFAULT_STAR_POLICY = Object.freeze({
   requiredSteps: [1, 2, 3],  // étapes à valider avant la décision finale (réglable : au moins une)
   requirements: REQUIREMENTS,
   infoTitle: "Qu'est-ce qu'un compte certifié ?",
-  infoBody: "Le badge Étoile indique que l'identité du titulaire a été vérifiée par l'équipe IKA SO à partir de pièces justificatives. Il ne garantit ni la qualité d'un bien ni la réussite d'une transaction.",
+  get infoBody() { return "Le badge Étoile indique que l'identité du titulaire a été vérifiée par l'équipe " + brand() + " à partir de pièces justificatives. Il ne garantit ni la qualité d'un bien ni la réussite d'une transaction."; },
   warningText: "Restez prudent : faites-vous toujours assister par un professionnel (notaire, avocat, agent immobilier agréé) avant de conclure quoi que ce soit avec un annonceur.",
 });
 

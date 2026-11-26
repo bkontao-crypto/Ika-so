@@ -7,6 +7,7 @@ import * as M from "./v-modules.js";
 import { usersView, userCenterView } from "./v-users.js";
 import { chartsView, healthView, premiumFunnelView } from "./v-trafic.js";
 import { mfaView } from "./v-mfa.js";
+import { brand, brandUpper } from "../core/brand.js";
 
 // Menu rangé par fonction : chaque groupe se replie (celui de la page en cours reste ouvert). Les adresses « #/… » ne changent pas.
 const NAV = [
@@ -109,7 +110,7 @@ function avatarNode() {
 function shell() {
   navEl = h("div", { class: "navwrap" });
   side = h("aside", { class: "side", "aria-label": "Navigation Owner" },
-    h("div", { class: "brand" }, h("img", { src: "/media/logo-ika-so.webp", alt: "IKA SO" }), h("div", null, h("b", null, "IKA SO IMMOBILIER"), h("small", null, "OWNER CONTROL CENTER"))),
+    h("div", { class: "brand" }, h("img", { src: "/media/logo-ika-so.webp", alt: brandUpper() }), h("div", null, h("b", null, brandUpper()), h("small", null, "OWNER CONTROL CENTER"))),
     h("div", { class: "role" }, h("span", { class: "live" }), h("div", null, h("small", null, "SESSION SÉCURISÉE"), h("strong", null, access.all ? "SUPERADMIN · Contrôle total" : "ADMIN · Modules délégués"))),
     navEl,
     h("div", { class: "sidefoot" }, avatarNode(), h("div", null, h("b", null, me.fullName || "Propriétaire plateforme"), h("small", null, access.all ? "Accès SUPERADMIN" : "Accès délégué"))));
@@ -120,7 +121,7 @@ function shell() {
   const top = h("header", { class: "top" },
     h("div", { class: "row" }, h("button", { class: "iconbtn menu-btn", type: "button", "aria-label": "Menu", onClick: () => { side.classList.add("open"); scrim.classList.add("open"); } }, ico("menu")), h("div", { class: "crumb" }, "Administration /", crumb)),
     h("div", { class: "topright" }, h("button", { class: "search", type: "button", onClick: openPalette }, ico("search"), h("span", null, "Rechercher un module, un compte…"), h("kbd", null, "Ctrl K")),
-      h("a", { class: "site-back", href: "/", title: "Retour au site IKA SÔ" }, ico("home"), h("span", null, "Retour au site")),
+      h("a", { class: "site-back", href: "/", title: "Retour au site " + brand() }, ico("home"), h("span", null, "Retour au site")),
       h("button", { class: "iconbtn", type: "button", title: "Thème clair / sombre", "aria-label": "Changer de thème", onClick: toggleTheme }, ico("sun")), bell, avatarNode()));
   content = h("div", { class: "content", id: "content", tabindex: "-1" });
   root.className = ""; root.replaceChildren(h("div", { class: "shell" }, side, h("main", null, top, content)), scrim);
@@ -176,7 +177,7 @@ function route() {
   else if (VIEWS[id]) { node = VIEWS[id](ctx); title = FLAT.find((m) => m.id === id)?.label; }
   else { node = h("div", { class: "view" }, empty("Module introuvable.", "search")); title = "Introuvable"; }
   crumb.textContent = title ?? "Owner Control";
-  document.title = `${title ?? "Owner Control"} · IKA SO Owner Control`;
+  document.title = `${title ?? "Owner Control"} · ${brand()} Owner Control`;
   content.replaceChildren(node);
   window.scrollTo({ top: 0 });
 }

@@ -5,6 +5,7 @@
  */
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
+import { brand } from "../lib/brand.js";
 
 export const REVIEW_REASONS = ["Insulte ou propos haineux", "Avis faux ou sans échange réel", "Information privée (numéro, adresse)", "Autre"];
 const LIVE = "l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN' and (l.expires_at is null or l.expires_at > now())";
@@ -25,7 +26,7 @@ export function trustSummary({ phoneBySms, days, publishedNow, titleChecked, age
   const reliable = reviewCount >= MIN_REVIEWS_FOR_SIGNAL;
   const criteria = [
     { key: "sms", label: "Numéro de téléphone vérifié par SMS", ok: Boolean(phoneBySms) },
-    { key: "seniority", label: `Sur Ika So depuis au moins ${MIN_DAYS} jours`, ok: days >= MIN_DAYS },
+    { key: "seniority", label: `Sur ${brand()} depuis au moins ${MIN_DAYS} jours`, ok: days >= MIN_DAYS },
     { key: "listing", label: "Au moins une annonce en ligne", ok: publishedNow > 0 },
     { key: "proof", label: agencyVerified ? "Agence vérifiée par l'équipe (registre de commerce)" : "Au moins une annonce avec titre foncier contrôlé par l'équipe", ok: agencyVerified || titleChecked > 0 },
     { key: "reviews", label: `Au moins ${MIN_REVIEWS_FOR_SIGNAL} avis, moyenne de 4/5 ou plus`, ok: reliable && average >= 4 },
@@ -34,7 +35,7 @@ export function trustSummary({ phoneBySms, days, publishedNow, titleChecked, age
   const negative = reliable && average < 3;
   const level = negative ? "CAUTION" : met >= 4 ? "ESTABLISHED" : met >= 2 ? "BUILDING" : "NEW";
   const label = { CAUTION: "Avis plutôt négatifs : redoublez de prudence", ESTABLISHED: "Profil bien établi", BUILDING: "Profil en construction", NEW: "Nouveau profil" }[level];
-  return { level, label, met, total: criteria.length, criteria, notice: "Ces critères sont constatés par Ika So. Ils ne sont pas une garantie : visitez le bien et faites contrôler les documents avant tout paiement." };
+  return { level, label, met, total: criteria.length, criteria, notice: "Ces critères sont constatés par " + brand() + ". Ils ne sont pas une garantie : visitez le bien et faites contrôler les documents avant tout paiement." };
 }
 
 /**

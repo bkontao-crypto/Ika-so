@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { listingPath, zoneSlug } from "../lib/slug.js";
 import { GUIDES, GUIDE_NOTICE } from "./guides.js";
+import { brand } from "../lib/brand.js";
 
 export const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -54,7 +55,7 @@ export function layout({ base, path, title, description, noindex = false, image,
 <meta name="robots" content="${noindex ? "noindex,follow" : "index,follow"}">
 ${site.keywords ? `<meta name="keywords" content="${esc(cut(site.keywords, 200))}">\n` : ""}
 <link rel="canonical" href="${esc(url)}">
-<meta property="og:type" content="website"><meta property="og:site_name" content="Ika So"><meta property="og:locale" content="fr_ML">
+<meta property="og:type" content="website"><meta property="og:site_name" content="${esc(brand())}"><meta property="og:locale" content="fr_ML">
 <meta property="og:title" content="${esc(cut(title, 90))}"><meta property="og:description" content="${esc(cut(description, 200))}">
 <meta property="og:url" content="${esc(url)}"><meta property="og:image" content="${esc(img)}">
 <meta name="theme-color" content="#0b2a1d">
@@ -70,14 +71,14 @@ ${ld.map(jsonLd).join("\n")}
 <body class="seo-page">
 <a class="sr-only" href="#contenu">Aller au contenu</a>
 <header class="site-header"><div class="site-header-inner">
-  <a class="logo" href="/" aria-label="Ika So, accueil">${logoMark(site.logoUrl)}<span class="logo-word">ika so<i>.</i><small>L'immobilier simplement</small></span></a>
+  <a class="logo" href="/" aria-label="${esc(brand())}, accueil">${logoMark(site.logoUrl)}<span class="logo-word">${esc(brand().toLowerCase())}<i>.</i><small>L'immobilier simplement</small></span></a>
   <nav class="site-nav" aria-label="Navigation"><a href="/quartiers">Quartiers</a><a href="/agences">Agences</a><a href="/guides">Guides</a></nav>
   <div class="site-actions"><a class="btn-lime" href="/#/publier">Déposer<span class="long"> une annonce</span> ↗</a></div>
 </div></header>
 <main id="contenu" tabindex="-1">
 ${body}
 </main>
-<footer class="seo-footer"><p class="small muted">Ika So : l'immobilier au Mali, plus accessible. Ika So affiche ce que l'annonceur déclare ; un badge n'est donné qu'après un contrôle par l'équipe. <a href="/#/confiance">Confiance et limites</a> · <a href="/guides">Guides</a> · <a href="/quartiers">Quartiers</a> · <a href="/?choix=1" rel="nofollow">Gérer mes choix</a>${site.mentions ? ' · <a href="/mentions-legales">Mentions légales</a>' : ""}</p></footer>
+<footer class="seo-footer"><p class="small muted">${esc(brand())} : l'immobilier au Mali, plus accessible. ${esc(brand())} affiche ce que l'annonceur déclare ; un badge n'est donné qu'après un contrôle par l'équipe. <a href="/#/confiance">Confiance et limites</a> · <a href="/guides">Guides</a> · <a href="/quartiers">Quartiers</a> · <a href="/?choix=1" rel="nofollow">Gérer mes choix</a>${site.mentions ? ' · <a href="/mentions-legales">Mentions légales</a>' : ""}</p></footer>
 </body>
 </html>`;
 }
@@ -113,7 +114,7 @@ export function zonesIndex({ base, zones }) {
   const body = `<h1 class="title">Terrains et logements par quartier à Bamako</h1>
 <p>Choisissez un quartier pour voir les annonces en ligne, les repères de prix et les conseils d'achat.</p>
 <ul class="stack">${zones.map((z) => `<li class="card pad row-between"><a href="/quartier/${zoneSlug(z)}"><strong>${esc(z.name)}</strong></a><span class="small muted">${z.count} annonce(s)</span></li>`).join("")}</ul>`;
-  return layout({ base, path: "/quartiers", title: "Quartiers de Bamako : terrains et logements | Ika So", description: "Annonces de terrains et de logements par quartier à Bamako : ACI 2000, Badalabougou, Korofina, Hamdallaye et plus. Repères de prix et conseils.", body,
+  return layout({ base, path: "/quartiers", title: "Quartiers de Bamako : terrains et logements | " + brand(), description: "Annonces de terrains et de logements par quartier à Bamako : ACI 2000, Badalabougou, Korofina, Hamdallaye et plus. Repères de prix et conseils.", body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Quartiers", "/quartiers"]])] });
 }
 
@@ -127,7 +128,7 @@ ${grid(data.listings)}
 ${benchmarkTable(data.benchmarks, `À ${zone.name}.`)}
 <section class="stack"><h2>Avant d'acheter à ${esc(zone.name)}</h2><p><a href="/guides/acheter-un-terrain-a-bamako">Acheter un terrain à Bamako : les étapes</a> · <a href="/guides/verifier-un-document-foncier">Vérifier un document foncier</a></p></section>
 <p><a class="btn btn-primary" href="/#/">Chercher avec les filtres</a></p>`;
-  return layout({ base, path: `/quartier/${slug}`, title: `Terrains et logements à ${zone.name}, Bamako | Ika So`, description: n ? `${n} annonce(s) à ${zone.name} : terrains, maisons, appartements. Repères de prix et conseils d'achat.` : `Annonces immobilières à ${zone.name}, Bamako.`,
+  return layout({ base, path: `/quartier/${slug}`, title: `Terrains et logements à ${zone.name}, Bamako | ${brand()}`, description: n ? `${n} annonce(s) à ${zone.name} : terrains, maisons, appartements. Repères de prix et conseils d'achat.` : `Annonces immobilières à ${zone.name}, Bamako.`,
     noindex: n === 0, image: data.listings[0]?.imageUrl, body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Quartiers", "/quartiers"], [zone.name, `/quartier/${slug}`]]),
       { "@context": "https://schema.org", "@type": "ItemList", name: `Annonces à ${zone.name}`, itemListElement: data.listings.slice(0, 20).map((l, i) => ({ "@type": "ListItem", position: i + 1, url: `${base}${listingPath(l)}`, name: l.title })) }] });
@@ -152,7 +153,7 @@ export function listingPage({ base, data }) {
 <p class="small muted">Annonce de ${esc(l.ownerName)} · ${esc(l.ownerRole)}. Le contact se fait dans l'application, avec un compte.</p>
 </div></article>
 ${data.similar.length ? `<section class="stack"><h2>Annonces similaires</h2>${grid(data.similar)}</section>` : ""}`;
-  return layout({ base, path: listingPath(l), title: `${l.title} — ${l.neighborhood} | Ika So`, description: `${l.title} à ${l.neighborhood} : ${price(l.price, l.transactionType)}, ${l.surfaceLabel}. ${l.description}`, image: photos[0], body,
+  return layout({ base, path: listingPath(l), title: `${l.title} — ${l.neighborhood} | ${brand()}`, description: `${l.title} à ${l.neighborhood} : ${price(l.price, l.transactionType)}, ${l.surfaceLabel}. ${l.description}`, image: photos[0], body,
     ld: [breadcrumb(base, [["Accueil", "/"], [l.neighborhood, `/quartier/${zoneSlug({ name: l.neighborhood })}`], [l.title, listingPath(l)]]),
       { "@context": "https://schema.org", "@type": "RealEstateListing", name: l.title, description: cut(l.description, 500), url: `${base}${listingPath(l)}`, datePosted: l.createdAt || undefined,
         image: photos.map((p) => (p.startsWith("http") ? p : `${base}${p}`)),
@@ -164,9 +165,9 @@ const ratingText = (r) => (r?.count ? `note ${String(r.average).replace(".", ","
 
 export function agenciesPage({ base, agencies }) {
   const body = `<h1 class="title">Agences immobilières vérifiées</h1>
-<p>Une agence apparaît ici seulement après contrôle de son registre de commerce par l'équipe Ika So.</p>
+<p>Une agence apparaît ici seulement après contrôle de son registre de commerce par l'équipe ${esc(brand())}.</p>
 ${agencies.length ? `<ul class="stack">${agencies.map((a) => `<li class="card pad row-between"><a href="/agence/${encodeURIComponent(a.id)}"><strong>${esc(a.name)}</strong></a><span class="small muted">${a.listings} annonce(s) · ${ratingText(a.reviews)}</span></li>`).join("")}</ul>` : '<p class="card pad muted">Aucune agence vérifiée pour le moment.</p>'}`;
-  return layout({ base, path: "/agences", title: "Agences immobilières vérifiées au Mali | Ika So", description: "Annuaire des agences immobilières dont le registre de commerce a été contrôlé par l'équipe Ika So.", noindex: agencies.length === 0, body,
+  return layout({ base, path: "/agences", title: "Agences immobilières vérifiées au Mali | " + brand(), description: "Annuaire des agences immobilières dont le registre de commerce a été contrôlé par l'équipe " + brand() + ".", noindex: agencies.length === 0, body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Agences", "/agences"]])] });
 }
 
@@ -175,7 +176,7 @@ export function agencyPage({ base, agency }) {
 <h1 class="title">${esc(agency.name)}</h1><p><span class="pill pill-green">Agence vérifiée</span> <span class="small muted">${ratingText(agency.reviews)}</span></p>
 <p><a class="btn btn-small" href="/#/annonceur/${encodeURIComponent(agency.id)}">Voir le profil complet, le statut de confiance et les avis</a></p>
 ${grid(agency.listings)}`;
-  return layout({ base, path: `/agence/${encodeURIComponent(agency.id)}`, title: `${agency.name} : annonces et agence vérifiée | Ika So`, description: `${agency.listings.length} annonce(s) de ${agency.name}, agence immobilière vérifiée sur Ika So.`, noindex: agency.listings.length === 0, image: agency.listings[0]?.imageUrl, body,
+  return layout({ base, path: `/agence/${encodeURIComponent(agency.id)}`, title: `${agency.name} : annonces et agence vérifiée | ${brand()}`, description: `${agency.listings.length} annonce(s) de ${agency.name}, agence immobilière vérifiée sur ${brand()}.`, noindex: agency.listings.length === 0, image: agency.listings[0]?.imageUrl, body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Agences", "/agences"], [agency.name, `/agence/${encodeURIComponent(agency.id)}`]]),
       { "@context": "https://schema.org", "@type": "RealEstateAgent", name: agency.name, url: `${base}/agence/${encodeURIComponent(agency.id)}`, areaServed: "Bamako, Mali" }] });
 }
@@ -183,7 +184,7 @@ ${grid(agency.listings)}`;
 export function guidesIndex({ base }) {
   const body = `<h1 class="title">Guides pour acheter, vendre et louer</h1><p class="notice">${esc(GUIDE_NOTICE)}</p>
 <ul class="stack">${GUIDES.map((g) => `<li class="card pad stack"><h2><a href="/guides/${g.slug}">${esc(g.title)}</a></h2><p class="muted">${esc(g.summary)}</p></li>`).join("")}</ul>`;
-  return layout({ base, path: "/guides", title: "Guides immobiliers pour le Mali | Ika So", description: "Acheter un terrain à Bamako, vérifier un document foncier, repérer les arnaques : des guides simples, sans jargon.", body,
+  return layout({ base, path: "/guides", title: "Guides immobiliers pour le Mali | " + brand(), description: "Acheter un terrain à Bamako, vérifier un document foncier, repérer les arnaques : des guides simples, sans jargon.", body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Guides", "/guides"]])] });
 }
 
@@ -192,13 +193,13 @@ export function guidePage({ base, guide }) {
 <article class="stack"><h1 class="title">${esc(guide.title)}</h1><p class="notice">${esc(GUIDE_NOTICE)}</p>
 ${guide.sections.map(([h, items]) => `<section class="stack"><h2>${esc(h)}</h2><ul>${items.map((i) => `<li>${esc(i)}</li>`).join("")}</ul></section>`).join("\n")}
 <p><a class="btn btn-primary" href="/quartiers">Voir les annonces par quartier</a></p></article>`;
-  return layout({ base, path: `/guides/${guide.slug}`, title: `${guide.title} | Ika So`, description: guide.summary, body,
+  return layout({ base, path: `/guides/${guide.slug}`, title: `${guide.title} | ${brand()}`, description: guide.summary, body,
     ld: [breadcrumb(base, [["Accueil", "/"], ["Guides", "/guides"], [guide.title, `/guides/${guide.slug}`]]),
-      { "@context": "https://schema.org", "@type": "Article", headline: guide.title, description: guide.summary, inLanguage: "fr", mainEntityOfPage: `${base}/guides/${guide.slug}`, publisher: { "@type": "Organization", name: "Ika So" } }] });
+      { "@context": "https://schema.org", "@type": "Article", headline: guide.title, description: guide.summary, inLanguage: "fr", mainEntityOfPage: `${base}/guides/${guide.slug}`, publisher: { "@type": "Organization", name: brand() } }] });
 }
 
 export function notFoundPage({ base, path }) {
-  return layout({ base, path, title: "Page introuvable | Ika So", description: "Cette page n'existe pas ou n'est plus en ligne.", noindex: true,
+  return layout({ base, path, title: "Page introuvable | " + brand(), description: "Cette page n'existe pas ou n'est plus en ligne.", noindex: true,
     body: '<h1 class="title">Page introuvable</h1><p>Cette annonce ou cette page n\'est plus en ligne. <a href="/">Voir les annonces</a> · <a href="/quartiers">Quartiers</a></p>' });
 }
 

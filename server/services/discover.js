@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { badRequest, forbidden, notFound, tooMany } from "../lib/errors.js";
 import { CATEGORIES, KINDS, REPORT_REASONS, TEXT_MAX, TEXT_MIN, containsPhone, parseVideoLink } from "../lib/discover.js";
 import { storeDataUrl } from "../lib/file-storage.js";
+import { brand } from "../lib/brand.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 const PAGE = 20;
@@ -131,7 +132,7 @@ export function createDiscover({ db, accounts, rules, engagement, moderationAudi
         if (!ok[0]) throw notFound("Le contenu à republier n'est plus disponible.");
         ref = { type: shared.type, id: String(shared.id).slice(0, 80) };
       }
-      const text = String(content ?? "").trim().slice(0, TEXT_MAX) || (ref ? "À découvrir sur Ika Sô." : "");
+      const text = String(content ?? "").trim().slice(0, TEXT_MAX) || (ref ? "À découvrir sur " + brand() + "." : "");
       if (text.length < (ref ? 1 : TEXT_MIN)) throw badRequest("Le texte de la publication est trop court.");
       if (containsPhone(text)) throw badRequest("Pas de numéro de téléphone dans une publication : les personnes intéressées vous écrivent par la messagerie du site. Écrivez les prix avec des espaces (25 000 000).");
       const k = kind === undefined || kind === null || kind === "" ? "ACTUALITE" : kind;

@@ -5,6 +5,7 @@ import { listingCard } from "/js/components/listing-card.js";
 import { field, passwordField } from "/js/components/ui.js";
 import { linkBar } from "/js/components/profile-tabs.js";
 import { mfaSecurityCard } from "/js/components/mfa-security.js";
+import { brand, brandSlug } from "../core/brand.js";
 
 const STATUS_LABEL = { PENDING: "En attente", PUBLISHED: "En ligne", REJECTED: "Refusée", SOLD: "Vendue", RENTED: "Louée", ARCHIVED: "Archivée", EXPIRED: "Expirée", DRAFT: "Brouillon" };
 
@@ -17,8 +18,8 @@ function newsletterCard() {
   api("/me/newsletter").then((r) => { box.checked = r.subscribed === true; box.disabled = false; }).catch(() => {});
   return h("article", { class: "card pad stack" },
     h("h2", null, "Newsletter"),
-    h("p", { class: "small muted" }, "Facultatif. Ika So ne vous envoie la newsletter que si vous la demandez ici, et vous pouvez l'arrêter à tout moment."),
-    h("label", { class: "row" }, box, h("span", null, "Je veux recevoir la newsletter d'Ika So par e-mail")));
+    h("p", { class: "small muted" }, "Facultatif. " + brand() + " ne vous envoie la newsletter que si vous la demandez ici, et vous pouvez l'arrêter à tout moment."),
+    h("label", { class: "row" }, box, h("span", null, "Je veux recevoir la newsletter d'" + brand() + " par e-mail")));
 }
 
 /** Accès au centre de contrôle des annonceurs Premium certifiés (ou explication de ce qui manque). */
@@ -54,13 +55,13 @@ export async function minePage() {
     const send = async () => {
       try {
         await api("/me/featured-requests", { method: "POST", body: { listingId: item.id, message: textarea.value.trim() } });
-        toast("Demande envoyée à l'équipe IKA SÔ.");
+        toast("Demande envoyée à l'équipe " + brand() + ".");
         minePage();
       } catch (error) { fail(error); }
     };
     const box = h("div", { class: "card pad stack", style: "width:100%" },
       h("strong", null, "Demander la mise à la une"),
-      h("p", { class: "small muted" }, "Votre demande part directement à l'équipe IKA SÔ, qui vous répondra. Elle est gratuite."),
+      h("p", { class: "small muted" }, "Votre demande part directement à l'équipe " + brand() + ", qui vous répondra. Elle est gratuite."),
       textarea,
       h("div", { class: "row" },
         h("button", { class: "btn btn-primary", type: "button", onClick: send }, "Envoyer la demande"),
@@ -210,7 +211,7 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
       prefs.whatsappAvailable ? h("label", { class: "row" }, h("input", { type: "checkbox", checked: prefs.whatsapp, disabled: !m.phoneVerified, onChange: (e) => savePrefs({ email: prefs.email, sms: prefs.sms, whatsapp: e.target.checked }) }), h("span", null, m.phoneVerified ? "Me prévenir par WhatsApp (seulement la décision sur mon dossier Premium)" : "Me prévenir par WhatsApp (vérifiez d'abord votre numéro)")) : null) : null,
     stats ? h("article", { class: "card pad stack" },
       h("h2", null, "Statistiques d'usage"),
-      h("p", { class: "small muted" }, "Facultatif. Ika So peut compter certaines actions (annonces vues, favoris, contacts) pour s'améliorer. Ni votre adresse IP, ni vos messages, ni votre numéro ne sont enregistrés. Refuser ne change rien à votre usage ; si vous refusez, vos actions restent comptées sans votre nom."),
+      h("p", { class: "small muted" }, "Facultatif. " + brand() + " peut compter certaines actions (annonces vues, favoris, contacts) pour s'améliorer. Ni votre adresse IP, ni vos messages, ni votre numéro ne sont enregistrés. Refuser ne change rien à votre usage ; si vous refusez, vos actions restent comptées sans votre nom."),
       h("label", { class: "row" }, h("input", { type: "checkbox", checked: stats.accepted === true, onChange: (e) => saveStats(e.target.checked) }), h("span", null, stats.accepted === true ? "Autorisées" : "Refusées"))) : null,
     premiumBlock,
     centreCard(access),
@@ -225,7 +226,7 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
     h("article", { class: "card pad stack" },
       h("h2", null, "Mes données"),
       h("p", { class: "small muted" }, "Vous pouvez télécharger une copie de vos données ou supprimer votre compte (Loi n° 2013-015, art. 12 et 13)."),
-      h("a", { class: "btn", href: "/api/me/export", download: "mes-donnees-ika-so.json" }, "Télécharger mes données"),
+      h("a", { class: "btn", href: "/api/me/export", download: `mes-donnees-${brandSlug()}.json` }, "Télécharger mes données"),
       h("details", { class: "stack" },
         h("summary", { class: "btn" }, "Supprimer mon compte"),
         h("p", { class: "small" }, "Vos annonces, messages, favoris et pièces envoyées seront effacés. Les paiements déjà faits restent dans la comptabilité, sans votre nom. Cette action est définitive."),

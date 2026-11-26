@@ -1,10 +1,11 @@
-import { DOCUMENT_DISCLAIMER, REPORT_REASONS, api, fail, formatPrice, h, mount, toast } from "/js/dom.js";
+import { documentDisclaimer, REPORT_REASONS, api, fail, formatPrice, h, mount, toast } from "/js/dom.js";
 import { S, app } from "/js/core/state.js";
 import { watchDwell } from "/js/core/analytics.js";
 import { needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 import { initials } from "/js/components/espace.js";
 import { openFullscreen, socialBar } from "/js/components/social.js";
+import { brand } from "../core/brand.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
@@ -50,7 +51,7 @@ export async function listingPage(id) {
       const clean = phone.replace(/\s/g, "");
       if (kind === "CALL") location.href = `tel:${clean}`;
       else {
-        const text = encodeURIComponent(`Bonjour, je vous contacte depuis Ika So au sujet de « ${item.title} ». Est-elle toujours disponible ?`);
+        const text = encodeURIComponent(`Bonjour, je vous contacte depuis ${brand()} au sujet de « ${item.title} ». Est-elle toujours disponible ?`);
         window.open(`https://wa.me/${clean.replace("+", "")}?text=${text}`, "_blank", "noopener,noreferrer");
       }
     } catch (error) { fail(error); }
@@ -130,7 +131,7 @@ export async function listingPage(id) {
           item.phoneVerified ? h("span", { class: "pill pill-green" }, "Numéro vérifié par SMS") : h("span", { class: "pill" }, "Numéro non vérifié par SMS")),
         h("p", null, h("strong", null, item.ownerName), ` · ${item.ownerRole}`),
         item.ownerId ? h("div", { class: "row" }, ownerSummary) : null,
-        h("p", { class: "notice" }, DOCUMENT_DISCLAIMER, " Document déclaré : ", h("strong", null, item.declaredDocument ?? "non précisé"), "."),
+        h("p", { class: "notice" }, documentDisclaimer(), " Document déclaré : ", h("strong", null, item.declaredDocument ?? "non précisé"), "."),
         h("div", { class: "grid facts" },
           fact("Superficie", item.surfaceLabel), fact("Accès", item.roadAccess ?? "—"),
           fact(item.bedrooms == null ? "Type de bien" : "Chambres", item.bedrooms == null ? item.category : String(item.bedrooms)),

@@ -1,6 +1,7 @@
 import { badRequest } from "../lib/errors.js";
 import { storeDataUrl } from "../lib/file-storage.js";
 import { MIN_TEXT, normalizeHex, ratio, suggestInk } from "../../public/js/lib/contrast.js";
+import { brand } from "../lib/brand.js";
 
 // Onglets d'origine : toujours présents (masquables, jamais supprimables), pour pouvoir revenir à la version initiale.
 export const SYSTEM_TABS = Object.freeze([
@@ -184,7 +185,7 @@ export function createSiteHeader({ db, accounts, onChanged = () => {} }) {
   // Pied de page : texte de présentation, colonnes de liens, mention de droits. Les liens légaux et le choix des cookies restent fixes dans la page.
   const FOOTER_DEFAULT = Object.freeze({
     intro: "La plateforme immobilière du Mali : terrains, maisons, appartements, studios, locaux commerciaux et bureaux, avec des numéros vérifiés par code et des annonces relues avant publication.",
-    copyright: "IKA SO Immobilier. Tous droits réservés.",
+    get copyright() { return brand() + ". Tous droits réservés."; },
     columns: [
       { title: "Rechercher", links: [["Acheter", "#/annonces?t=Vente"], ["Louer", "#/annonces?t=Location"], ["Terrains", "#/annonces?category=Terrain"], ["Carte immobilière", "#/carte"], ["Quartiers", "/quartiers"]] },
       { title: "Professionnels", links: [["Publier une annonce", "#/publier"], ["Annonceurs", "#/annonceurs"], ["Agences vérifiées", "/agences"], ["Devenir annonceur", "#/devenir-annonceur"], ["Partenaires", "#/partenaires"]] },

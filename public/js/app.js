@@ -8,6 +8,7 @@ import { openConsentPanel } from "/js/components/consent-panel.js";
 import { trackPageView } from "/js/core/analytics.js";
 import { loadConsentServices } from "/js/core/services.js";
 import "/js/bootstrap-settings.js";
+import { brand } from "./core/brand.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
 // Lien « Gérer mes choix » des pages rendues par le serveur : /?choix=1 ouvre le panneau puis retire le paramètre de l'adresse.
@@ -107,14 +108,17 @@ window.addEventListener("offline", () => renderChrome());
 
 document.getElementById("year").textContent = String(new Date().getFullYear());
 
-// Appliquer le nom de plateforme défini dans Owner Control
+// Nom de la plateforme défini dans Owner Control : déjà écrit par le serveur dans la page ; on rattrape ici une page gardée hors ligne.
 api("/platform-settings").then((s) => {
   if (!s?.platformName) return;
-  document.title = `${s.platformName} | Immobilier`;
+  const before = brand();
+  setBrand(s.platformName);
+  if (before === s.platformName) return;
+  document.title = document.title.split(before).join(s.platformName);
   const logo = document.querySelector(".brand-logo");
   if (logo) logo.alt = s.platformName;
   const foot = document.querySelector(".foot-copy");
-  if (foot) replaceTextIn(foot, "IKA SO Immobilier", s.platformName); // texte seulement : le nom vient d'un réglage modifiable
+  if (foot) replaceTextIn(foot, before, s.platformName); // texte seulement : le nom vient d'un réglage modifiable
 }).catch(() => undefined);
 
 startDecorating();

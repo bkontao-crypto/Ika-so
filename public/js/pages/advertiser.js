@@ -7,10 +7,11 @@ import { field, select } from "/js/components/ui.js";
 import { stars } from "/js/components/stars.js";
 import { KIND_LABELS, loadDiscoverCss, photoGrid, videoCard } from "/js/components/post-composer.js";
 import { socialBar } from "/js/components/social.js";
+import { brand } from "../core/brand.js";
 
 const REVIEW_REASONS = ["Insulte ou propos haineux", "Avis faux ou sans échange réel", "Information privée (numéro, adresse)", "Autre"];
 const REPORT_REASONS = ["Arnaque ou demande d'acompte", "Annonce trompeuse ou bien inexistant", "Faux profil ou usurpation d'identité", "Harcèlement ou insultes", "Autre"];
-const TIPS = ["Visitez le bien avant tout paiement et ne versez jamais d'acompte à distance.", "Demandez les documents (titre foncier, bail) et faites-les contrôler par un notaire.", "Vérifiez que la personne qui vous reçoit est bien celle de l'annonce.", "Gardez vos échanges dans Ika So : ils aident la modération en cas de litige."];
+const tips = () => ["Visitez le bien avant tout paiement et ne versez jamais d'acompte à distance.", "Demandez les documents (titre foncier, bail) et faites-les contrôler par un notaire.", "Vérifiez que la personne qui vous reçoit est bien celle de l'annonce.", "Gardez vos échanges dans " + brand() + " : ils aident la modération en cas de litige."];
 
 let cssDone = false;
 const loadCss = () => {
@@ -160,7 +161,7 @@ export async function advertiserPage(id) {
         zones.length ? infoRow("◎", `Zones : ${zones.join(", ")}`) : null,
         pr.hours ? infoRow("◷", pr.hours) : null,
         pr.foundedYear ? infoRow("▣", `Depuis ${pr.foundedYear} (déclaré)`) : null,
-        infoRow("✦", `Sur Ika So depuis ${duration(p.memberDays)}`))),
+        infoRow("✦", `Sur ${brand()} depuis ${duration(p.memberDays)}`))),
     specialties.length ? card(h("h2", null, "Spécialités"), h("div", { class: "pa-chips" }, specialties.map((s) => h("span", { class: "pill" }, s)))) : null,
     card(h("h2", null, "Évaluation des clients"),
       p.rating.count ? h("div", null, h("div", { class: "pa-rating" }, h("strong", null, avg), h("div", null, stars(p.rating.average, { label: `Note moyenne ${avg} sur 5` }), h("small", { class: "pa-muted" }, h("br"), `Sur ${p.rating.count} avis`))), dist)
@@ -212,7 +213,7 @@ export async function advertiserPage(id) {
     load(true);
     return [card(h("div", { class: "pa-sectionhead" }, h("h2", null, "Avis & évaluations"), h("span", { class: "pa-badge" }, `${p.rating.count} avis`)), form),
       card(chips, list, more),
-      h("p", { class: "pa-muted" }, "Les avis sont donnés par des personnes ayant contacté cet annonceur. Ils sont relus par la modération en cas de signalement. Ika So ne certifie ni les avis ni les biens.")];
+      h("p", { class: "pa-muted" }, "Les avis sont donnés par des personnes ayant contacté cet annonceur. Ils sont relus par la modération en cas de signalement. " + brand() + " ne certifie ni les avis ni les biens.")];
   }
 
   function trustTab() {
@@ -226,8 +227,8 @@ export async function advertiserPage(id) {
         h("div", { class: "pa-info" }, p.trust.criteria.map((c) => h("div", null, h("span", { class: "pa-ico", "aria-hidden": "true" }, c.ok ? "✓" : "○"), h("span", null, c.label), h("span", { class: c.ok ? "pa-badge" : "pa-badge off" }, c.ok ? "Constaté" : "Pas encore")))),
         h("div", { class: "pa-notice" }, h("b", null, "Conseil sécurité : "), p.trust.notice)),
       card(h("h2", null, "Antécédents constatés"), h("div", { class: "pa-twocol" }, fact("Annonces publiées", hs.published), fact("Biens vendus ou loués", hs.closed), fact("Annonces refusées par la modération", hs.rejected), fact("Première annonce", hs.firstPublishedAt ? formatDate(hs.firstPublishedAt) : "—")),
-        h("p", { class: "pa-muted" }, "Seuls des faits comptés par Ika So sont affichés. Un refus peut venir d'une simple erreur de saisie. Les signalements en cours ne sont pas publics : ils ne prouvent rien tant que la modération ne les a pas examinés.")),
-      card(h("h2", null, "Avant d'acheter ou de louer"), h("ul", { class: "pa-bullets" }, TIPS.map((t) => h("li", null, t)))),
+        h("p", { class: "pa-muted" }, "Seuls des faits comptés par " + brand() + " sont affichés. Un refus peut venir d'une simple erreur de saisie. Les signalements en cours ne sont pas publics : ils ne prouvent rien tant que la modération ne les a pas examinés.")),
+      card(h("h2", null, "Avant d'acheter ou de louer"), h("ul", { class: "pa-bullets" }, tips().map((t) => h("li", null, t)))),
       p.viewer.self ? null : card(h("h2", null, "Règles & signalement"), h("p", { class: "pa-about" }, "Vous pouvez signaler un profil ou un comportement suspect. Un signalement est examiné par l'équipe et n'entraîne aucune sanction automatique."), report)];
   }
 
@@ -263,13 +264,13 @@ export async function advertiserPage(id) {
     },
     about: () => [card(h("h2", null, agency ? "À propos de l'agence" : "À propos"), pr.bio ? h("p", { class: "pa-about" }, pr.bio) : null,
       h("div", { class: "pa-twocol" }, pr.foundedYear ? fact("Création (déclarée)", pr.foundedYear) : null, zones.length ? fact("Zones d'intervention", zones.join(", ")) : null, pr.address ? fact("Adresse", pr.address) : null, pr.hours ? fact("Horaires", pr.hours) : null,
-        fact("Type de compte", agency ? (p.agencyVerified ? "Agence vérifiée" : "Agence") : roleLabel), fact("Sur Ika So depuis", `${duration(p.memberDays)} (${formatDate(p.memberSince)})`)),
-      !pr.bio && !pr.foundedYear && !zones.length && !pr.address && !pr.hours ? h("p", { class: "pa-muted" }, "Aucune information complémentaire renseignée.") : h("p", { class: "pa-muted" }, "Informations déclarées par l'annonceur, non contrôlées par Ika So."))],
+        fact("Type de compte", agency ? (p.agencyVerified ? "Agence vérifiée" : "Agence") : roleLabel), fact("Sur " + brand() + " depuis", `${duration(p.memberDays)} (${formatDate(p.memberSince)})`)),
+      !pr.bio && !pr.foundedYear && !zones.length && !pr.address && !pr.hours ? h("p", { class: "pa-muted" }, "Aucune information complémentaire renseignée.") : h("p", { class: "pa-muted" }, "Informations déclarées par l'annonceur, non contrôlées par " + brand() + "."))],
     reviews: reviewsTab,
     gallery: () => [card(h("h2", null, "Photos & vidéos"), photos.length ? h("div", { class: "pa-listinggrid" }, photos.map((l) => h("a", { href: `#/annonce/${encodeURIComponent(l.id)}`, "aria-label": l.title }, h("img", { class: "pa-listingimg round", src: l.imageUrl, alt: l.title, loading: "lazy" })))) : h("p", { class: "pa-muted" }, "Aucune photo pour le moment."))],
     activity: () => [card(h("h2", null, "Activité du profil"), h("div", { class: "pa-twocol" },
       fact("Annonces en ligne", p.experience.listingsNow), fact("Annonces publiées au total", p.experience.listingsEver), fact("Biens vendus ou loués", p.experience.closed), fact("Contacts reçus", p.experience.contactsReceived)),
-      h("p", { class: "pa-muted" }, "Ces chiffres sont comptés par Ika So. « Vendus ou loués » dépend de ce que l'annonceur déclare."))],
+      h("p", { class: "pa-muted" }, "Ces chiffres sont comptés par " + brand() + ". « Vendus ou loués » dépend de ce que l'annonceur déclare."))],
     trust: trustTab,
   };
 

@@ -2,6 +2,7 @@
 // Chaque carte mène à une fonction réelle du projet (mise à la une payante, annuaire des agences, espace agence).
 import { h, mount, api } from "/js/dom.js";
 import { app, S } from "/js/core/state.js";
+import { brand } from "../core/brand.js";
 
 const CARDS = [
   { image: "/media/villa-badala.jpg", label: "Mise à la une", title: "Annonces sponsorisées",
@@ -85,7 +86,7 @@ async function partnersSection() {
     function draw() {
       mount(host,
         h("div", { class: "section-head" }, h("div", null, h("span", { class: "section-kicker" }, "Ils nous font confiance"), h("h2", { class: "section-title" }, "Nos partenaires"),
-          h("p", { class: "section-desc" }, "Professionnels de l'immobilier présentés par l'équipe Ika So. Ika So ne garantit pas leurs services : vérifiez toujours avant de payer.")),
+          h("p", { class: "section-desc" }, "Professionnels de l'immobilier présentés par l'équipe " + brand() + ". " + brand() + " ne garantit pas leurs services : vérifiez toujours avant de payer.")),
           manage ? h("button", { class: "btn btn-primary", type: "button", onClick: () => edit(null) }, "Ajouter un partenaire") : null),
         formHost,
         data.partners.length

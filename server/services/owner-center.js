@@ -8,6 +8,7 @@ import { newId } from "../lib/security.js";
 import { classifyDevice } from "../lib/analytics-events.js";
 import { bucketHours, connectionsToCsv, connectionsToPdf, countDayTypes, peakHour, weekSplit } from "../lib/connection-stats.js";
 import { CATEGORIES, CATEGORY_KEYS, DEFAULT_CATEGORIES, SOURCES, SOURCE_KEYS, buildSourceQuery, eventsToCsv, eventsToPdf, mergeEvents, selectSources, shapeEvent } from "../lib/activity-feed.js";
+import { brandSlug } from "../lib/brand.js";
 
 const SECURITY_EVENTS = Object.freeze(["REGISTER", "LOGIN", "LOGIN_FAILED", "LOGOUT"]);
 const CURSOR_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,6})?Z$/;
@@ -202,7 +203,7 @@ export function createOwnerCenter({ db, accounts, logger = null, clock = () => n
       const fmt = format === "pdf" ? "pdf" : "csv";
       const generatedAt = clock().toISOString();
       await accounts.audit(userId, "OWNER_CONNECTIONS_EXPORT", null, `${fmt.toUpperCase()} ; ${data.days} jour(s) ; ${data.totals.logins} connexion(s)`);
-      return fmt === "pdf" ? { body: connectionsToPdf(data, generatedAt), type: "application/pdf", filename: "habitudes-connexion-ika-so.pdf" } : { body: connectionsToCsv(data, generatedAt), type: "text/csv; charset=utf-8", filename: "habitudes-connexion-ika-so.csv" };
+      return fmt === "pdf" ? { body: connectionsToPdf(data, generatedAt), type: "application/pdf", filename: `habitudes-connexion-${brandSlug()}.pdf` } : { body: connectionsToCsv(data, generatedAt), type: "text/csv; charset=utf-8", filename: `habitudes-connexion-${brandSlug()}.csv` };
     },
 
     /** Dossier complet d'un compte ou d'une annonce : fiche + tous ses mouvements. La consultation est elle-même inscrite au journal d'audit. */

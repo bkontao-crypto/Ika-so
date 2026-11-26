@@ -1,5 +1,6 @@
 // Vue générale : fidèle à la maquette (5 indicateurs, activité, santé technique, opérations, alertes, accès rapides), données réelles.
 import { api, h, ico, panel, empty, skeletons, errorBox, areaChart, sparkline, nf, pad2, timeOf, dateTime, ago, shortDay, pill, fail, toast } from "./ui.js";
+import { brand, brandUpper } from "../core/brand.js";
 
 const QUICK = [
   ["crm", "funnel", "Pipeline CRM", "7 étapes commerciales"], ["marketing", "megaphone", "Marketing & campagnes", "Campagnes et mise en avant"],
@@ -54,7 +55,7 @@ export function overviewView(ctx) {
       h("span", { class: `eventico ${a.tone}` }, ico(a.icon)), h("div", null, h("p", null, h("b", null, a.title), " ", a.text), h("small", null, `${a.where} · à traiter`))))) : empty("Rien à signaler. Tout est sous contrôle.", "check");
     const quick = QUICK.map(([id, icon, t, sub]) => h("a", { class: "module", href: `#/${id}` }, h("span", { class: "moduleico" }, ico(icon)), h("span", null, h("b", null, t), h("small", null, sub))));
     root.replaceChildren(
-      h("div", { class: "welcome" }, h("div", null, h("div", { class: "eyebrow" }, "CENTRE DE COMMANDEMENT · IKA SO"), h("h1", null, "Owner Control Center"), h("p", null, "Vue stratégique de la plateforme, de ses opérations et de sa santé technique.")),
+      h("div", { class: "welcome" }, h("div", null, h("div", { class: "eyebrow" }, "CENTRE DE COMMANDEMENT · " + brandUpper()), h("h1", null, "Owner Control Center"), h("p", null, "Vue stratégique de la plateforme, de ses opérations et de sa santé technique.")),
         h("div", { class: "actions" }, h("button", { class: "btn", type: "button", onClick: () => { load(); toast("Données actualisées."); } }, ico("refresh"), "Actualiser les données"),
           h("a", { class: "btn", href: "/api/staff/owner/export.csv", download: "owner-overview.csv" }, ico("download"), "Exporter CSV"), h("a", { class: "btn primary", href: "/api/staff/owner/report.pdf", download: "owner-report.pdf" }, ico("file"), "Rapport complet PDF"))),
       h("section", { class: "grid stats" }, stats),
@@ -64,7 +65,7 @@ export function overviewView(ctx) {
         panel("Alertes & actions prioritaires", "Points nécessitant une attention", alerts, h("span", { class: `pill ${d.alerts.length ? "red" : "green"}` }, `${d.alerts.length} alerte${d.alerts.length > 1 ? "s" : ""}`))),
       h("div", { class: "panelhead" }, h("div", null, h("h2", null, "Accès rapides aux modules Owner"), h("div", { class: "desc" }, "Tous les outils de pilotage regroupés au même endroit"))),
       h("section", { class: "grid modules" }, quick),
-      h("div", { class: "foot" }, `IKA SO IMMOBILIER · OWNER CONTROL CENTER · Données réelles, générées le ${dateTime(d.generatedAt)} · mémoire serveur ${d.health.memoryMb} Mo`));
+      h("div", { class: "foot" }, `${brand()} · OWNER CONTROL CENTER · Données réelles, générées le ${dateTime(d.generatedAt)} · mémoire serveur ${d.health.memoryMb} Mo`));
   }
   load();
   return root;

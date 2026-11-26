@@ -1,3 +1,4 @@
+import { brand } from "./brand.js";
 /**
  * Alertes hors du site (e-mail, SMS). DÉSACTIVÉ par défaut à deux niveaux :
  *  1. côté serveur : un fournisseur doit être configuré (EMAIL_PROVIDER / SMS_PROVIDER) ;
@@ -12,12 +13,12 @@ const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
 const SMS_PER_DAY = 5;
 
-const SUBJECT = {
-  MESSAGE: "Nouveau message sur Ika So", VISIT_REQUEST: "Nouvelle demande de visite sur Ika So", VISIT_ANSWER: "Réponse à votre demande de visite",
-  SEARCH_MATCH: "Une annonce correspond à votre recherche", SEARCH_DIGEST: "Votre résumé d'annonces Ika So",
+const subjects = () => ({
+  MESSAGE: "Nouveau message sur " + brand(), VISIT_REQUEST: "Nouvelle demande de visite sur " + brand(), VISIT_ANSWER: "Réponse à votre demande de visite",
+  SEARCH_MATCH: "Une annonce correspond à votre recherche", SEARCH_DIGEST: "Votre résumé d'annonces " + brand(),
   LISTING_APPROVED: "Votre annonce est en ligne", LISTING_REJECTED: "Votre annonce a été refusée",
-  ADVERTISER_APPLICATION: "Nouvelle demande annonceur à examiner", TEAM_REQUEST: "Invitation à rejoindre une équipe sur Ika So",
-};
+  ADVERTISER_APPLICATION: "Nouvelle demande annonceur à examiner", TEAM_REQUEST: "Invitation à rejoindre une équipe sur " + brand(),
+});
 
 /** WhatsApp : `sendWhatsapp(numéro)` envoie le modèle approuvé (null = non configuré) ; `whatsappOn()` lit le réglage du superadmin (faux par défaut). */
 export function createNotifier({ db, config, sendEmail = null, sendSms = null, sendWhatsapp = null, whatsappOn = async () => false, logger = null, now = () => Date.now() }) {
@@ -42,8 +43,8 @@ export function createNotifier({ db, config, sendEmail = null, sendSms = null, s
         if (now() - (sentEmail.get(key) ?? 0) >= HOUR) {
           sentEmail.set(key, now());
           await sendEmail({
-            to: u.email, subject: SUBJECT[note.kind] ?? "Ika So",
-            text: `Bonjour,\n\n${note.kind === "MESSAGE" ? "Vous avez un nouveau message sur Ika So." : note.title}\n\nOuvrez Ika So pour le lire : ${link}\n\n—\nVous recevez cet e-mail parce que vous avez activé les alertes par e-mail. Pour ne plus en recevoir, décochez l'option dans « Mon profil » > « Alertes hors du site ».`,
+            to: u.email, subject: subjects()[note.kind] ?? brand(),
+            text: `Bonjour,\n\n${note.kind === "MESSAGE" ? "Vous avez un nouveau message sur ${brand()}." : note.title}\n\nOuvrez ${brand()} pour le lire : ${link}\n\n—\nVous recevez cet e-mail parce que vous avez activé les alertes par e-mail. Pour ne plus en recevoir, décochez l'option dans « Mon profil » > « Alertes hors du site ».`,
           });
           out.email = true;
         }
@@ -52,7 +53,7 @@ export function createNotifier({ db, config, sendEmail = null, sendSms = null, s
         const recent = (sentSms.get(userId) ?? []).filter((t) => now() - t < DAY);
         if (recent.length < SMS_PER_DAY) {
           sentSms.set(userId, [...recent, now()]);
-          await sendSms(u.phone, note.kind === "MESSAGE" ? "Ika So : vous avez un nouveau message. Ouvrez l'application pour le lire." : note.kind === "PREMIUM" ? "Ika So : la décision sur votre dossier Premium est disponible. Ouvrez l'application pour la consulter." : "Ika So : vous avez une nouvelle notification. Ouvrez l'application.");
+          await sendSms(u.phone, note.kind === "MESSAGE" ? brand() + " : vous avez un nouveau message. Ouvrez l'application pour le lire." : note.kind === "PREMIUM" ? brand() + " : la décision sur votre dossier Premium est disponible. Ouvrez l'application pour la consulter." : brand() + " : vous avez une nouvelle notification. Ouvrez l'application.");
           out.sms = true;
         }
       }

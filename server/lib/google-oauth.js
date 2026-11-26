@@ -1,6 +1,7 @@
 // Connexion avec Google : flux « code d'autorisation » côté serveur (aucun secret dans le navigateur).
 // Le secret client ne quitte jamais le serveur ; le jeton d'accès ne sert qu'à lire le profil, puis il est jeté.
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { brand, brandUpper } from "./brand.js";
 
 export const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 export const TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -94,32 +95,33 @@ export function appReturnPage(ticket) {
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
 <meta http-equiv="refresh" content="0;url=${escAttr(scheme)}">
-<title>Connexion réussie | IKA SÔ</title><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/ika.css"></head>
+<title>Connexion réussie | ${escAttr(brandUpper())}</title><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/ika.css"></head>
 <body><main class="container stack">
 <h1>Connexion réussie</h1>
-<p>Appuyez sur le bouton pour revenir dans l'application IKA SÔ. Le lien expire dans une minute.</p>
-<p><a class="btn btn-primary btn-block" href="${escAttr(intent)}">Ouvrir IKA SÔ</a></p>
+<p>Appuyez sur le bouton pour revenir dans l'application ${escAttr(brand())}. Le lien expire dans une minute.</p>
+<p><a class="btn btn-primary btn-block" href="${escAttr(intent)}">Ouvrir ${escAttr(brand())}</a></p>
 <p class="small muted"><a href="${escAttr(scheme)}">Le bouton ne fonctionne pas ? Essayer ce lien</a></p>
 </main></body></html>`;
 }
 
-const APP_FAIL = {
-  "compte-existant": "Cette adresse e-mail a déjà un compte IKA SÔ protégé par un mot de passe. Pour votre sécurité, Google ne s'y connecte pas tout seul : ouvrez le site dans Chrome, connectez-vous avec votre mot de passe, puis liez Google depuis « Mon profil ».",
+const appFail = () => ({
+  "compte-existant": "Cette adresse e-mail a déjà un compte " + brand() + " protégé par un mot de passe. Pour votre sécurité, Google ne s'y connecte pas tout seul : ouvrez le site dans Chrome, connectez-vous avec votre mot de passe, puis liez Google depuis « Mon profil ».",
   conditions: "Les conditions d'utilisation n'ont pas été acceptées. Revenez dans l'application, cochez la case des conditions, puis recommencez.",
   bloque: "Ce compte est bloqué.",
   refus: "Connexion Google annulée.",
   etat: "La connexion Google a expiré. Revenez dans l'application et recommencez.",
   indisponible: "La connexion avec Google n'est pas disponible pour le moment.",
   echec: "La connexion Google a échoué. Revenez dans l'application et réessayez, ou utilisez votre mot de passe.",
-};
+});
 
 /** Page affichée dans le navigateur quand la connexion Google lancée depuis l'application échoue : dit pourquoi et ramène à l'application (au lieu d'ouvrir le site, éventuellement connecté à un autre compte). */
 export function appFailPage(code) {
-  const msg = APP_FAIL[code] ?? APP_FAIL.echec;
+  const map = appFail();
+  const msg = map[code] ?? map.echec;
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
-<title>Connexion Google impossible | IKA SÔ</title><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/ika.css"></head>
+<title>Connexion Google impossible | ${escAttr(brandUpper())}</title><link rel="stylesheet" href="/css/tokens.css"><link rel="stylesheet" href="/css/ika.css"></head>
 <body><main class="container stack">
 <h1>Connexion Google impossible</h1>
 <p role="alert">${escAttr(msg)}</p>

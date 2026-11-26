@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { DEFAULT_POLICY, POLICY_KEY, normalizePolicy } from "../lib/payment-policy.js";
 import { normalizeRules, stepRule } from "../lib/account-rules.js";
+import { brand } from "../lib/brand.js";
 
 const iso = (d) => (d ? new Date(d).toISOString() : null);
 export const ACCOUNT_TYPES = ["AGENCY", "INDIVIDUAL", "OTHER"];
@@ -174,7 +175,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
         const complete = done === 3;
         if (complete) {
           await tx.query("update ika_premium_refunds set status = 'DONE', closed_at = now() where id = $1", [f.id]);
-          if (notify) await notify(f.user_id, { kind: "PREMIUM", title: "Remboursement Premium effectué", body: "Votre remboursement a été traité par l'équipe Ika So.", link: "#/devenir-premium" }).catch(() => undefined);
+          if (notify) await notify(f.user_id, { kind: "PREMIUM", title: "Remboursement Premium effectué", body: "Votre remboursement a été traité par l'équipe " + brand() + ".", link: "#/devenir-premium" }).catch(() => undefined);
         }
         return { ok: true, step: n, done, complete };
       });
@@ -223,7 +224,7 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
           // Dossier étudié après paiement : le Premium payé est déjà actif, rien à accorder ; l'approbation certifie le compte.
           await tx.query("update ika_premium_requests set status = 'APPROVED', decided_by = $2, decided_at = now(), decided_note = $3 where id = $1", [r.id, staffId, why]);
           await moderationAudit?.log(staffId, { action: "PREMIUM_REQUEST_APPROVE", targetType: "premium_request", targetId: r.id, details: { userId: r.user_id, paid: true, steps: doneSteps.map((s) => ({ step: s.step, by: s.done_by })), rules: rulesTrace } }).catch(() => {});
-          if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Votre compte Premium est certifié", body: "Votre dossier a été étudié et approuvé par l'équipe Ika So.", link: "#/centre" }).catch(() => {});
+          if (notify) await notify(r.user_id, { kind: "PREMIUM", title: "Votre compte Premium est certifié", body: "Votre dossier a été étudié et approuvé par l'équipe " + brand() + ".", link: "#/centre" }).catch(() => {});
           return { ok: true, status: "APPROVED", paid: true };
         }
         const granted = Math.floor(Number(months));

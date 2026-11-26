@@ -7,6 +7,7 @@
  */
 import { createHash } from "node:crypto";
 import { sameHash } from "../lib/security.js";
+import { brand } from "../lib/brand.js";
 
 const HOSTS = { test: "https://app.paydunya.com/sandbox-api/v1", live: "https://app.paydunya.com/api/v1" };
 
@@ -22,7 +23,7 @@ export function readIpn(rawBody) {
   return out;
 }
 
-export function createPaydunyaProvider({ masterKey, privateKey, token, mode = "test", publicUrl, storeName = "Ika So", fetchImpl = fetch }) {
+export function createPaydunyaProvider({ masterKey, privateKey, token, mode = "test", publicUrl, storeName = brand(), fetchImpl = fetch }) {
   const base = HOSTS[mode === "live" ? "live" : "test"];
   const headers = { "Content-Type": "application/json", "PAYDUNYA-MASTER-KEY": masterKey, "PAYDUNYA-PRIVATE-KEY": privateKey, "PAYDUNYA-TOKEN": token };
   const masterHash = createHash("sha512").update(masterKey).digest("hex");
@@ -32,7 +33,7 @@ export function createPaydunyaProvider({ masterKey, privateKey, token, mode = "t
       const r = await fetchImpl(`${base}/checkout-invoice/create`, {
         method: "POST", headers, signal: AbortSignal.timeout(15_000),
         body: JSON.stringify({
-          invoice: { total_amount: payment.amountXof, description: String(payment.label ?? "Ika So").slice(0, 120), customer: payment.customer ? { name: payment.customer.name ?? "", email: payment.customer.email ?? "", phone: payment.customer.phone ?? "" } : undefined },
+          invoice: { total_amount: payment.amountXof, description: String(payment.label ?? brand()).slice(0, 120), customer: payment.customer ? { name: payment.customer.name ?? "", email: payment.customer.email ?? "", phone: payment.customer.phone ?? "" } : undefined },
           store: { name: storeName },
           custom_data: { payment_id: payment.id },
           actions: { return_url: `${publicUrl}/#/paiements`, cancel_url: `${publicUrl}/#/paiements`, callback_url: `${publicUrl}/api/payments/webhook` },

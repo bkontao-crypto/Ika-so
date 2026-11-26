@@ -3,6 +3,7 @@ import { api, h, ico, panel, empty, skeletons, errorBox, table, bars, pill, stat
 import { headerSection, layoutSection, footerSection, legibilityRows } from "./v-header.js";
 import { previewDocument } from "./proof-viewer.js";
 import { proofHistoryPanel } from "./v-proof-history.js";
+import { brandSlug } from "../core/brand.js";
 
 /** Gabarit : en-tête + chargement asynchrone + reprise sur erreur. build(data, reload) → nœuds. */
 export function page(ctx, { eyebrow, title, desc, load, build, actions }) {
@@ -914,8 +915,8 @@ export const reportsView = (ctx) => page(ctx, {
     const link = (href, icon, t, sub, dl) => h("a", { class: "module", href, download: dl ?? null }, h("span", { class: "moduleico" }, ico(icon)), h("span", null, h("b", null, t), h("small", null, sub)));
     return [h("section", { class: "grid modules" }, link("/api/staff/owner/report.pdf", "file", "Rapport complet PDF", "Synthèse Owner", "owner-report.pdf"), link("/api/staff/owner/export.csv", "download", "Indicateurs CSV", "Vue d'ensemble", "owner-overview.csv"), link("/api/staff/owner/listings.csv", "list", "Annonces CSV", "500 dernières", "listings-report.csv"),
       link("/api/staff/owner/listings.pdf", "file", "Annonces PDF", "500 dernières", "listings-report.pdf"),
-      link("/api/staff/owner/activity/export.csv?categories=admin,account,security,listing,engagement,safety,finance,growth,system", "pulse", "Mouvements CSV", "Toutes catégories (5 000 lignes)", "mouvements-ika-so.csv"),
-      link("/api/staff/owner/activity/export.pdf?categories=admin,account,security,listing,engagement,safety,finance,growth,system", "file", "Mouvements PDF", "Toutes catégories (500 dernières lignes)", "mouvements-ika-so.pdf")),
+      link("/api/staff/owner/activity/export.csv?categories=admin,account,security,listing,engagement,safety,finance,growth,system", "pulse", "Mouvements CSV", "Toutes catégories (5 000 lignes)", `mouvements-${brandSlug()}.csv`),
+      link("/api/staff/owner/activity/export.pdf?categories=admin,account,security,listing,engagement,safety,finance,growth,system", "file", "Mouvements PDF", "Toutes catégories (500 dernières lignes)", `mouvements-${brandSlug()}.pdf`)),
       minis(mini("Annonces", nf(r.overview.listings.total)), mini("Utilisateurs", nf(r.overview.users.total)), mini("Agences", nf(r.agenciesCount)), mini("Réclamations ouvertes", nf(r.openComplaints))),
       h("p", { class: "note" }, `Rapport généré le ${dateTime(r.generatedAt)}. Base de données : ${r.health.database === "ok" ? "connectée" : "injoignable"}.`)];
   },

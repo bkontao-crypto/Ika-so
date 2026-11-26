@@ -5,6 +5,7 @@
  * Le plan est dessiné ici en SVG à partir du polygone ENREGISTRÉ ; superficie et périmètre sont ceux calculés par le serveur.
  */
 import { esc } from "../seo/render.js";
+import { brandUpper } from "./brand.js";
 
 /** ⛔ Texte de la mention obligatoire : à faire valider par le conseil juridique avant production (voir docs/juridique/). */
 export const MENTION_OBLIGATOIRE =
@@ -82,7 +83,7 @@ export function ficheHtml({ geo, listing, generatedAt = new Date(), mapboxToken 
 </head>
 <body>
 <main class="sheet">
-<header><p class="brand">IKA SO</p><h1>Fiche de localisation</h1><p class="sub">${esc(listing.title)} · ${esc(listing.neighborhood)}, ${esc(listing.city)}</p></header>
+<header><p class="brand">${esc(brandUpper())}</p><h1>Fiche de localisation</h1><p class="sub">${esc(listing.title)} · ${esc(listing.neighborhood)}, ${esc(listing.city)}</p></header>
 <p class="mention" role="note"><strong>Important.</strong> ${esc(MENTION_OBLIGATOIRE)}</p>
 ${(() => {
   const u = fondCarteUrl({ vertices, point: geo.point, token: mapboxToken });
