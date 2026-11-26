@@ -8,7 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, layout } from "./render.js";
 import { LEGAL_VALIDATED, LEGAL_VERSION } from "../lib/legal.js";
-import { brand } from "../lib/brand.js";
+import { applyBrand, brand } from "../lib/brand.js";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "docs", "juridique");
 

@@ -8,7 +8,7 @@ import { openConsentPanel } from "/js/components/consent-panel.js";
 import { trackPageView } from "/js/core/analytics.js";
 import { loadConsentServices } from "/js/core/services.js";
 import "/js/bootstrap-settings.js";
-import { brand } from "./core/brand.js";
+import { brand, setBrand } from "./core/brand.js";
 
 document.getElementById("consent-open")?.addEventListener("click", openConsentPanel);
 // Lien « Gérer mes choix » des pages rendues par le serveur : /?choix=1 ouvre le panneau puis retire le paramètre de l'adresse.
