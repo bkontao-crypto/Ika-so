@@ -25,6 +25,7 @@ import { iso } from "./cards.js";
 import { LEGAL_VERSION } from "../lib/legal.js";
 import { CONSENT_TEXT_VERSION } from "./analytics.js";
 import { ROLE_PERMISSIONS, ALL_PERMISSIONS, can } from "../lib/permissions.js";
+import { brand } from "../lib/brand.js";
 
 const SESSION_DAYS = 30;
 const RESET_MINUTES = 30;
@@ -387,11 +388,11 @@ export function createAccounts(ctx) {
         if (ctx.sendEmail) {
           await ctx.sendEmail({
             to: cleanEmail,
-            subject: "Réinitialisation de votre mot de passe Ika So",
-            text: `Bonjour,\n\nVous avez demandé à changer votre mot de passe Ika So. Ouvrez ce lien (valable ${RESET_MINUTES} minutes, une seule fois) :\n${link}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.\n\n—\nIka So`,
+            subject: "Réinitialisation de votre mot de passe " + brand(),
+            text: `Bonjour,\n\nVous avez demandé à changer votre mot de passe ${brand()}. Ouvrez ce lien (valable ${RESET_MINUTES} minutes, une seule fois) :\n${link}\n\nSi vous n'êtes pas à l'origine de cette demande, ignorez ce message : votre mot de passe reste inchangé.\n\n—\n${brand()}`,
           });
         } else if (ctx.sendSms && profile.phone && profile.phone_verified_at && isSmsVerified(profile.phone_channel)) {
-          await ctx.sendSms(profile.phone, `Ika So : changez votre mot de passe (valable ${RESET_MINUTES} min) : ${link}`);
+          await ctx.sendSms(profile.phone, `${brand()} : changez votre mot de passe (valable ${RESET_MINUTES} min) : ${link}`);
         }
       } catch { /* la réponse reste identique : un échec d'envoi ne doit rien révéler */ }
       return { sent: true };
@@ -535,7 +536,7 @@ export function createAccounts(ctx) {
       await db.query("update ika_profiles set display_role = $1 where user_id = $2", [role, userId]);
       if (viaSms) {
         try {
-          await ctx.sendSms(phone, `Ika So : votre code est ${code}. Il expire dans 10 minutes.`);
+          await ctx.sendSms(phone, `${brand()} : votre code est ${code}. Il expire dans 10 minutes.`);
         } catch (error) {
           await db.query("update ika_otp set consumed_at = now() where id = $1", [id]);
           throw error;

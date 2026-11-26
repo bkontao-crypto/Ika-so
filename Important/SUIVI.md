@@ -12,6 +12,16 @@ Légende : ✅ fait et testé · 🟡 fait mais vérification incomplète · ⬜
 - À faire : corrections par lots, détaillées dans le rapport ; les lots 2 et 4 attendent une décision du propriétaire.
 - Non vérifié : vrais téléphones, thème sombre activé par le bouton, états survol et focus, fenêtres modales.
 
+## Nom du site modifiable par le Superadmin (26 novembre 2026, branche feat/nom-site-dynamique, aucune migration)
+
+- À réaliser : le Superadmin renomme le site (Owner Control > Identité & contact) et toutes les lignes qui portaient le nom en dur suivent ce nom.
+- Réalisé : modules `server/lib/brand.js` et `public/js/core/brand.js` (nom, majuscules, nom de fichier) ; nom relu en base au démarrage, chaque minute, et appliqué tout de suite à l'enregistrement ; pages `index/owner/crm-leads/admin-audit`, `manifest.webmanifest` et `favicon.svg` servis avec le jeton `{{SITE_NAME}}` ; ~110 textes du site et du serveur (e-mails, SMS, notifications, PDF, rapports, pages SEO, JSON-LD, pages Google/Android, fiche, reçus, messages d'erreur) lisent `brand()` ; textes définis au chargement convertis en fonctions (`documentDisclaimer()`, sujets de notification, politique du badge Étoile, pied de page) ; textes juridiques de `docs/juridique` passés dans `applyBrand` ; noms de fichiers téléchargés (`mes-donnees-<nom>.json`, exports PDF/CSV, APK) suivent le nom ; test garde-fou `test/brand.test.js` (échoue si un nom est réécrit en dur).
+- Vérifié : `npm test` 537/537 ; rendu Chromium de l'accueil, Confiance et Connexion avec le nom « Kèlè Immo » : 0 occurrence de l'ancien nom dans le DOM, titre de l'onglet correct.
+- Non vérifié : production ; service Express complet (paquet absent ici) : modèle `{{SITE_NAME}}` testé par lecture du code et rendu simulé seulement ; pages Owner Center ; envois réels d'e-mails et SMS.
+- Non modifié volontairement (identifiants techniques, les renommer casserait des sessions, cookies ou l'application Android) : clés `ika-so-consent/prefs/draft`, schéma `ikaso://`, paquet et nom Android, nom des sauvegardes `ika-so-*.dump`, fichier `logo-ika-so.webp` (l'image du logo se change dans l'apparence du site), classe CSS `ikaso-app-download`, `package.json`, documents internes (`Important/`, `Dossier_Suivi/`, `docs/`, `Android/`, scripts, commentaires).
+- À faire : le texte de l'application Android et l'image du logo restent à adapter à la main si le nom change.
+- Risques : sans le réglage, le nom par défaut reste « Ika So » (les pages Google/Android affichaient « IKA SÔ », elles affichent maintenant le nom du réglage) ; plusieurs instances prennent jusqu'à 1 minute pour voir le nouveau nom.
+
 ## Double authentification : application, e-mail, SMS (26 novembre 2026, branche feat/mfa-methodes, migration 095)
 
 - À réaliser : laisser l'utilisateur choisir sa méthode MFA (application, e-mail, SMS), selon celles disponibles.

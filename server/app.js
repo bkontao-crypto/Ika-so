@@ -10,6 +10,8 @@ import { buildRoutes } from "./routes/index.js";
 import { buildMfaRoutes } from "./routes/mfa.js";
 import { buildSeoRoutes } from "./routes/seo.js";
 import { buildWhatsAppInboxRoutes } from "./routes/whatsapp-inbox.js";
+import { readFile } from "node:fs/promises";
+import { brand, brandUpper } from "./lib/brand.js";
 
 const PUBLIC_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "public");
 
@@ -112,6 +114,20 @@ export function createApp({ services, config, logger = createLogger({ level: "er
   app.get(["/whatsapp", "/whatsapp.html"], (req, res) => res.redirect(302, "/#/whatsapp")); // l'ancienne page autonome est intégrée au site
   app.get(["/admin", "/admin.html"], (req, res) => res.redirect(301, "/owner"));
   app.get(["/admin-settings", "/admin-settings.html"], (req, res) => res.redirect(301, "/owner#/customize"));
+  // Pages et fichiers qui portent le nom du site : le nom choisi par le Superadmin est écrit à la volée ({{SITE_NAME}}).
+  const TEMPLATES = { "/": ["index.html", "text/html"], "/index.html": ["index.html", "text/html"], "/owner": ["owner.html", "text/html"], "/owner.html": ["owner.html", "text/html"],
+    "/crm-leads": ["crm-leads.html", "text/html"], "/crm-leads.html": ["crm-leads.html", "text/html"], "/admin-audit": ["admin-audit.html", "text/html"], "/admin-audit.html": ["admin-audit.html", "text/html"],
+    "/manifest.webmanifest": ["manifest.webmanifest", "application/manifest+json"], "/favicon.svg": ["favicon.svg", "image/svg+xml"] };
+  const escHtml = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const escJson = (v) => JSON.stringify(String(v)).slice(1, -1);
+  app.get(Object.keys(TEMPLATES), async (req, res, next) => {
+    const [file, type] = TEMPLATES[req.path];
+    try {
+      const esc = type === "application/manifest+json" ? escJson : escHtml;
+      const body = (await readFile(join(PUBLIC_DIR, file), "utf8")).replaceAll("{{SITE_NAME_UPPER}}", esc(brandUpper())).replaceAll("{{SITE_NAME}}", esc(brand()));
+      res.set("Content-Type", `${type}; charset=utf-8`).set("Cache-Control", config.production ? "no-cache" : "no-store").send(body);
+    } catch (e) { next(e); }
+  });
   app.use(express.static(PUBLIC_DIR, { extensions: ["html"], maxAge: config.production ? "1h" : 0 }));
 
   // eslint-disable-next-line no-unused-vars

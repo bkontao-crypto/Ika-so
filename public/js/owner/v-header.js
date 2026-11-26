@@ -2,6 +2,7 @@
 // Chaque couleur est contrôlée en direct (contraste WCAG) ; la publication est bloquée tant qu'un texte est illisible (le serveur revérifie).
 import { api, h, panel, pill, act } from "./ui.js";
 import { ratio, level, suggestInk, normalizeHex, MIN_TEXT } from "/js/lib/contrast.js";
+import { brandUpper } from "../core/brand.js";
 
 const LEVEL_UI = { ok: ["ok", "Lisible"], low: ["warn", "Texte peu lisible"], bad: ["bad", "Texte illisible"] };
 const fmt = (r) => (r == null ? "—" : `${String(r).replace(".", ",")}:1`);
@@ -108,7 +109,7 @@ export function headerSection(src, reload) {
     const bg = normalizeHex(pair.bg) || fallback.bg, ink = normalizeHex(pair.ink) || fallback.ink;
     return h("div", null, h("span", { class: "small muted" }, name),
       h("div", { class: "row", style: { alignItems: "center", gap: "14px", padding: "10px 14px", borderRadius: "10px", border: "1px solid #ccc", background: bg, color: ink, flexWrap: "wrap" } },
-        d.logoUrl ? h("img", { src: d.logoUrl, alt: "", style: { height: "32px", objectFit: "contain" } }) : h("b", null, "IKA SÔ"),
+        d.logoUrl ? h("img", { src: d.logoUrl, alt: "", style: { height: "32px", objectFit: "contain" } }) : h("b", null, brandUpper()),
         ...d.tabs.filter((t) => t.visible !== false).map((t) => h("span", { style: { fontWeight: "600", fontSize: "14px" } }, t.label || "—")),
         d.publishVisible ? h("span", { style: { marginLeft: "auto", border: `1px solid ${ink}`, borderRadius: "999px", padding: "2px 12px", fontSize: "13px" } }, d.publishLabel || "Publier") : null));
   }

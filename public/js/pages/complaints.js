@@ -1,4 +1,5 @@
 import { h, api, toast, fail } from "/js/dom.js";
+import { brand } from "../core/brand.js";
 
 export async function complaintsPage() {
   const main = document.querySelector("main");
@@ -67,7 +68,7 @@ export async function complaintsPage() {
 async function openDetail(id) {
   try {
     const d = await api("/me/complaints/" + id);
-    const comments = (d.comments || []).map(c => `· ${c.at?.slice(0,16) || ""} ${c.fromTeam ? "(Équipe Ika So) " : ""}: ${c.content}`).join("\n") || "Aucun commentaire.";
+    const comments = (d.comments || []).map(c => `· ${c.at?.slice(0,16) || ""} ${c.fromTeam ? "(Équipe ${brand()}) " : ""}: ${c.content}`).join("\n") || "Aucun commentaire.";
     const content = prompt("Commentaire (ou laisser vide pour fermer) :\n\n" + comments);
     if (content) {
       await api("/me/complaints/" + id + "/comment", { method: "POST", body: { content } });

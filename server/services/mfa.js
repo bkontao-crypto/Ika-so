@@ -4,6 +4,7 @@
 import { AppError, badRequest, conflict, forbidden, tooMany, unauthorized } from "../lib/errors.js";
 import { randomInt } from "node:crypto";
 import { newId, sha256 } from "../lib/security.js";
+import { brand } from "../lib/brand.js";
 import {
   BACKUP_CODE_COUNT,
   decryptSecret,
@@ -115,8 +116,8 @@ export function createMfa(ctx) {
       await tx.query("insert into ika_mfa_otps (id, user_id, code_hash, expires_at) values ($1, $2, $3, now() + ($4 || ' minutes')::interval)", [id, userId, hashOtp(userId, code), String(OTP_MINUTES)]);
     });
     try {
-      if (row.method === "EMAIL") await sender({ to: dest.to, subject: "Ika So : votre code de vérification", text: `Votre code de vérification Ika So : ${code}\n\nIl est valable ${OTP_MINUTES} minutes et ne sert qu'une fois. Ne le communiquez à personne, même à l'équipe Ika So.` });
-      else await sender(dest.to, `Ika So : votre code ${code} (valable ${OTP_MINUTES} min). Ne le partagez avec personne.`);
+      if (row.method === "EMAIL") await sender({ to: dest.to, subject: brand() + " : votre code de vérification", text: `Votre code de vérification ${brand()} : ${code}\n\nIl est valable ${OTP_MINUTES} minutes et ne sert qu'une fois. Ne le communiquez à personne, même à l'équipe ${brand()}.` });
+      else await sender(dest.to, `${brand()} : votre code ${code} (valable ${OTP_MINUTES} min). Ne le partagez avec personne.`);
     } catch {
       await db.query("delete from ika_mfa_otps where id = $1", [id]);
       throw new AppError(502, "L'envoi du code a échoué. Réessayez dans un instant, ou utilisez un code de secours.");

@@ -3,6 +3,7 @@ import { api, fail, h, mount, toast } from "/js/dom.js";
 import { S, app } from "/js/core/state.js";
 import { currentRoute, go } from "/js/core/router.js";
 import { field, passwordField } from "/js/components/ui.js";
+import { brand } from "../core/brand.js";
 
 export async function passwordResetPage() {
   if (S.user) return go("/profil");
@@ -18,7 +19,7 @@ function requestForm() {
     sent
       ? h("div", { class: "stack" },
           h("p", { role: "status" }, "Si un compte existe avec cette adresse, un lien de réinitialisation vient d'être envoyé (valable 30 minutes). Pensez à regarder dans vos courriers indésirables."),
-          h("p", { class: "small muted" }, "Pas de message ? Si votre numéro est vérifié par SMS, le lien peut arriver par SMS. Sinon, contactez l'équipe Ika So."))
+          h("p", { class: "small muted" }, "Pas de message ? Si votre numéro est vérifié par SMS, le lien peut arriver par SMS. Sinon, contactez l'équipe " + brand() + "."))
       : h("form", { class: "stack", onSubmit: async (e) => {
           e.preventDefault();
           try { await api("/auth/forgot", { method: "POST", body: { email } }); draw(true); } catch (error) { fail(error); }

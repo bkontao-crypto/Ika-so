@@ -1,6 +1,6 @@
 {
-  "name": "Ika So",
-  "short_name": "Ika So",
+  "name": "{{SITE_NAME}}",
+  "short_name": "{{SITE_NAME}}",
   "description": "L'immobilier au Mali, plus accessible.",
   "lang": "fr",
   "start_url": "/",

@@ -1,5 +1,6 @@
 // Page de consultation des leads CRM (E07)
 import { api, h, mount, fail, toast } from "/js/dom.js";
+import { brand } from "../core/brand.js";
 
 const STATUSES = ["NEW", "CONTACTED", "VISIT", "NEGOTIATION", "WON", "LOST"];
 
@@ -179,7 +180,7 @@ export async function crmLeadsPage() {
           class: "btn btn-small",
           type: "button",
           onClick: async () => {
-            const text = prompt("Message WhatsApp :", "Bonjour, suite à votre intérêt sur Ika So.");
+            const text = prompt("Message WhatsApp :", "Bonjour, suite à votre intérêt sur " + brand() + ".");
             if (!text) return;
             try {
               await api(`/me/crm/leads/${l.id}/whatsapp`, { method: "POST", body: { text } });

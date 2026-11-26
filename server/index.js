@@ -54,6 +54,7 @@ const notifier = createNotifier({ db, config, sendEmail, sendSms: smsConfigured(
   sendWhatsapp: waReady ? (to) => services.whatsapp.sendTemplate(to, config.whatsapp.templatePremium, config.whatsapp.templateLanguage) : null,
   whatsappOn: async () => (await services?.ruleExceptions.official().catch(() => null))?.whatsappDecisionEnabled === true });
 const services = createServices({ db, config, sendSms, notifiers: [notifier.deliver], notifier, logger, sendEmail });
+await loadBrand(db); setInterval(() => { loadBrand(db).catch(() => undefined); }, 60_000).unref(); // nom du site (Superadmin), relu chaque minute
 // Quartiers et pays : lus en base au démarrage, puis relus chaque minute (plusieurs instances voient ainsi les changements du Superadmin).
 if (!(await services.places.reload())) logger.warn("quartiers_pays_non_lus", { effet: "les 10 quartiers d'origine servent ; lancez « npm run migrate » (migration 058)" });
 setInterval(() => { services.places.reload().catch(() => undefined); }, 60_000).unref();

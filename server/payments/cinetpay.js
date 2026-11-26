@@ -1,3 +1,4 @@
+import { brand } from "../lib/brand.js";
 /**
  * CinetPay (agrégateur mobile money : Orange Money, Moov Money…). INACTIF tant que PAYMENT_PROVIDER n'est pas « cinetpay ».
  * D'après la documentation publique (docs.cinetpay.com, novembre 2026) : initialisation POST /v2/payment, notification
@@ -24,7 +25,7 @@ export function createCinetpayProvider({ apiKey, siteId, publicUrl, channels = "
       const tid = transactionId(payment.id);
       const { data } = await call("/payment", {
         apikey: apiKey, site_id: siteId, transaction_id: tid, amount: payment.amountXof, currency: "XOF",
-        description: String(payment.label ?? "Ika So").slice(0, 120), channels,
+        description: String(payment.label ?? brand()).slice(0, 120), channels,
         notify_url: `${publicUrl}/api/payments/webhook`, return_url: `${publicUrl}/#/paiements`, lang: "fr",
         customer_id: payment.customer?.id ? String(payment.customer.id).slice(0, 60) : undefined,
         customer_name: payment.customer?.name ? String(payment.customer.name).slice(0, 60) : undefined,

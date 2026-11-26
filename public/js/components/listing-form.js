@@ -2,6 +2,7 @@ import { CATEGORIES, COUNTRIES, DOCUMENTS, isDwelling, OWNER_ROLES, PHOTO_PRESET
 import { S, refreshSession } from "/js/core/state.js";
 import { go } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
+import { brand } from "../core/brand.js";
 
 export function emptyForm() {
   return { title: "", transaction: "Vente", category: "Terrain", country: COUNTRIES[0]?.code ?? "ML", zone: ZONES[0]?.name ?? "", price: "", surface: "", surfaceM2: "", road: ROAD_ACCESS[0], bedrooms: "", bathrooms: "", furnished: "non", declaredDocument: DOCUMENTS[0], description: "", photos: [PHOTO_PRESETS[0].url] };
@@ -179,7 +180,7 @@ export function listingForm({ f, title, submitLabel, onSubmit, withPhone, saveDr
       h("p", { class: "pub-label" }, "Document foncier déclaré"),
       docs,
       h("div", { class: "pub-warning", role: "note" },
-        h("p", null, h("strong", null, "Rappel important : "), "IKA SO ne certifie pas juridiquement vos documents. Une lettre d'attribution ne doit jamais être présentée comme un titre foncier. L'équipe de modération examinera votre annonce avant publication.")));
+        h("p", null, h("strong", null, "Rappel important : "), brand() + " ne certifie pas juridiquement vos documents. Une lettre d'attribution ne doit jamais être présentée comme un titre foncier. L'équipe de modération examinera votre annonce avant publication.")));
 
     const sections = [s1, s2, s3, s4];
 

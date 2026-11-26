@@ -8,6 +8,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { esc, layout } from "./render.js";
 import { LEGAL_VALIDATED, LEGAL_VERSION } from "../lib/legal.js";
+import { brand } from "../lib/brand.js";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "docs", "juridique");
 
@@ -52,9 +53,9 @@ export function legalPage({ base, page, site = null }) {
   const custom = customText(page, site);
   let md;
   if (custom) md = /^#\s/.test(custom) ? custom : `# ${page.title}\n\n${custom}`;
-  else { try { md = readFileSync(join(DIR, page.file), "utf8"); } catch { return null; } }
+  else { try { md = applyBrand(readFileSync(join(DIR, page.file), "utf8")); } catch { return null; } }
   // Le premier titre (# ...) devient le <h1> de la page ; le texte est rendu tel quel, sans embellissement.
   const banner = custom || LEGAL_VALIDATED ? "" : `<p class="notice"><strong>Texte provisoire.</strong> Ce document n'a pas encore été relu par un juriste. Il décrit ce que le service fait réellement. Version ${esc(LEGAL_VERSION)}.</p>`;
   const body = `<article class="stack legal">${banner}${renderMarkdown(md).replace("<h2>", '<h1 class="title">').replace("</h2>", "</h1>")}</article>`;
-  return layout({ base, path: page.path, title: `${page.title} | Ika So`, description: `${page.title} du service Ika So (Mali).`, body });
+  return layout({ base, path: page.path, title: `${page.title} | ${brand()}`, description: `${page.title} du service ${brand()} (Mali).`, body });
 }

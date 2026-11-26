@@ -5,6 +5,7 @@ import { newId } from "../lib/security.js";
 import { csvCell } from "../lib/activity-feed.js";
 import { buildPdf, fmtDate, fmtLong, fmtNumber } from "../lib/simple-pdf.js";
 import { LISTING_COLUMNS, toCard } from "./cards.js";
+import { brand } from "../lib/brand.js";
 
 const planDays = (opts) => { try { return plan(opts); } catch (error) { throw badRequest(error.message); } };
 
@@ -558,7 +559,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         eyebrow: "Owner Control Center",
         title: "Rapport de la plateforme",
         subtitle: `Généré le ${fmtLong(data.generatedAt)} (UTC, identique à l'heure du Mali). Synthèse des annonces, des utilisateurs, de l'activité et des finances.`,
-        generatedAt: data.generatedAt, footer: "Ika Sô · Rapport de la plateforme · document confidentiel",
+        generatedAt: data.generatedAt, footer: brand() + " · Rapport de la plateforme · document confidentiel",
         sections: [
           { heading: "Vue d'ensemble", kpis: { cols: 4, items: [
             { label: "Annonces", value: n(o.listings.total), sub: `${n(o.listings.published)} publiées` }, { label: "Utilisateurs", value: n(o.users.total), sub: `${n(o.users.active)} actifs` },
@@ -647,7 +648,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         await release("Aucun abonné consentant.");
         throw badRequest("Aucun abonné consentant : la newsletter reste en brouillon.");
       }
-      const footer = "\n\n—\nVous recevez ce message car vous avez accepté la newsletter d'Ika So. Pour ne plus la recevoir : Mon compte > Newsletter.";
+      const footer = "\n\n—\nVous recevez ce message car vous avez accepté la newsletter d'" + brand() + ". Pour ne plus la recevoir : Mon compte > Newsletter.";
       let sent = 0; let failed = 0;
       for (const { email } of subscribers) {
         try { await sendEmail({ to: email, subject: nl.subject, text: `${nl.content ?? ""}${footer}` }); sent += 1; }
@@ -704,7 +705,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       const rows = await db.query("select key, value from ika_settings where key = any($1)", [keys]);
       const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
       return {
-        title: map.seo_title || "Ika So – Immobilier au Mali",
+        title: map.seo_title || brand() + " – Immobilier au Mali",
         description: map.seo_description || "Maisons, appartements, terrains et locaux au Mali.",
         keywords: map.seo_keywords || "immobilier, mali, bamako, vente, location",
       };
@@ -1223,7 +1224,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       const rows = await db.query("select key, value from ika_settings where key = any($1)", [keys]);
       const map = Object.fromEntries(rows.map(r => [r.key, r.value]));
       return {
-        platformName: map.platform_name || "Ika So",
+        platformName: map.platform_name || DEFAULT_BRAND,
         contactEmail: map.contact_email || "",
         contactPhone: map.contact_phone || "",
         currency: map.default_currency || "XOF",
@@ -1232,7 +1233,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     async saveSettings(userId, input) {
       await accounts.requirePermission(userId, "owner.stats");
       const allowed = {
-        platform_name: String(input.platformName ?? "").trim().slice(0, 80),
+        platform_name: cleanBrand(input.platformName),
         contact_email: String(input.contactEmail ?? "").trim().slice(0, 120),
         contact_phone: String(input.contactPhone ?? "").trim().slice(0, 30),
         default_currency: String(input.currency ?? "XOF").trim().slice(0, 8),
@@ -1240,6 +1241,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
       for (const [k, v] of Object.entries(allowed)) {
         if (v) await db.query("insert into ika_settings (key, value) values ($1, $2) on conflict (key) do update set value = $2", [k, v]);
       }
+      if (allowed.platform_name) setBrand(allowed.platform_name);
       await accounts.audit(userId, "SETTINGS_UPDATE", null, Object.keys(allowed).join(","));
       return this.getSettings(userId);
     },
@@ -1356,7 +1358,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
     async publicPlatform() {
       const rows = await db.query("select key, value from ika_settings where key = any($1)", [["platform_name", "contact_email", "contact_phone"]]);
       const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-      return { platformName: map.platform_name || "Ika So", contactEmail: map.contact_email || "", contactPhone: map.contact_phone || "" };
+      return { platformName: map.platform_name || DEFAULT_BRAND, contactEmail: map.contact_email || "", contactPhone: map.contact_phone || "" };
     },
     /** PUBLIC : publicités latérales actives pour un placement (home | annonces | both). */
     async publicSidebar(placement = "home") {
@@ -1479,7 +1481,7 @@ export function createStats({ db, accounts, analytics = null, clock = () => new 
         eyebrow: "Super Administrateur · Annonces",
         title: "Rapport des annonces",
         subtitle: `Généré le ${fmtLong(when)} (UTC). ${fmtNumber(rows.length)} annonce(s), des plus récentes aux plus anciennes (500 au plus). Les textes longs sont coupés : le CSV contient les valeurs complètes.`,
-        generatedAt: when, footer: "Ika Sô · Rapport des annonces · document confidentiel",
+        generatedAt: when, footer: brand() + " · Rapport des annonces · document confidentiel",
         sections: [
           { heading: "Vue d'ensemble", kpis: { cols: 4, items: [
             { label: "Annonces listées", value: fmtNumber(rows.length) }, { label: "Publiées", value: fmtNumber(count((r) => r.status === "PUBLISHED")), tone: "ok" },

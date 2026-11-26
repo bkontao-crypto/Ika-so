@@ -1,6 +1,7 @@
 // Demande du badge Étoile (compte identifié), dans Profil › Paramètres & Confidentialité.
 // Affichée seulement quand le superadmin a ouvert le badge. Les pièces sont envoyées une à une (aperçu : nom du fichier seulement) et restent privées.
 import { api, fail, h, readProofFile, toast } from "/js/dom.js";
+import { brand } from "../core/brand.js";
 
 const ACCOUNT_LABEL = { INDIVIDUAL: "Particulier / propriétaire", AGENCY: "Agence immobilière", OTHER: "Autre professionnel" };
 const STATUS = { PENDING: "Dossier envoyé : en cours d'étude par l'équipe" };
@@ -67,7 +68,7 @@ export async function starBadgeCard() {
         h("form", { class: "stack", onSubmit: async (e) => {
           e.preventDefault();
           try { const out = await api("/star-badge/submit", { method: "POST", body: { phone: phone.value, message: message.value, acceptTerms: terms.checked } }); toast(`Dossier envoyé. Réponse sous ${out.reviewDelayDays} jours environ.`); await paint(); } catch (error) { fail(error); }
-        } }, phone, message, h("label", { class: "row", for: "star-terms" }, terms, h("span", null, "Je certifie l'exactitude des pièces et j'accepte leur examen par l'équipe IKA SO.")),
+        } }, phone, message, h("label", { class: "row", for: "star-terms" }, terms, h("span", null, "Je certifie l'exactitude des pièces et j'accepte leur examen par l'équipe " + brand() + ".")),
           h("button", { class: "mp-btn mp-btn-primary", type: "submit", disabled: !open || missing.length > 0, title: missing.length ? `Pièces manquantes : ${missing.map((d) => d.label).join(", ")}` : "" }, "Envoyer mon dossier")),
         open ? h("button", { class: "mp-btn mp-btn-outline sm danger", type: "button", onClick: async () => { if (!window.confirm("Abandonner ce dossier ? Les pièces déjà envoyées seront supprimées.")) return; try { await api("/star-badge/cancel", { method: "POST", body: {} }); await paint(); } catch (error) { fail(error); } } }, "Abandonner le dossier") : null);
     }

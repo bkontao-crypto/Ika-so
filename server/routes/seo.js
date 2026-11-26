@@ -8,6 +8,7 @@ import { GUIDES } from "../seo/guides.js";
 import * as view from "../seo/render.js";
 import { renderMarkdown } from "../seo/legal.js";
 import { LEGAL_PAGES, legalPage } from "../seo/legal.js";
+import { brand } from "../lib/brand.js";
 
 /** Pages publiques rendues côté serveur, plan du site et robots. */
 export function buildSeoRoutes({ seo, config }) {
@@ -54,7 +55,7 @@ export function buildSeoRoutes({ seo, config }) {
     const text = String(req.site?.mentions ?? "").trim();
     if (!text) return missing(req, res);
     const md = /^#\s/.test(text) ? text : `# Mentions légales\n\n${text}`;
-    html(res, view.layout({ base: baseOf(req), path: "/mentions-legales", title: "Mentions légales | Ika So", description: "Mentions légales du service Ika So (Mali).",
+    html(res, view.layout({ base: baseOf(req), path: "/mentions-legales", title: "Mentions légales | " + brand(), description: "Mentions légales du service " + brand() + " (Mali).",
       body: `<article class="stack legal">${renderMarkdown(md).replace("<h2>", '<h1 class="title">').replace("</h2>", "</h1>")}</article>` }));
   });
 

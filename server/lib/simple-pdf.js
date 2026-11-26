@@ -1,3 +1,4 @@
+import { brand, brandUpper } from "./brand.js";
 // Générateur de PDF sans dépendance, aux couleurs de la marque Ika Sô (vert forêt, vert feuille, doré).
 // A4, plusieurs pages, accents français (WinAnsi), polices Helvetica mesurées (alignements et coupures exacts).
 // Éléments : bandeau de titre, cartes d'indicateurs (KPI), graphiques en barres, lignes « libellé / valeur » à fond alterné,
@@ -108,14 +109,14 @@ export function buildPdf(doc) {
       const sub = doc.subtitle ? wrapWidth(doc.subtitle, 8.5, false, CW) : [];
       const band = 82 + Math.max(0, sub.length - 1) * 11.5 + (sub.length ? 18 : 6);
       rect(0, H - band, W, band, P.forest); rect(0, H - band - 4, W, 4, P.gold);
-      txt(ML, H - 30, String(doc.eyebrow ?? "IKA SÔ").toUpperCase(), 8, { bold: true, color: P.gold, spacing: 1.6 });
+      txt(ML, H - 30, String(doc.eyebrow ?? brandUpper()).toUpperCase(), 8, { bold: true, color: P.gold, spacing: 1.6 });
       txt(W - MR, H - 30, "CONFIDENTIEL", 7, { bold: true, color: P.gold, spacing: 1.4, align: "r" });
       let size = 22; while (size > 14 && measure(doc.title ?? "", size, true) > CW) size -= 1;
       txt(ML, H - 58, doc.title ?? "", size, { bold: true, color: P.white });
       sub.forEach((l, i) => txt(ML, H - 76 - i * 11.5, l, 8.5, { color: [201, 221, 209] }));
       y = H - band - 4 - 24;
     } else {
-      txt(ML, H - 30, "IKA SÔ", 8.5, { bold: true, color: P.forest, spacing: 1.2 });
+      txt(ML, H - 30, brandUpper(), 8.5, { bold: true, color: P.forest, spacing: 1.2 });
       txt(W - MR, H - 30, fit(doc.title ?? "", 8, false, CW - 90), 8, { color: P.muted, align: "r" });
       line(ML, H - 38, W - MR, H - 38, P.line, 0.6); rect(ML, H - 39.5, 30, 2.4, P.gold);
       y = H - 62;
@@ -214,7 +215,7 @@ export function buildPdf(doc) {
   }
 
   // Pieds de page : ajoutés après coup pour connaître le nombre total de pages.
-  const total = pages.length; const footer = doc.footer ?? "Ika Sô · document confidentiel";
+  const total = pages.length; const footer = doc.footer ?? brand() + " · document confidentiel";
   const streams = pages.map((p, i) => {
     ops = p; line(ML, 50, W - MR, 50, P.line, 0.6);
     txt(ML, 37, fit(footer, 7.5, false, CW - 90), 7.5, { color: P.muted }); txt(W - MR, 37, `Page ${i + 1} / ${total}`, 7.5, { bold: true, color: P.forest, align: "r" });
@@ -234,7 +235,7 @@ export function buildPdf(doc) {
   const infoNo = 5 + pages.length * 2;
   const utf16 = (str) => `<FEFF${[...String(str)].map((ch) => ch.charCodeAt(0).toString(16).padStart(4, "0")).join("")}>`;
   const when = toDate(doc.generatedAt); const stamp = when ? `/CreationDate (D:${when.getUTCFullYear()}${two(when.getUTCMonth() + 1)}${two(when.getUTCDate())}${two(when.getUTCHours())}${two(when.getUTCMinutes())}${two(when.getUTCSeconds())}Z) ` : "";
-  objects[infoNo] = `<< /Title ${utf16(doc.title ?? "Rapport")} /Author (Ika So) /Creator (Ika So) /Producer (Ika So) ${stamp}>>`;
+  objects[infoNo] = `<< /Title ${utf16(doc.title ?? "Rapport")} /Author (${brand()}) /Creator (${brand()}) /Producer (${brand()}) ${stamp}>>`;
 
   const parts = [Buffer.from("%PDF-1.4\n", "latin1")]; const offsets = []; let pos = parts[0].length;
   for (let n = 1; n < objects.length; n++) {

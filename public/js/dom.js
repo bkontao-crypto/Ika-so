@@ -1,3 +1,4 @@
+import { brand } from "./core/brand.js";
 // Aides d'interface sans dépendance. Tout texte passe par textContent : aucune injection de HTML possible.
 
 export function h(tag, props, ...children) {
@@ -178,8 +179,7 @@ export const REPORT_REASONS = [
   "Doublon",
   "Autre raison",
 ];
-export const DOCUMENT_DISCLAIMER =
-  "Document déclaré par l'annonceur, sans garantie automatique. Ika So ne certifie pas le titre.";
+export const documentDisclaimer = () => "Document déclaré par l'annonceur, sans garantie automatique. " + brand() + " ne certifie pas le titre.";
 
 /** Prépare un justificatif : photo réduite dans le téléphone, ou PDF léger (600 Ko au plus). Renvoie une « data URL ». */
 export async function readProofFile(file) {

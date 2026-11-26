@@ -1,9 +1,12 @@
+import { brand } from "./brand.js";
 // Formatage de l'email de reçu de paiement (E08)
+
+const escHtml = (v) => String(v).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export function formatReceiptEmail({ reference, amountXof, offerName, date, invoiceUrl, userName }) {
   const amount = Number(amountXof || 0).toLocaleString("fr-FR");
   const when = date ? new Date(date).toLocaleString("fr-FR") : new Date().toLocaleString("fr-FR");
-  const subject = `Paiement confirmé — ${amount} XOF — Ika So`;
+  const subject = `Paiement confirmé — ${amount} XOF — ${brand()}`;
   const text = [
     userName ? `Bonjour ${userName},` : "Bonjour,",
     "",
@@ -15,7 +18,7 @@ export function formatReceiptEmail({ reference, amountXof, offerName, date, invo
     `Date : ${when}`,
     invoiceUrl ? `Facture : ${invoiceUrl}` : "",
     "",
-    "Merci d'utiliser Ika So.",
+    `Merci d'utiliser ${brand()}.`,
   ].filter(Boolean).join("\n");
 
   const html = `
@@ -30,7 +33,7 @@ export function formatReceiptEmail({ reference, amountXof, offerName, date, invo
         <tr><td style="padding:4px 0"><strong>Date</strong></td><td>${when}</td></tr>
       </table>
       ${invoiceUrl ? `<p><a href="${invoiceUrl}">Voir la facture</a></p>` : ""}
-      <p style="color:#666;font-size:13px">Merci d'utiliser Ika So.</p>
+      <p style="color:#666;font-size:13px">Merci d'utiliser ${escHtml(brand())}.</p>
     </div>`;
 
   return { subject, text, html };

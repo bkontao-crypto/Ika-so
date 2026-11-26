@@ -3,6 +3,7 @@
 import { api, h, mount, toast, formatPrice, fail } from "/js/dom.js";
 import { S, refreshSession } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
+import { brandSlug } from "../core/brand.js";
 
 const ALL_TABS = [
   ["apercu", "Aperçu", () => true],
@@ -273,7 +274,7 @@ export async function compteUnifiePage() {
       h("div", { class: "card" },
         h("h3", null, "Mes données"),
         h("div", { class: "row wrap gap-sm" },
-          h("a", { class: "btn", href: "/api/me/export", download: "mes-donnees-ika-so.json" }, "Télécharger mes données"),
+          h("a", { class: "btn", href: "/api/me/export", download: `mes-donnees-${brandSlug()}.json` }, "Télécharger mes données"),
           h("a", { class: "btn btn-outline", href: "#/profil-legacy?tab=parametres" }, "Supprimer mon compte")
         )
       )

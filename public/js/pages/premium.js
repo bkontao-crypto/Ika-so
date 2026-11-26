@@ -5,6 +5,7 @@ import { S, app } from "/js/core/state.js";
 import { currentRoute } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
 import { loadCss, premiumCard } from "/js/components/espace.js";
+import { brand } from "../core/brand.js";
 
 const KEY = [
   ["chart", "Statistiques détaillées", "Courbes de vues et de contacts sur 7, 14, 30 ou 90 jours, avec la variation par rapport à la période précédente."],
@@ -78,7 +79,7 @@ export async function premiumPage() {
       h("ul", { class: "pm-offers" }, offers.map((o) => h("li", { class: "pm-offer" },
         h("div", null, h("strong", null, o.label), h("p", { class: "small muted" }, `${o.days} jours · ${fcfa(o.priceXof)}`)),
         h("button", { class: "btn btn-gold", type: "button", onClick: (e) => pay(o, e.currentTarget) }, `Payer ${fcfa(o.priceXof)}`)))),
-      h("p", { class: "small muted" }, "Paiement sécurisé par mobile money. Vous serez redirigé vers la page du fournisseur puis ramené sur Ika So. Retrouvez vos paiements et factures dans « Mes paiements ».")) : null,
+      h("p", { class: "small muted" }, "Paiement sécurisé par mobile money. Vous serez redirigé vers la page du fournisseur puis ramené sur " + brand() + ". Retrouvez vos paiements et factures dans « Mes paiements ».")) : null,
 
     h("div", { class: "pm-key" }, KEY.map(([ic, t, d]) => h("article", { class: "pm-keycard" }, h("span", { class: "pm-kic" }, icon(ic)), h("h2", null, t), h("p", { class: "small muted" }, d)))),
 

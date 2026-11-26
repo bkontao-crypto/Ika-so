@@ -1,6 +1,7 @@
 // « Importer en masse » : modèle Excel à remplir, choix du fichier (.xlsx ou .csv), contrôle à blanc, import tout ou rien.
 // Utilisé dans « Mon profil > Mes annonces » et sur l'espace agence. Le droit d'importer est vérifié par le serveur (GET /api/me/import/statut).
 import { api, fail, h, mount, toast } from "/js/dom.js";
+import { brandSlug } from "../core/brand.js";
 
 const MAX_BYTES = 400 * 1024;
 
@@ -27,7 +28,7 @@ async function downloadModel() {
     throw new Error(data.error ?? "Modèle indisponible pour ce compte.");
   }
   const url = URL.createObjectURL(await response.blob());
-  const a = h("a", { href: url, download: "modele-import-ika-so.xlsx" });
+  const a = h("a", { href: url, download: `modele-import-${brandSlug()}.xlsx` });
   document.body.append(a);
   a.click();
   a.remove();
@@ -88,7 +89,7 @@ export function bulkImportBlock({ onImported } = {}) {
 
   return h("div", { class: "stack" },
     status,
-    h("div", { class: "row" }, modelBtn, h("a", { class: "btn btn-small", href: "/modele-import.csv", download: "modele-import-ika-so.csv" }, "Modèle CSV")),
+    h("div", { class: "row" }, modelBtn, h("a", { class: "btn btn-small", href: "/modele-import.csv", download: `modele-import-${brandSlug()}.csv` }, "Modèle CSV")),
     h("p", { class: "small muted" }, "Excel : feuille « Annonces » à remplir, feuille « Valeurs acceptées » pour les choix. 200 lignes au plus. Tout ou rien : si une ligne est fautive, rien n'est créé et le rapport indique la ligne. Les annonces passent par la modération ; les photos se choisissent ensuite dans « Modifier »."),
     fileInput,
     h("div", { class: "row" }, checkBtn, importBtn),

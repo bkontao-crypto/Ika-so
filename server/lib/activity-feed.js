@@ -5,6 +5,7 @@
 // Module pur (aucune dépendance à la base) : testé avec une fausse base dans test/owner-center.test.js.
 
 import { buildPdf, fmtDate, fmtDateTime, fmtLong, fmtNumber } from "./simple-pdf.js";
+import { brand } from "./brand.js";
 
 export const CATEGORIES = Object.freeze([
   { key: "admin", label: "Équipe & administration" },
@@ -258,7 +259,7 @@ export function eventsToPdf(events, { generatedAt, total } = {}) {
     eyebrow: "Super Administrateur · Traçabilité",
     title: "Journal des mouvements",
     subtitle: `Généré le ${fmtLong(generatedAt)} (UTC, identique à l'heure du Mali). ${cut ? `Les ${shown.length} lignes les plus récentes sur ${fmtNumber(total)} sont imprimées ; l'export CSV contient la liste complète (5 000 lignes au plus).` : `${fmtNumber(shown.length)} ligne(s), de la plus récente à la plus ancienne.`}`,
-    generatedAt, footer: "Ika Sô · Journal des mouvements · document confidentiel",
+    generatedAt, footer: brand() + " · Journal des mouvements · document confidentiel",
     sections: [
       { heading: "Vue d'ensemble", kpis: { cols: 4, items: [
         { label: "Lignes imprimées", value: fmtNumber(shown.length), sub: cut ? `sur ${fmtNumber(total)} disponibles` : "liste complète" },

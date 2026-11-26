@@ -5,6 +5,7 @@ import { S, app } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
 import { ago, avatar, lineChart, loadCss, premiumCard } from "/js/components/espace.js";
+import { brand } from "../core/brand.js";
 
 const PERIODS = [[7, "7 derniers jours"], [14, "14 jours"], [30, "30 jours"], [90, "90 jours"]];
 const STATUS = { PUBLISHED: ["Active", "pill-green"], PENDING: ["En attente", "pill-gold"], REJECTED: ["Refusée", "pill-warn"], EXPIRED: ["Expirée", "pill-warn"] };
@@ -70,7 +71,7 @@ export async function centrePage() {
     host.addEventListener("click", (e) => { if (side.classList.contains("open") && !burger.contains(e.target) && (!side.contains(e.target) || e.target.closest(".esp-nav"))) side.classList.remove("open"); }); // un lien du tiroir ou un clic à côté le referme
 
     // ----- Bannière + indicateurs -----
-    const hero = h("section", { class: "esp-hero", id: "esp-top" }, h("h1", null, first ? `Bonjour ${first}` : "Bonjour"), h("p", null, "Bienvenue dans votre centre de contrôle IKA SO. Gérez vos annonces, suivez vos performances et répondez plus vite."),
+    const hero = h("section", { class: "esp-hero", id: "esp-top" }, h("h1", null, first ? `Bonjour ${first}` : "Bonjour"), h("p", null, "Bienvenue dans votre centre de contrôle " + brand() + ". Gérez vos annonces, suivez vos performances et répondez plus vite."),
       h("div", { class: "row" }, h("a", { class: "btn btn-gold", href: "#/publier" }, "Publier une annonce"), h("a", { class: "btn esp-ghost", href: "#/profil" }, "Mon profil")));
     const kpi = (ic, label, value, link, href) => h("a", { class: "esp-kpi", href }, h("span", { class: "esp-kic" }, icon(ic)), h("small", null, label), h("strong", null, nf(value)), h("em", null, link));
     const kpis = h("div", { class: "esp-kpis" },

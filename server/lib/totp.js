@@ -3,6 +3,7 @@
 // Rien ici ne touche à la base ni à la connexion : ces fonctions sont branchées à l'étape suivante.
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { sha256 } from "./security.js";
+import { brand } from "./brand.js";
 
 const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 export const TOTP_DIGITS = 6;
@@ -81,7 +82,7 @@ export function verifyTotp(secret, code, { now = Date.now(), window = TOTP_WINDO
 }
 
 /** Adresse à encoder dans le QR code d'enrôlement. */
-export function otpauthUri(secret, account, issuer = "Ika So") {
+export function otpauthUri(secret, account, issuer = brand()) {
   const label = `${encodeURIComponent(issuer)}:${encodeURIComponent(account)}`;
   return `otpauth://totp/${label}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=${TOTP_DIGITS}&period=${TOTP_PERIOD}`;
 }

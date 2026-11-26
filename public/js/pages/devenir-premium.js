@@ -5,6 +5,7 @@ import { api, fail, h, mount, toast } from "/js/dom.js";
 import { S, app } from "/js/core/state.js";
 import { icon } from "/js/icons.js";
 import { loadCss } from "/js/components/espace.js";
+import { brand } from "../core/brand.js";
 
 const fcfa = (n) => `${Number(n).toLocaleString("fr-FR")} FCFA`;
 const day = (d) => new Date(d).toLocaleDateString("fr-FR");
@@ -115,7 +116,7 @@ export async function devenirPremiumPage() {
           h("button", { class: "btn btn-gold", type: "button", onClick: (e) => pay(o, e.currentTarget) }, `${payLabel} · ${fcfa(o.priceXof)}`)))),
         pol.payButtonNote ? h("p", { class: "small" }, pol.payButtonNote) : null,
         h("p", { class: "small muted" }, `Après votre paiement, vous complétez votre dossier : l'équipe l'étudie en 3 étapes (étude, vérification, confirmation) et vous répond sous ${delayDays} jours.`),
-        h("p", { class: "small muted" }, "Paiement sécurisé. Vous êtes redirigé vers la page du fournisseur puis ramené sur Ika So. Factures dans « Mes paiements »."))
+        h("p", { class: "small muted" }, "Paiement sécurisé. Vous êtes redirigé vers la page du fournisseur puis ramené sur " + brand() + ". Factures dans « Mes paiements »."))
     : dossier(premium ? "Renouveler le Premium" : "Demander le Premium", `Le paiement en ligne n'est pas ouvert : envoyez votre dossier. L'équipe l'étudie en 3 étapes (étude, vérification, confirmation) et vous répond sous ${delayDays} jours ; pendant la durée accordée, vous bénéficiez de tous les avantages Premium.`);
 
   function requestForm(last) {
@@ -132,7 +133,7 @@ export async function devenirPremiumPage() {
       h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-phone" }, "Téléphone de contact"), phone),
       online ? null : h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-months" }, "Durée souhaitée"), months),
       h("div", { class: "dp-ask" }, h("label", { class: "dp-label", for: "dp-msg" }, "Message (facultatif)"), msg),
-      h("label", { class: "dp-terms", for: "dp-terms" }, terms, h("span", null, online ? "Je confirme que les informations sont exactes et j'accepte que l'équipe Ika So étudie mon dossier et me contacte pour le confirmer." : "Je confirme que les informations sont exactes et j'accepte que l'équipe Ika So vérifie mon profil et me contacte avant d'activer le Premium.")),
+      h("label", { class: "dp-terms", for: "dp-terms" }, terms, h("span", null, online ? "Je confirme que les informations sont exactes et j'accepte que l'équipe " + brand() + " étudie mon dossier et me contacte pour le confirmer." : "Je confirme que les informations sont exactes et j'accepte que l'équipe " + brand() + " vérifie mon profil et me contacte avant d'activer le Premium.")),
       send);
   }
 

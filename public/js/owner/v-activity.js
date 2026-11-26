@@ -1,5 +1,6 @@
 // Mouvements du site : journal unifié, volumes, filtres, direct, export, dossier d'un compte ou d'une annonce.
 import { api, h, ico, panel, empty, skeletons, errorBox, openDrawer, closeDrawer, pill, nf, dayLabel, timeOf, dateTime, ago, initials, shortDay, stackChart, CAT_COLORS, CAT_ICONS, fail, toast, statusPill, fcfa } from "./ui.js";
+import { brandSlug } from "../core/brand.js";
 
 const PERIODS = [["1", "24 h"], ["7", "7 jours"], ["30", "30 jours"], ["90", "90 jours"], ["all", "Tout"]];
 let catalogCache = null;
@@ -167,8 +168,8 @@ export function activityView(ctx, { preset } = {}) {
         panel("Habitudes de connexion", `Rythme de la journée · heure de pointe : ${peak == null ? "—" : `${String(peak).padStart(2, "0")} h`}`, h("div", null, hours, h("div", { class: "hourlabels" }, h("span", null, "0 h"), h("span", null, "12 h"), h("span", null, "23 h")), buckets)),
         h("div", { class: "sidecol" }, panel("Semaine et week-end", "Connexions réussies", week), panel("Appareils", "Connexions par type d'appareil", devices))),
       h("div", { class: "actions" },
-        h("a", { class: "btn", href: `/api/staff/owner/activity/connections.csv?days=${c.days}`, download: "habitudes-connexion-ika-so.csv" }, ico("download"), "Exporter CSV"),
-        h("a", { class: "btn", href: `/api/staff/owner/activity/connections.pdf?days=${c.days}`, download: "habitudes-connexion-ika-so.pdf" }, ico("file"), "Exporter PDF")),
+        h("a", { class: "btn", href: `/api/staff/owner/activity/connections.csv?days=${c.days}`, download: `habitudes-connexion-${brandSlug()}.csv` }, ico("download"), "Exporter CSV"),
+        h("a", { class: "btn", href: `/api/staff/owner/activity/connections.pdf?days=${c.days}`, download: `habitudes-connexion-${brandSlug()}.pdf` }, ico("file"), "Exporter PDF")),
       h("p", { class: "muted small" }, `Mesuré depuis : ${c.since ? dateTime(c.since) : "aucune connexion enregistrée"}. `, c.notes.join(" ")));
   }
 

@@ -1,3 +1,4 @@
+import { brand } from "./lib/brand.js";
 // Configuration lue depuis l'environnement. Aucun secret dans le code ni dans le dépôt.
 
 /**
@@ -82,7 +83,7 @@ export function getConfig(env = process.env) {
     email: {
       provider: get("EMAIL_PROVIDER"),
       from: get("EMAIL_FROM"),
-      fromName: get("EMAIL_FROM_NAME") || "Ika So",
+      fromName: get("EMAIL_FROM_NAME") || brand(),
       brevoApiKey: get("BREVO_API_KEY"),
       resendApiKey: get("RESEND_API_KEY"),
     },

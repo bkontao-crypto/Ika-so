@@ -2,6 +2,7 @@
 // Heures en UTC, identiques à l'heure du Mali (UTC+0).
 import { csvCell } from "./activity-feed.js";
 import { buildPdf, fmtDate, fmtDateTime, fmtLong, fmtNumber } from "./simple-pdf.js";
+import { brand } from "./brand.js";
 
 export const HOUR_BUCKETS = Object.freeze([[0, 6], [6, 9], [9, 12], [12, 14], [14, 18], [18, 21], [21, 24]]);
 export const DAY_NAMES = Object.freeze(["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]);
@@ -88,7 +89,7 @@ export function connectionsToPdf(c, generatedAt) {
     eyebrow: "Super Administrateur · Activité et sécurité",
     title: "Habitudes de connexion",
     subtitle: `Généré le ${fmtLong(generatedAt)} (UTC, identique à l'heure du Mali) · ${c.days} dernier(s) jour(s) · mesuré depuis le ${c.since ? fmtDate(c.since) : "—"}`,
-    generatedAt, footer: "Ika Sô · Habitudes de connexion · document confidentiel",
+    generatedAt, footer: brand() + " · Habitudes de connexion · document confidentiel",
     sections: [
       { heading: "Vue d'ensemble", caption: "Connexions réussies enregistrées au journal de sécurité du site.", kpis: { cols: 4, items: [
         { label: "Connexions réussies", value: n(c.totals.logins), sub: `sur ${c.days} jour(s)` },

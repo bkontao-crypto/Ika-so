@@ -3,6 +3,7 @@ import { normalizePolicy } from "../lib/payment-policy.js";
 import { badRequest, conflict, forbidden, notFound } from "../lib/errors.js";
 import { newId } from "../lib/security.js";
 import { assertFeaturedCap } from "../lib/rules.js";
+import { brand } from "../lib/brand.js";
 
 const MAX_PRICE_XOF = 5_000_000;
 
@@ -304,7 +305,7 @@ export function createPayments(ctx, accounts, provider, onPaid = null, getPolicy
       );
       if (!rows[0]) throw notFound("Facture introuvable.");
       const r = rows[0];
-      return { number: r.number, label: r.label, amountXof: r.amount_xof, issuedAt: r.issued_at, customer: r.customer_name ?? r.name, note: "Facture simple émise par Ika So. Mentions légales à valider par le propriétaire." };
+      return { number: r.number, label: r.label, amountXof: r.amount_xof, issuedAt: r.issued_at, customer: r.customer_name ?? r.name, note: "Facture simple émise par " + brand() + ". Mentions légales à valider par le propriétaire." };
     },
 
     /** Rapprochement : ce qui demande l'œil d'un administrateur. Réapplique aussi ce qui est payé mais pas encore appliqué. */

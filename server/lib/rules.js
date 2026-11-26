@@ -1,3 +1,4 @@
+import { brand } from "./brand.js";
 export const CATEGORIES = ["Terrain", "Maison", "Appartement", "Studio", "Local commercial", "Bureau"];
 /** Familles de biens : le terrain, les logements (chambres, sanitaires, meublé) et l'immobilier professionnel. */
 export const LAND_CATEGORIES = ["Terrain"];
@@ -38,7 +39,7 @@ export const LISTING_STATUSES = [
     "RENTED",
     "ARCHIVED",
 ];
-export const DOCUMENT_DISCLAIMER = "Document déclaré par l'annonceur, sans garantie automatique. Ika So ne certifie pas le titre.";
+export const documentDisclaimer = () => "Document déclaré par l'annonceur, sans garantie automatique. " + brand() + " ne certifie pas le titre.";
 export function isStaff(role) {
     return STAFF_ROLES.includes(role);
 }
