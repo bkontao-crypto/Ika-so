@@ -114,6 +114,8 @@ Ne pas supprimer les historiques. Les référentiels à la racine deviennent les
 
 Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et désactivable pendant le développement ; désactivation avant lancement de ce qui n’est pas autorisé. Principe 8 réécrit. Documents seuls.
 
+- 27 novembre 2026 : recensement des activations (`docs/audit/RECENSEMENT_ACTIVATIONS_2026-11-27.md`) ; essais d’API sur base jetable, aucun code modifié. Constat : plusieurs fonctions éteintes par défaut ; les coupures « Module CRM / Premium » ne ferment pas les API.
+
 ## 8. Règles de mise à jour
 
 À chaque intervention significative :

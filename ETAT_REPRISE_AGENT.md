@@ -22,7 +22,7 @@ Audit en lecture seule : `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`. Documents m
 7. Valider les paiements et fournisseurs en réel ; recetter la production.
 
 ## Prochaine tâche exacte
-Proposée, à autoriser : recenser toutes les fonctionnalités, indiquer pour chacune son interrupteur réel ou son absence, et la preuve qu’elle fonctionne. Ensuite seulement, proposer un écran d’activation dans l’Owner Center. Ne pas changer les valeurs par défaut.
+Recensement terminé : `docs/audit/RECENSEMENT_ACTIVATIONS_2026-11-27.md`. Attendre l’autorisation pour la suite proposée ; commencer par rendre réelles les coupures CRM et Premium, sur branche dédiée.
 
 ## Ordre de lecture à la reprise
 
