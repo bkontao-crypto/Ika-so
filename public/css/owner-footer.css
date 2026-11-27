@@ -1,0 +1,25 @@
+/* Pied de page de Personnalisation : cartes de colonnes, barre d'outils, champ « © » (aligné sur la maquette). */
+.cz-form{display:grid;gap:18px;min-width:0}
+.cz-counter{text-align:right;margin-top:6px}
+.cz-prefix{position:relative;display:block;margin-top:5px}
+.cz-prefix .cz-pre{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:700;font-size:15px}
+.cz-prefix .input{padding-left:40px;margin-top:0}
+.cz-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px;border:1px solid var(--line);border-radius:16px;background:var(--bg);margin-bottom:14px}
+.cz-toolbar .btn.primary{margin-left:auto}
+.cz-round{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--ink);font-size:17px;display:grid;place-items:center}
+.cz-round:not(:disabled):hover{border-color:var(--green);color:var(--green)}
+.cz-round:disabled{opacity:.4;cursor:not-allowed}
+.cz-chip{background:var(--soft);color:var(--soft-ink);border-radius:20px;padding:9px 15px;font-weight:700;font-size:13px}
+.cz-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.cz-card{border:1px solid var(--line);border-radius:16px;padding:14px;background:var(--card);display:grid;gap:10px;align-content:start;transition:border-color .15s,box-shadow .15s}
+.cz-card.sel{border-color:var(--green);box-shadow:var(--ring)}
+.cz-cardhead{display:flex;align-items:center;gap:8px}
+.cz-cardhead b{flex:1;font-size:14px}
+.cz-grip{color:var(--muted);letter-spacing:-3px;cursor:grab;font-weight:800;padding:4px 2px;user-select:none}
+.cz-sq{width:34px;height:34px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--ink);display:grid;place-items:center}
+.cz-sq:hover{background:var(--soft)}
+.cz-sq.danger{color:var(--red-ink);background:var(--red-soft);border-color:transparent}
+.cz-links{display:inline-flex;align-items:center;gap:6px;color:var(--green);font-size:13px;font-weight:600}
+:root[data-theme="dark"] .cz-links{color:var(--lime)}
+.cz-detail{margin-top:14px;border:1px dashed var(--line);border-radius:16px;padding:16px;display:grid;gap:12px}
+.cz-detail h3{font-size:14px}

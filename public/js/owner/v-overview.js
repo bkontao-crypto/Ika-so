@@ -1,5 +1,6 @@
-// Vue générale : fidèle à la maquette (5 indicateurs, activité, santé technique, opérations, alertes, accès rapides), données réelles.
+// Vue générale : indicateurs, activité, anneaux de répartition, santé technique, opérations, alertes, accès rapides. Données réelles.
 import { api, h, ico, panel, empty, skeletons, errorBox, areaChart, sparkline, nf, pad2, timeOf, dateTime, ago, shortDay, pill, fail, toast } from "./ui.js";
+import { donut } from "./charts-modern.js";
 import { brand, brandUpper } from "../core/brand.js";
 
 const QUICK = [
@@ -9,6 +10,12 @@ const QUICK = [
   ["newsletters", "news", "Newsletter", "Abonnés et campagnes e-mail"], ["settings", "gear", "Paramètres plateforme", "Identité et configuration"],
 ];
 const STATE_PILL = { ok: ["green", "Terminé"], warn: ["gold", "À suivre"], bad: ["red", "Alerte"], info: ["info", "Enregistré"], neutral: ["neutral", "Enregistré"] };
+// File d'attente : clés des compteurs du tableau de bord (les mêmes que les pastilles du menu).
+const QUEUE = [
+  ["pendingListings", "Annonces à modérer", "#087448"], ["pendingPayments", "Paiements à vérifier", "#c6a35c"], ["pendingRequests", "Demandes à valider", "#477eaa"],
+  ["pendingProofs", "Pièces à vérifier", "#7b5ea7"], ["openComplaints", "Réclamations ouvertes", "#c94f4f"], ["openIncidents", "Incidents ouverts", "#4b5563"],
+];
+const sum = (a) => (a ?? []).reduce((x, y) => x + (Number(y) || 0), 0);
 
 export function overviewView(ctx) {
   const root = h("div", { class: "view" }, skeletons(3, 110));
@@ -45,6 +52,12 @@ export function overviewView(ctx) {
       { key: "s", name: "Inscriptions", color: "#477eaa", values: sr.signups }] });
     const hl = d.health;
     const health = h("div", { class: "health" }, hl.items.map((x) => h("div", { class: "healthrow" }, h("span", null, x.label, x.detail ? h("small", null, x.detail) : null), h("b", { class: `status ${x.tone === "ok" ? "" : x.tone}` }, x.text))));
+    const activityDonut = donut({ caption: `sur ${d.days} jours`, items: [
+      { label: "Annonces déposées", value: sum(sr.listings), color: "#087448" }, { label: "Contacts entrants", value: sum(sr.contacts), color: "#c6a35c" }, { label: "Inscriptions", value: sum(sr.signups), color: "#477eaa" }] });
+    const counts = d.counts ?? {};
+    const queueItems = QUEUE.map(([key, label, color]) => ({ label, value: Number(counts[key]) || 0, color }));
+    const queueTotal = queueItems.reduce((a, x) => a + x.value, 0);
+    const queueDonut = donut({ caption: queueTotal ? "à traiter" : "", center: queueTotal ? nf(queueTotal) : undefined, items: queueItems });
     const ops = d.operations.length ? h("div", { class: "tablewrap" }, h("table", null,
       h("thead", null, h("tr", null, ["Opération", "Acteur", "Module", "État", "Date"].map((t) => h("th", null, t)))),
       h("tbody", null, d.operations.map((o) => { const [tone, label] = STATE_PILL[o.tone] ?? STATE_PILL.neutral; return h("tr", null,
@@ -61,6 +74,8 @@ export function overviewView(ctx) {
       h("section", { class: "grid stats" }, stats),
       h("section", { class: "grid middle" }, panel("Activité de la plateforme", "Évolution des annonces, des contacts et des inscriptions · survolez pour le détail", chart, sel),
         panel("Santé technique", "État des services essentiels", health, h("span", { class: `status ${hl.status === "ok" ? "" : hl.status}` }, hl.status === "ok" ? "SYSTÈME OPÉRATIONNEL" : hl.status === "warn" ? "À SURVEILLER" : "INCIDENT"))),
+      h("section", { class: "grid cols2" }, panel("Répartition de l'activité", "Part de chaque type de mouvement sur la période choisie", activityDonut),
+        panel("File de traitement", "Ce qui attend une décision, module par module", queueDonut)),
       h("section", { class: "grid bottom" }, panel("Dernières opérations", "Événements récents de modération et d'administration", ops, h("button", { class: "select", type: "button", onClick: () => ctx.go("#/audit") }, "Ouvrir le journal →")),
         panel("Alertes & actions prioritaires", "Points nécessitant une attention", alerts, h("span", { class: `pill ${d.alerts.length ? "red" : "green"}` }, `${d.alerts.length} alerte${d.alerts.length > 1 ? "s" : ""}`))),
       h("div", { class: "panelhead" }, h("div", null, h("h2", null, "Accès rapides aux modules Owner"), h("div", { class: "desc" }, "Tous les outils de pilotage regroupés au même endroit"))),

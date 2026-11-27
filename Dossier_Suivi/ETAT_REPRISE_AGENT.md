@@ -1,35 +1,35 @@
 # ÉTAT DE REPRISE — IKA SÔ
 
-- Dernière mise à jour : 26 novembre 2026
-- Branche : `feature/personnalisation-site-moderne` (non fusionnée dans `main`)
-- Statut général : prêt à valider
+- Dernière mise à jour : 27 novembre 2026 (UTC, heure de Bamako)
+- Branche : `feature/personnalisation-site-moderne` (d74ad81) fusionnée dans `main` le 27/11 après accord du propriétaire
+- Statut général : fusionné ; production non vérifiée
 
 ## 1. Dernière tâche
-Interface moderne de « Personnalisation du site » (maquette `administration_sigi_s_personnalisation_du_site.html` fournie par le propriétaire) : coque, onglets, suivi des modifications, pied de page avec aperçu en direct. Statut : RÉALISÉ, NON VÉRIFIÉ dans un navigateur.
+Recette navigateur en local et correction de 2 défauts (bouton « Enregistrer la section » du pied de page ; titre écrasé sur la Vue générale). Défauts propres aux commits non fusionnés, d'après le code.
 
 ## 2. Fichiers modifiés
-- `public/js/owner/v-customize.js` — nouveau
-- `public/js/owner/main.js` — import + 4 routes
-- `public/css/owner-customize.css` — nouveau
-- `public/owner.html` — lien vers la feuille de style
-- `Important/LIVRAISON_PERSONNALISATION_MODERNE_2026-11-26.md` — nouveau
+- `public/js/owner/v-customize.js` — « Ajouter une colonne » exclu de la recherche du bouton d'enregistrement (`data-cz-nosave`)
+- `public/css/owner-modern.css` — largeur automatique de la liste « Période »
+- `Important/SUIVI.md`, `Dossier_Suivi/ETAT_REPRISE_AGENT.md`
 
 ## 3. Vérifications
-- `node --check` sur `v-customize.js` — OK
-- Non exécuté : essai navigateur, enregistrement de chaque section, thème sombre, mobile, tests `test/`
+Détail : première entrée de `Important/SUIVI.md`. `npm test` 565/565 ; enregistrements et affichage contrôlés dans Chromium sur la fusion simulée. Les entrées de documentation n'ont pas été retestées (texte seul).
 
 ## 4. Points ouverts
-- `Important/SUIVI.md` (397 Ko) n'a pas reçu d'entrée pour cette tâche : à ajouter en tête de fichier.
-- Les onglets En-tête, Sections de l'accueil, Page d'accueil etc. gardent leurs formulaires actuels dans la nouvelle coque ; aperçu en direct fait seulement pour le pied de page (l'en-tête en avait déjà un).
-- L'ancienne `customizeView` reste dans `v-modules.js` (code mort) : à supprimer après validation.
+- Non vérifié : production, vrais téléphones, MFA active, glisser-déposer et suppression de colonne, `#/trace/…`.
+- Mobile : champ de recherche de Mouvements du site très étroit (non comparé à `main`, non corrigé).
+- Compteur du pied de page : « n / 400 », maquette à 300 : à trancher.
+- Synthèse Utilisateurs : second appel à `/staff/owner/users/aggregates`, à mutualiser si besoin.
+- Imports statiques dans `main.js` : une erreur de syntaxe bloquerait tout l'Owner Center.
+- Ancienne `customizeView` de `v-modules.js` : à supprimer après validation.
 
 ## 5. Prochaine tâche exacte
-Ouvrir `/owner.html#/customize` sur la branche, parcourir les 11 onglets, enregistrer une modification par section, puis fusionner avec un commit de fusion si tout est conforme.
+Contrôler le site déployé (si l’hébergement déploie `main`) : ouvrir `/owner.html#/customize`, enregistrer le pied de page, ouvrir la Vue générale. Ensuite, avec le propriétaire : retirer l’ancienne `customizeView`.
 
 ## 6. Fichiers à consulter
-1. `ETAT_REPRISE_AGENT.md` — en premier.
-2. `Important/LIVRAISON_PERSONNALISATION_MODERNE_2026-11-26.md`
-3. `public/js/owner/v-customize.js`
+1. `Dossier_Suivi/ETAT_REPRISE_AGENT.md` — en premier.
+2. `Important/SUIVI.md` — première entrée.
+3. `public/js/owner/v-customize.js`, `public/css/owner-modern.css`.
 
 ## 7. Instructions au prochain agent
-Ne pas toucher aux endpoints `/staff/…` ni aux autres sections sans demande. Après validation du propriétaire, retirer l'ancienne `customizeView` de `v-modules.js`.
+Ne pas toucher aux endpoints `/staff/…`. Pas de style en ligne (CSP `style-src 'self'`). Toute nouvelle fusion demande la validation du propriétaire. Le suivi principal est `Important/SUIVI.md` (pas de `SUIVI_EXECUTION.md`). Un rechargement en rafale en test peut déclencher la limite anti-abus (HTTP 429).
