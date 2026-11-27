@@ -8,3 +8,6 @@ body.page-isolee { margin: 0; padding: 0; background: var(--paper); color: var(-
 .page-isolee ::placeholder { color: var(--muted); opacity: 1; }
 .page-isolee pre, .page-isolee td { white-space: pre-wrap; overflow-wrap: anywhere; }
 .page-isolee *, .page-isolee *::before, .page-isolee *::after { box-sizing: border-box; }
+
+/* Boutons et champs dans la police du site (au lieu d'Arial par défaut du navigateur). */
+:where(.page-isolee) :is(button, input, select, textarea) { font-family: inherit; }
