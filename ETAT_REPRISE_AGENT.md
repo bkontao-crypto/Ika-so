@@ -2,7 +2,7 @@
 
 - Mise à jour : 27 novembre 2026 (UTC) — audit de la collecte d’audience
 - Branche : `docs/audit-analytics`, depuis `main` `36ac9f8` (NON fusionnée)
-- Statut : audit terminé ; décisions du propriétaire attendues
+- Statut : audit terminé ; décision prise : tout activé et désactivable pendant le développement
 
 ## Déclaration du propriétaire
 > « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
@@ -13,7 +13,7 @@ Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation jur
 Audit en lecture seule : `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`. Documents mis à jour. Aucun code modifié ; suite complète 570/570 sur la branche d’audit. Observatoire déjà fusionné (570 tests réussis lors de cette fusion) ; production non vérifiée.
 
 ## Points ouverts prioritaires
-1. Collecte active par défaut (contraire au principe 8) : décision attendue.
+1. Avant lancement : désactiver ce qui n’est pas autorisé (principe 8). Tout n’a pas encore d’interrupteur confirmé ; aucun recensement complet fait.
 2. Consentement à l’inscription sans refus distinct : à traiter avec le juriste avant lancement.
 3. Écarts 3 à 7 de l’audit (portée du choix « Statistiques », chemins, purge, chiffres gonflables, documents périmés).
 4. Corriger le nettoyage de fichiers du test `test/star-badge-pg.test.js`.
@@ -22,7 +22,7 @@ Audit en lecture seule : `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`. Documents m
 7. Valider les paiements et fournisseurs en réel ; recetter la production.
 
 ## Prochaine tâche exacte
-Obtenir la décision sur l’écart 1. Si « éteindre par défaut » : sur une branche dédiée, inverser le défaut (configuration et réglage en base), adapter les tests, sans toucher à la production.
+Proposée, à autoriser : recenser toutes les fonctionnalités, indiquer pour chacune son interrupteur réel ou son absence, et la preuve qu’elle fonctionne. Ensuite seulement, proposer un écran d’activation dans l’Owner Center. Ne pas changer les valeurs par défaut.
 
 ## Ordre de lecture à la reprise
 

@@ -18,7 +18,7 @@
 - les documents juridiques restent **à produire** : ils conditionnent le lancement des fonctionnalités concernées ;
 - cette déclaration n’est ni une validation juridique ni un avis de juriste ;
 - elle ne dit pas que ces fonctionnalités sont aujourd’hui éteintes dans le code. L’état technique constaté pour l’audience figure dans `docs/audit/AUDIT_ANALYTICS_2026-11-27.md` ;
-- elle ne modifie pas le principe non négociable sur l’activation d’une collecte de données personnelles (section 2).
+- l’activation pendant le développement et la désactivation avant le lancement sont régies par le principe 8 (section 2).
 
 ## 1. Vision et objectifs
 
@@ -40,7 +40,7 @@ Objectifs :
 5. Ne jamais exposer secrets, mots de passe, tokens, justificatifs ou données privées.
 6. Toute fonctionnalité doit avoir des états chargement, succès, vide et erreur ; validations serveur ; permissions ; journalisation appropriée et tests.
 7. Une interface sans branchement réel n'est pas une fonctionnalité terminée.
-8. Ne pas activer une collecte ou un traitement de données personnelles sans validation juridique et configuration conforme.
+8. Pendant le développement, les fonctionnalités restent **activées par défaut et désactivables**, afin de vérifier qu’elles fonctionnent. Avant le lancement, désactiver toute fonctionnalité pour laquelle l’autorisation ou les documents juridiques requis manquent, y compris toute collecte ou tout traitement de données personnelles, qui exige une validation juridique et une configuration conforme. (Décision du propriétaire du 27 novembre 2026 ; elle remplace l’ancienne rédaction de ce principe.)
 9. Toute mise en production doit être distinguée des vérifications locales et CI.
 
 ## 3. Utilisateurs, comptes et accès

@@ -5,6 +5,9 @@ Périmètre : code de `main` (`36ac9f8`). Lecture du code et essais HTTP sur une
 ## Contexte déclaré par le propriétaire
 > « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
 
+## Décision du propriétaire après l’audit (27 novembre 2026)
+Tout reste activé par défaut et désactivable pendant le développement ; avant le lancement, ce qui n’est pas autorisé sera désactivé. Le principe 8 du cahier des charges est réécrit en ce sens : l’écart 1 n’est plus une contradiction et devient un **contrôle obligatoire avant lancement**. Les constats ci-dessous décrivent la situation au moment de l’audit. La décision ne vaut pas validation juridique.
+
 ## Résultat en bref
 La collecte est **active par défaut**. Plusieurs protections fonctionnent, mais le choix présenté au visiteur et les documents ne correspondent pas entièrement au comportement du code.
 
@@ -32,7 +35,7 @@ La collecte est **active par défaut**. Plusieurs protections fonctionnent, mais
 ## Non vérifié
 Variables et données de production ; contenu de la politique publiée au regard de la loi ; contrôle d’accès et journalisation de chaque écran qui lit les événements (fiche utilisateur, mouvements du site, centre annonceur, entonnoir Premium) ; journaux de l’hébergeur ; pixels marketing chez les prestataires ; parcours Google réel.
 
-## Décisions attendues du propriétaire
-1. Collecte éteinte par défaut pendant le développement ? (recommandé, car conforme au principe 8)
-2. Parcours de consentement à l’inscription : à revoir avec le juriste avant lancement.
-3. Autoriser les corrections techniques des écarts 3 à 6 sur une branche dédiée.
+## Suites
+1. Écart 1 : tranché (voir la décision ci-dessus).
+2. Écart 2 : à revoir avec le juriste avant lancement.
+3. Écarts 3 à 6 : corrections non autorisées à ce jour.

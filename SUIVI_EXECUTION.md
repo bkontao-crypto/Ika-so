@@ -45,7 +45,7 @@ Ne pas attribuer le statut TERMINÉ ET VÉRIFIÉ à partir d'une simple présenc
 
 | Priorité | Constat | Action attendue |
 |---|---|---|
-| Critique | Collecte d’audience active par défaut, contraire au principe 8 ; consentement à l’inscription sans refus distinct (audit du 27/11/2026) | Décision du propriétaire, puis corrections sur branche ; avis juridique avant lancement |
+| Critique avant lancement | Fonctionnalités activées par défaut pendant le développement (décision du 27/11/2026) ; consentement à l’inscription sans refus distinct (audit) | Vérifier que chaque fonctionnalité est désactivable ; avant lancement, désactiver ce qui n’est pas autorisé |
 | Haute | Récupération MFA Superadmin inachevée | Définir et tester récupération, codes de secours, verrouillage et journalisation |
 | Haute | Sauvegardes hors serveur/restauration non prouvées | Exécuter sauvegarde chiffrée et restauration sur base jetable ; consigner les preuves |
 | Moyenne | Test de nettoyage `stored_files` : `content_type` au lieu de `mime_type`, erreur absorbée | Corriger le nettoyage et ajouter une assertion garantissant l'absence de fichiers résiduels |
@@ -111,6 +111,8 @@ Ne pas supprimer les historiques. Les référentiels à la racine deviennent les
 - 27 novembre 2026 : fusion de `feature/observatoire` (`f688d9e`) dans `main` (base `3e7a5fa`), sur accord du propriétaire, sans conflit ni migration. Fichiers : `server/services/observatory.js`, `public/js/owner/v-observatory.js`, `public/css/owner-observatory.css`, `test/observatory.test.js`, routes, services, menu, matrice des droits (45 segments). `npm test` : 570 réussis, 0 échec sur le code fusionné ; contrôle Service Worker réussi. Recette Chromium sur la branche (données fictives) : détail dans `Important/SUIVI.md`. Non vérifiés : production, performance sur gros volumes, vrais téléphones. Aucun réglage de collecte modifié. Retour arrière : `git revert -m 1 <commit de fusion>`.
 
 - 27 novembre 2026 : audit de la collecte d’audience (`docs/audit/AUDIT_ANALYTICS_2026-11-27.md`), branche `docs/audit-analytics` depuis `36ac9f8`. Essais HTTP sur base jetable ; aucun code, réglage ou migration modifié ; suite complète : 570/570 réussis. Constat principal : collecte active par défaut. Déclaration du propriétaire sur la conformité juridique ajoutée au cahier des charges.
+
+Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et désactivable pendant le développement ; désactivation avant lancement de ce qui n’est pas autorisé. Principe 8 réécrit. Documents seuls.
 
 ## 8. Règles de mise à jour
 
