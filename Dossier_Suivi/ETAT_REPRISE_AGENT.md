@@ -1,35 +1,38 @@
 # ÉTAT DE REPRISE — IKA SÔ
 
-- Dernière mise à jour : 26 novembre 2026
+- Dernière mise à jour : 27 novembre 2026
 - Branche : `feature/personnalisation-site-moderne` (non fusionnée dans `main`)
-- Statut général : prêt à valider
+- Statut général : prêt à valider (RÉALISÉ, NON VÉRIFIÉ dans un navigateur)
 
 ## 1. Dernière tâche
-Interface moderne de « Personnalisation du site » (maquette `administration_sigi_s_personnalisation_du_site.html` fournie par le propriétaire) : coque, onglets, suivi des modifications, pied de page avec aperçu en direct. Statut : RÉALISÉ, NON VÉRIFIÉ dans un navigateur.
+Habillage moderne commun à tout l'Owner Center, calqué sur la maquette « Personnalisation du site » : menu vert à pastilles, barre du haut, bandeau de page (hero) sur tous les modules, onglets à icônes, cartes avec puce d'icône, barre d'actions collante, indicateurs. Vue générale : deux anneaux (répartition de l'activité, file de traitement) ajoutés.
 
 ## 2. Fichiers modifiés
-- `public/js/owner/v-customize.js` — nouveau
-- `public/js/owner/main.js` — import + 4 routes
-- `public/css/owner-customize.css` — nouveau
-- `public/owner.html` — lien vers la feuille de style
-- `Important/LIVRAISON_PERSONNALISATION_MODERNE_2026-11-26.md` — nouveau
+- `public/css/owner-modern.css` — nouveau (style commun, surcharge owner.css / owner-customize.css)
+- `public/js/owner/modern-shell.js` — nouveau (icônes de cartes et d'onglets, décor du bandeau ; script séparé, observe le DOM)
+- `public/js/owner/charts-modern.js` — nouveau (anneau avec légende)
+- `public/js/owner/v-overview.js` — 2 anneaux + import
+- `public/owner.html` — feuille de style + script modern-shell
+- `Dossier_Suivi/ETAT_REPRISE_AGENT.md`
 
 ## 3. Vérifications
-- `node --check` sur `v-customize.js` — OK
-- Non exécuté : essai navigateur, enregistrement de chaque section, thème sombre, mobile, tests `test/`
+- Aucune exécution possible dans cet environnement (pas d'accès navigateur, pas de `node --check`).
+- Non exécuté : ouverture de `/owner.html` (clair/sombre, mobile), parcours des modules, tests `test/`.
 
 ## 4. Points ouverts
-- `Important/SUIVI.md` (397 Ko) n'a pas reçu d'entrée pour cette tâche : à ajouter en tête de fichier.
-- Les onglets En-tête, Sections de l'accueil, Page d'accueil etc. gardent leurs formulaires actuels dans la nouvelle coque ; aperçu en direct fait seulement pour le pied de page (l'en-tête en avait déjà un).
-- L'ancienne `customizeView` reste dans `v-modules.js` (code mort) : à supprimer après validation.
+- Pied de page de Personnalisation : libellés (« Enregistrer les modifications ») et cartes de colonnes horizontales de la maquette non encore alignés ; `v-customize.js` inchangé.
+- Modules `v-modules.js`, `v-users.js`, `v-activity.js`, `v-trafic.js` : habillage global seulement ; pas encore de graphiques avancés ni de bandeau à onglets par module.
+- `Important/SUIVI.md` sans entrée pour ces tâches (fichier de 397 Ko : ajouter en tête).
+- Ancienne `customizeView` de `v-modules.js` : code mort à supprimer après validation.
 
 ## 5. Prochaine tâche exacte
-Ouvrir `/owner.html#/customize` sur la branche, parcourir les 11 onglets, enregistrer une modification par section, puis fusionner avec un commit de fusion si tout est conforme.
+Ouvrir `/owner.html` sur la branche, contrôler clair/sombre et mobile sur Vue générale et Personnalisation, corriger les défauts visuels, puis aligner le pied de page de Personnalisation sur la maquette (libellés, colonnes horizontales, « Colonnes configurées : n / 4 »).
 
 ## 6. Fichiers à consulter
 1. `ETAT_REPRISE_AGENT.md` — en premier.
-2. `Important/LIVRAISON_PERSONNALISATION_MODERNE_2026-11-26.md`
-3. `public/js/owner/v-customize.js`
+2. `public/css/owner-modern.css`
+3. `public/js/owner/modern-shell.js`
+4. `public/js/owner/v-customize.js` (fonction `footerWorkspace`)
 
 ## 7. Instructions au prochain agent
-Ne pas toucher aux endpoints `/staff/…` ni aux autres sections sans demande. Après validation du propriétaire, retirer l'ancienne `customizeView` de `v-modules.js`.
+Ne pas toucher aux endpoints `/staff/…`. Pas de style en ligne (CSP `style-src 'self'`). Ne fusionner dans `main` qu'après validation du propriétaire.
