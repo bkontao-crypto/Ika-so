@@ -2,6 +2,7 @@
 // Ils lisent uniquement /staff/owner/charts, /staff/owner/health et /staff/owner/premium-funnel ; l'accès est contrôlé par le serveur (modules « charts », « health », « premium-funnel »).
 import { api, h, panel, table, bars, pill, nf, dateTime, shortDay, areaChart, empty } from "./ui.js";
 import { page, mini, minis } from "./v-modules.js";
+import { donut, columnChart, funnelChart } from "./charts-modern.js";
 
 /** Boutons de période partagés (7 / 30 / 90 jours). */
 const periodButtons = (get, set, reload) => ["7", "30", "90"].map((d) =>
@@ -38,8 +39,13 @@ export const chartsView = (ctx) => page(ctx, {
     }
     const peak = [...t.byHour].sort((a, b) => b.actions - a.actions).filter((r) => r.actions > 0).slice(0, 3).map((r) => r.hour);
     if (t.byHour.some((r) => r.actions > 0)) {
-      out.push(panel("Heures de forte fréquentation", `Actions par heure (UTC = heure du Mali). Pointes : ${peak.map((x) => `${String(x).padStart(2, "0")} h`).join(", ")}.`,
-        bars(t.byHour.map((r) => ({ label: `${String(r.hour).padStart(2, "0")} h`, value: r.actions, color: peak.includes(r.hour) ? "#c6a35c" : undefined })))));
+      const part = (from, to) => t.byHour.filter((r) => r.hour >= from && r.hour <= to).reduce((n, r) => n + r.actions, 0);
+      out.push(h("div", { class: "cols2" },
+        panel("Heures de forte fréquentation", `Actions par heure (UTC = heure du Mali). Pointes : ${peak.map((x) => `${String(x).padStart(2, "0")} h`).join(", ")}.`,
+          columnChart({ items: t.byHour.map((r) => ({ label: `${String(r.hour).padStart(2, "0")} h`, value: r.actions, hot: peak.includes(r.hour) })) })),
+        panel("Moment de la journée", "Répartition des actions (heure du Mali)", donut({ caption: "actions", items: [
+          { label: "Matin (6–11 h)", value: part(6, 11), color: "#c6a35c" }, { label: "Après-midi (12–17 h)", value: part(12, 17), color: "#087448" },
+          { label: "Soir (18–23 h)", value: part(18, 23), color: "#477eaa" }, { label: "Nuit (0–5 h)", value: part(0, 5), color: "#4b5563" }] }))));
     }
     return out;
   },
@@ -65,6 +71,10 @@ export const premiumFunnelView = (ctx) => page(ctx, {
     return [
       f.collecting === false ? h("p", { class: "note bad" }, "La collecte d'événements est éteinte : les clics ne sont pas comptés.") : null,
       minis(mini("Clics Premium", nf(tot.clicks)), mini("Paiements lancés", nf(tot.started)), mini("Paiements réussis", nf(tot.paid))),
+      tot.clicks ? h("div", { class: "cols2" },
+        panel("Entonnoir de conversion", `${f.days} derniers jours`, funnelChart({ steps: [
+          { label: "Clics Premium", value: tot.clicks, color: "#477eaa" }, { label: "Paiements lancés", value: tot.started, color: "#c6a35c" }, { label: "Paiements réussis", value: tot.paid, color: "#087448" }] })),
+        panel("Clics par origine", "D'où viennent les demandes Premium", donut({ caption: "clics", items: f.rows.map((r, i) => ({ label: r.origin, value: r.clicks, color: ["#087448", "#477eaa", "#c6a35c", "#7b5ea7", "#c94f4f", "#4b5563"][i % 6] })) }))) : null,
       panel("Par point d'entrée", `${f.days} derniers jours`, table([
         { label: "Origine", key: "origin" }, { label: "Clics", num: true, render: (r) => nf(r.clicks) }, { label: "Lancés", num: true, render: (r) => nf(r.started) },
         { label: "Payés", num: true, render: (r) => nf(r.paid) }, { label: "Conversion", num: true, render: (r) => (r.conversionPct == null ? "—" : `${r.conversionPct} %`) }], f.rows, { emptyText: "Aucun clic ni paiement Premium sur la période." })),
