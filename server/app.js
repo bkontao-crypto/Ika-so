@@ -10,6 +10,7 @@ import { buildRoutes } from "./routes/index.js";
 import { buildMfaRoutes } from "./routes/mfa.js";
 import { buildSeoRoutes } from "./routes/seo.js";
 import { buildWhatsAppInboxRoutes } from "./routes/whatsapp-inbox.js";
+import { buildExpirationRoutes } from "./routes/expirations.js";
 import { readFile } from "node:fs/promises";
 import { brand, brandLogoHtml, brandUpper } from "./lib/brand.js";
 
@@ -107,6 +108,8 @@ export function createApp({ services, config, logger = createLogger({ level: "er
     });
     app.use("/api/whatsapp", buildWhatsAppInboxRoutes({ inbox: whatsappInbox, accounts: services.accounts, requireUser, limiter }));
   }
+  // Durée de publication : montées avant les routes générales (traitent Vendu / Louée / Archiver / Prolonger côté serveur, laissent le reste passer).
+  if (services.listingExpiry) app.use("/api", buildExpirationRoutes({ expiry: services.listingExpiry, accounts: services.accounts, analytics: services.analytics, requireUser, limiter }));
   app.use("/api", buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }));
 
   app.use("/api", (req, res) => res.status(404).json({ error: "Introuvable." }));
