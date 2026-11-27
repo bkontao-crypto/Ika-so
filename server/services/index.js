@@ -15,6 +15,7 @@ import { createSocial } from "./social.js";
 import { createGeo } from "./geo.js";
 import { createImports } from "./imports.js";
 import { createListings } from "./listings.js";
+import { createListingExpiry } from "./listing-expiry.js";
 import { createProperties } from "./properties.js";
 import { selectProvider } from "../payments/providers.js";
 import { createModeration } from "./moderation.js";
@@ -83,6 +84,8 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const requestsHub = createRequestsHub({ db, ownerDelegations, notify: (userId, note) => engagement.notify(userId, note) });
   const social = createSocial({ db, accounts, notify: engagement.notify });
   const alerts = createAlerts({ db, accounts, rules: ruleExceptions, moderationAudit, engagement });
+  // Durée de publication : expiration, avertissements, archivage automatique (tâche lancée par server/index.js).
+  const listingExpiry = createListingExpiry({ db, accounts, settings: superadminSettings, engagement, moderationAudit });
   const discover = createDiscover({ db, accounts, rules: ruleExceptions, engagement, moderationAudit, requestsHub });
   const premiumRequests = createPremiumRequests({ requestsHub, db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments, rules: ruleExceptions });
   const starBadge = createStarBadge({ db, accounts, superadminSettings, requestsHub, moderationAudit, notify: (userId, note) => engagement.notify(userId, note) });
@@ -101,7 +104,7 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, listingExpiry, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";
