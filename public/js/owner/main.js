@@ -8,12 +8,13 @@ import { customizeView } from "./v-customize.js";
 import { usersView, userCenterView } from "./v-users.js";
 import { chartsView, healthView, premiumFunnelView } from "./v-trafic.js";
 import { mfaView } from "./v-mfa.js";
+import { observatoryView } from "./v-observatory.js";
 import { brand, brandUpper } from "../core/brand.js";
 
 // Menu rangé par fonction : chaque groupe se replie (celui de la page en cours reste ouvert). Les adresses « #/… » ne changent pas.
 const NAV = [
   ["Pilotage", "grid", [
-    ["overview", "grid", "Vue générale"], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["charts", "pulse", "Graphiques & fréquentation"], ["regions", "pin", "Régions & tendances"], ["reports", "file", "Rapports & exports"]]],
+    ["overview", "grid", "Vue générale"], ["observatory", "eye", "Observatoire du site", { tag: "NOUVEAU" }], ["activity", "pulse", "Mouvements du site", { tag: "NOUVEAU" }], ["stats", "pulse", "Statistiques"], ["charts", "pulse", "Graphiques & fréquentation"], ["regions", "pin", "Régions & tendances"], ["reports", "file", "Rapports & exports"]]],
   ["Utilisateurs & comptes", "users", [
     ["users", "users", "Utilisateurs & comptes"], ["agencies", "building", "Agences & annonceurs"], ["trust", "shield", "Confiance & vérifications", { count: "pendingProofs" }], ["permissions", "shield", "Permissions du personnel"], ["delegations", "users", "Délégations de modules"]]],
   ["Paiements & Premium", "wallet", [
@@ -35,7 +36,7 @@ const whatsappView = () => h("div", { class: "view" }, panel("WhatsApp", "Messag
     h("p", null, "Ouvrez la boîte WhatsApp pour lire les messages reçus, répondre et écrire à un numéro. L'adresse du webhook et le jeton à saisir chez Meta s'y trouvent aussi (bloc « Configuration Meta »)."),
     h("div", null, h("a", { class: "btn primary", href: "/#/whatsapp" }, "Ouvrir la boîte WhatsApp")))));
 
-const VIEWS = { whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { observatory: observatoryView, whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => customizeView(c, "identity"), settings: (c) => customizeView(c, "identity"), homepage: (c) => customizeView(c, "homepage"), seo: (c) => customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView, mfa: mfaView };
 
