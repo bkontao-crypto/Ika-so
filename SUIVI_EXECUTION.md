@@ -103,7 +103,11 @@ Ne pas supprimer les historiques. Les référentiels à la racine deviennent les
 5. **RECETTER** les parcours prioritaires de bout en bout sur un environnement de préproduction.
 6. **PRÉPARER** la vérification Render/Neon avec le propriétaire, sans exposer de secrets dans les documents.
 
-## 7. Règles de mise à jour
+## 7. Journal des mises à jour documentaires
+
+- 27 novembre 2026 : revue finale des quatre référentiels sur la branche `docs/referentiels-projet-ika-so`. Correction de la règle métier des alertes à portée globale lorsque la zone est vide ; clarification du niveau de preuve de l'architecture ; actualisation de la fiche de reprise. Modifications documentaires uniquement. Aucun test applicatif relancé, aucun code métier, migration, base de données ou déploiement modifié.
+
+## 8. Règles de mise à jour
 
 À chaque intervention significative :
 - ajouter date, périmètre, branche et commit ;
