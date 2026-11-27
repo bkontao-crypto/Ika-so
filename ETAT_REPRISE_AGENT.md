@@ -1,27 +1,18 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 27 novembre 2026 (UTC) — revue documentaire terminée
-- Référence de départ : `main` — `734dd2910da9ccce23112bdc09d960b49512a6c0`
-- Branche documentaire : `docs/referentiels-projet-ika-so`
-- Statut : référentiels relus et corrigés sur branche dédiée ; Pull Request préparée pour revue ; aucune fusion dans `main`, aucune modification du code métier, de la base ou de la production.
+- Mise à jour : 27 novembre 2026 (UTC) — Observatoire fusionné
+- Branche : `main` (commit de fusion de `feature/observatoire` `f688d9e` sur `3e7a5fa`)
+- Statut : fusionné ; production non vérifiée
 
 ## Dernière intervention
 
-Création des quatre documents de référence à la racine :
-- `CAHIER_DES_CHARGES.md`
-- `ARCHITECTURE_TECHNIQUE.md`
-- `SUIVI_EXECUTION.md`
-- `ETAT_REPRISE_AGENT.md`
-
-Cette intervention est documentaire uniquement. Elle reprend les éléments de l'ordonnance, des documents existants et de l'audit du dépôt. Les statuts fonctionnels restent distincts des exigences.
+Observatoire du site (`/owner.html#/observatory`, Super Administrateur) : agrégats comparés, tendances, filtres de dates, derniers gestes. Lecture seule, sans migration ni collecte nouvelle. La PR documentaire n° 15 est déjà fusionnée.
 
 ## Vérifications
 
-- Branche dédiée créée depuis le commit de référence.
-- Les quatre fichiers ont été ajoutés sur cette branche.
-- Aucun changement de code, migration, base de données ou déploiement.
-- Les tests applicatifs n'ont pas été relancés : aucun code applicatif n'a été modifié.
-- La revue finale a été effectuée : les quatre documents sont présents sur la branche et le diff a été contrôlé. Les corrections documentaires sont consignées dans `SUIVI_EXECUTION.md`.
+- `npm test` sur le code fusionné : 570 réussis, 0 échec ; contrôle Service Worker réussi.
+- Recette navigateur faite sur la branche avant fusion, en local avec données fictives (voir `Important/SUIVI.md`).
+- Non vérifié : production, performance sur gros volumes, vrais téléphones. Détail dans `SUIVI_EXECUTION.md`.
 
 ## Points ouverts prioritaires
 
@@ -34,7 +25,7 @@ Cette intervention est documentaire uniquement. Elle reprend les éléments de l
 
 ## Prochaine tâche exacte
 
-Examiner la Pull Request documentaire et obtenir l'accord explicite du propriétaire avant toute fusion dans `main`. Aucun déploiement n'est requis pour ces changements documentaires.
+Contrôler en ligne (si la fusion est déployée) : ouvrir l'Observatoire, changer de période, comparer un chiffre à son module d'origine, mesurer le temps de réponse. L'audit Analytics (point ouvert 1) précède toute activation de la collecte et toute mesure d'impressions.
 
 ## Ordre de lecture à la reprise
 

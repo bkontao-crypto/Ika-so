@@ -59,6 +59,12 @@
       "why": "Lecture de chiffres ; aucune action sensible."
     },
     {
+      "segment": "observatory",
+      "label": "Observatoire du site (lecture)",
+      "access": "superadmin",
+      "why": "Réunit audience, sécurité et revenus sur une seule page ; réservé au Superadmin."
+    },
+    {
       "segment": "premium-funnel",
       "label": "Entonnoir Premium (lecture)",
       "access": "delegable",

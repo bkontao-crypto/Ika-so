@@ -1,6 +1,7 @@
 import { createAccounts } from "./accounts.js";
 import { createAnalytics } from "./analytics.js";
 import { createStats } from "./stats.js";
+import { createObservatory } from "./observatory.js";
 import { createOwnerCenter } from "./owner-center.js";
 import { createOwnerDelegations } from "./owner-delegations.js";
 import { createPermissionGrants } from "./permission-grants.js";
@@ -94,12 +95,13 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const partners = createPartners({ db, accounts });
   const places = createPlaces({ db, accounts });
   const ownerCenter = createOwnerCenter({ db, accounts, logger });
+  const observatory = createObservatory({ db, analytics });
   const userCenter = createUserCenter(ctx, accounts);
   const permissionGrants = createPermissionGrants({ db, accounts });
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

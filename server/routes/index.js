@@ -31,7 +31,7 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
     return userId;
   }
 
-  const { userCenter, featuredRequests, premiumRequests, starBadge, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, advertiserCenter, advertiserApplications } = services;
+  const { userCenter, featuredRequests, premiumRequests, starBadge, accounts, listings, moderation, moderationAudit, crm, whatsapp, superadminSettings, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, advertiserCenter, advertiserApplications } = services;
   // Événement d'usage : meilleur effort, jamais bloquant, éteint par défaut (voir services/analytics.js).
   const track = (req, type, fields) => analytics?.emit(type, fields, req);
   const router = Router();
@@ -1309,6 +1309,7 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.get("/staff/owner/activity", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.feed(await requireOwnerModule(req, "activity"), feedQuery(req.query ?? {}))); });
   router.get("/staff/owner/security-log", async (req, res) => res.json(await ownerCenter.securityLogStatus(requireUser(req))));
   router.put("/staff/owner/security-log", async (req, res) => res.json(await ownerCenter.setSecurityLog(requireUser(req), req.body?.enabled === true)));
+  router.get("/staff/owner/observatory", async (req, res) => { res.setHeader("Cache-Control", "no-store"); await requireOwnerModule(req, "observatory"); res.json(await observatory.report({ from: clean(req.query.from, 10), to: clean(req.query.to, 10) })); });
   router.get("/staff/owner/overview", async (req, res) => res.json(await stats.ownerOverview(await requireOwnerModule(req, "overview"))));
   router.get("/staff/owner/crm", async (req, res) => res.json(await stats.crmOverview(await requireOwnerModule(req, "crm"), { limit: Number(req.query.limit) || 50 })));
   router.get("/staff/owner/report.pdf", async (req, res) => { await requireOwnerModule(req, "report.pdf");

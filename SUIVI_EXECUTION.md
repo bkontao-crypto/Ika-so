@@ -30,6 +30,7 @@ Ne pas attribuer le statut TERMINÉ ET VÉRIFIÉ à partir d'une simple présenc
 | Mes alertes | RÉALISÉ NON VÉRIFIÉ | Programmation, dates, pause, prolongation et notifications identifiées ; boost payant indisponible (« Bientôt disponible ») |
 | IKA SÔ Pro / CRM | RÉALISÉ NON VÉRIFIÉ | Leads, pipeline, scoring, équipes et statistiques identifiés ; isolation multi-organisation et parcours complets à valider |
 | Owner Center | RÉALISÉ NON VÉRIFIÉ | Gestion et tableaux de bord présents ; recette locale récente documentée dans `Important/SUIVI.md`, production non vérifiée |
+| Observatoire du site (`#/observatory`) | RÉALISÉ NON VÉRIFIÉ | Lecture seule, Super Administrateur ; recette locale avec données fictives (voir journal) ; production et gros volumes non vérifiés |
 | Superadmin / permissions | RÉALISÉ NON VÉRIFIÉ | Gestion des comptes, permissions, délégations et espaces Superadmin identifiés ; contrôle exhaustif des droits à poursuivre |
 | MFA | EN COURS | TOTP, codes de secours et canaux e-mail/SMS selon configuration ; récupération Superadmin à finaliser |
 | Premium / paiements | EN COURS | Demandes, décisions, remboursements et socle fournisseur identifiés ; fournisseurs et paiements réels non vérifiés |
@@ -106,6 +107,8 @@ Ne pas supprimer les historiques. Les référentiels à la racine deviennent les
 ## 7. Journal des mises à jour documentaires
 
 - 27 novembre 2026 : revue finale des quatre référentiels sur la branche `docs/referentiels-projet-ika-so`. Correction de la règle métier des alertes à portée globale lorsque la zone est vide ; clarification du niveau de preuve de l'architecture ; actualisation de la fiche de reprise. Modifications documentaires uniquement. Aucun test applicatif relancé, aucun code métier, migration, base de données ou déploiement modifié.
+
+- 27 novembre 2026 : fusion de `feature/observatoire` (`f688d9e`) dans `main` (base `3e7a5fa`), sur accord du propriétaire, sans conflit ni migration. Fichiers : `server/services/observatory.js`, `public/js/owner/v-observatory.js`, `public/css/owner-observatory.css`, `test/observatory.test.js`, routes, services, menu, matrice des droits (45 segments). `npm test` : 570 réussis, 0 échec sur le code fusionné ; contrôle Service Worker réussi. Recette Chromium sur la branche (données fictives) : détail dans `Important/SUIVI.md`. Non vérifiés : production, performance sur gros volumes, vrais téléphones. Aucun réglage de collecte modifié. Retour arrière : `git revert -m 1 <commit de fusion>`.
 
 ## 8. Règles de mise à jour
 
