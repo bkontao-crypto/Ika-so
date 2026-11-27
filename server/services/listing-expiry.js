@@ -83,15 +83,15 @@ export function createListingExpiry({ db, accounts, settings, engagement = null,
         );
         for (const l of expired) {
           await event(tx, l.id, SYSTEM, "EXPIRE", "PUBLISHED", "EXPIRED");
+          let notify = false;
           if (cfg.dayZeroWarning) {
             const r = await tx.query(
               "insert into ika_expiry_warnings (listing_id, owner_id, kind, due_at) values ($1,$2,'DAY_0',$3) on conflict do nothing returning kind",
               [l.id, l.owner_id, l.expires_at],
             );
-            if (r[0]) await event(tx, l.id, SYSTEM, "WARNING_SENT", null, "DAY_0");
-            if (r[0]) out.expired.push({ ...l, notify: true });
-            else out.expired.push({ ...l, notify: false });
-          } else out.expired.push({ ...l, notify: false });
+            if (r[0]) { await event(tx, l.id, SYSTEM, "WARNING_SENT", null, "DAY_0"); notify = true; }
+          }
+          out.expired.push({ ...l, notify });
         }
 
         // 3. Archivage automatique : jamais de suppression, seulement un changement de statut daté et distingué du manuel.
@@ -132,7 +132,7 @@ export function createListingExpiry({ db, accounts, settings, engagement = null,
         }
       });
       // Messages et alertes de recherche : après validation de la transaction (un échec n'annule aucune transition).
-      for (const l of out.started) await engagement?.onPublished?.(l.id).catch(() => {});
+      for (const l of out.started) await Promise.resolve(engagement?.onPublished?.(l.id)).catch(() => {});
       for (const l of out.expired) {
         if (l.notify) await notifySafe(l.owner_id, { kind: "LISTING_EXPIRED", title: `Annonce expirée : ${l.title}`, body: "Elle n'est plus visible. Marquez-la, prolongez-la ou archivez-la.", link: "#/mes-annonces" });
       }
@@ -211,6 +211,13 @@ export function createListingExpiry({ db, accounts, settings, engagement = null,
       });
     },
 
+    /** Dates actuelles d'une annonce du propriétaire (pré-remplissage du formulaire). */
+    async ownDates(userId, id) {
+      const r = (await db.query("select status, starts_at, expires_at from ika_listings where id = $1 and owner_id = $2", [String(id).slice(0, 80), userId]))[0];
+      if (!r) throw notFound("Annonce introuvable.");
+      return { status: r.status, startsAt: iso(r.starts_at), expiresAt: iso(r.expires_at) };
+    },
+
     /** Dates de début et de fin saisies à la publication ou à la modification (contrôlées ici, jamais seulement dans le navigateur). */
     async setDates(userId, id, { startsAt = null, expiresAt = null } = {}) {
       await accounts.requireActive(userId);
@@ -260,14 +267,15 @@ export function createListingExpiry({ db, accounts, settings, engagement = null,
       return rows.map((r) => ({ id: r.id, actorKind: r.actor_kind, automatic: r.actor_kind === "SYSTEM", actorId: staff ? r.actor_id : null, action: r.action, oldValue: r.old_value, newValue: r.new_value, createdAt: iso(r.created_at) }));
     },
 
-    /** Supervision Superadmin : indicateurs, filtres et liste. */
+    /** Supervision Superadmin : indicateurs, filtres et liste. Période = date de fin de publication. */
     async dashboard(staffId, filters = {}) {
       await accounts.requireStaff(staffId, "SUPERADMIN");
       const cfg = await getSettings();
       const window = Math.max(0, ...cfg.warningDays) || 7;
       const params = [window];
       const where = filterSql(filters, params);
-      const base = where.length ? `and ${where.join(" and ")}` : "";
+      // $1 (fenêtre « expire bientôt ») est référencé dans chaque requête : PostgreSQL refuse un paramètre fourni mais inutilisé.
+      const base = ` and $1::int > 0${where.length ? ` and ${where.join(" and ")}` : ""}`;
       const stats = (await db.query(
         `select
            count(*) filter (where l.status = 'PUBLISHED' and l.expires_at > now() and l.expires_at <= now() + ($1::int * interval '1 day'))::int as expiring_soon,
@@ -276,20 +284,20 @@ export function createListingExpiry({ db, accounts, settings, engagement = null,
            count(*) filter (where l.status = 'RENTED')::int as rented,
            count(*) filter (where l.status = 'ARCHIVED' and l.archived_mode is distinct from 'AUTO')::int as archived_manual,
            count(*) filter (where l.status = 'ARCHIVED' and l.archived_mode = 'AUTO')::int as archived_auto
-         from ika_listings l where true ${base}`,
+         from ika_listings l where true${base}`,
         params,
       ))[0];
       const extensions = (await db.query(
         `select count(*)::int as n from ika_listing_events e join ika_listings l on l.id = e.listing_id
-         where e.action = 'EXTEND' ${base}`,
-        params.slice(1).length ? [window, ...params.slice(1)] : [window],
+         where e.action = 'EXTEND'${base}`,
+        params,
       ))[0]?.n ?? 0;
       let list = `l.status in ('PUBLISHED', 'EXPIRED', 'SCHEDULED', 'ARCHIVED', 'SOLD', 'RENTED')`;
       if (filters.expired) list = `(l.status = 'EXPIRED' or (l.status = 'PUBLISHED' and l.expires_at <= now()))`;
       if (filters.expiring) list = `(l.status = 'PUBLISHED' and l.expires_at > now() and l.expires_at <= now() + ($1::int * interval '1 day'))`;
       const rows = await db.query(
         `select l.id, l.title, l.category, l.transaction_type, l.status, l.archived_mode, l.starts_at, l.expires_at, l.expired_at, l.archived_at, l.owner_id, l.owner_name
-         from ika_listings l where ${list} ${base} order by l.expires_at asc nulls last limit 100`,
+         from ika_listings l where ${list}${base} order by l.expires_at asc nulls last limit 100`,
         params,
       );
       const nowMs = now();
