@@ -2,7 +2,8 @@
 
 - Version : 1.0 — 27 novembre 2026
 - Référence de code : branche `main`, commit `734dd2910da9ccce23112bdc09d960b49512a6c0`
-- Nature : architecture constatée dans le dépôt, complétée par les principes de cible explicitement documentés.
+- Nature : description documentaire de l'architecture observée dans le dépôt, complétée par les principes de cible explicitement documentés. Les constats de code ne valent pas validation fonctionnelle de bout en bout.
+- Niveau de preuve : inventaire et lecture statique du dépôt ; CI consultée pour le commit de référence. Aucune recette de production n'est revendiquée.
 - Attention : ce document ne prouve pas la configuration ni le fonctionnement de l'environnement Render/Neon en production.
 
 ## 1. Socle constaté
@@ -62,7 +63,7 @@ Services externes configurables : cartographie, e-mail, SMS,
 messagerie WhatsApp et fournisseurs de paiement.
 ```
 
-Ce schéma est une vue de haut niveau. Pour toute évolution, confirmer le chemin exact dans les routes, services et schémas concernés avant d'intervenir.
+Ce schéma est une vue de haut niveau issue de l'inspection du dépôt. Il décrit les composants repérés, pas la preuve que chaque parcours fonctionne en conditions réelles. Pour toute évolution, confirmer le chemin exact dans les routes, services et schémas concernés avant d'intervenir.
 
 ## 4. Données et migrations
 
