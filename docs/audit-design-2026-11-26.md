@@ -2,6 +2,7 @@
 
 Baba KONTAO dit Mister
 
+**Statut (27/11/2026) :** lots 1 à 4 appliqués et fusionnés dans `main` ; la console propriétaire garde volontairement son style (décision du propriétaire). Règles retenues : `docs/design-system.md`.
 **Version auditée :** `main` au commit `c873fb7` (après les couleurs lot B3 et la double authentification).
 **Méthode :** vrai serveur et vraie base PostgreSQL en local, compte superadmin, 5 annonces de test. Chromium a parcouru 47 écrans : 28 écrans du site, 12 modules de la console propriétaire, 5 pages SEO, Mes leads et le Journal d'audit. Chaque écran a été mesuré à 1280 px (thème clair, puis préférence système sombre) et à 390 px (mobile). Les styles calculés relevés sont : boutons, champs, titres, cartes, polices et débordement horizontal.
 **Hors périmètre :** les vrais téléphones, le thème sombre activé par le bouton du site, les états interactifs (survol, focus, chargement) et les fenêtres modales.

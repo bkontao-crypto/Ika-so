@@ -40,7 +40,8 @@ export function brandIndexHtml(page, s = {}) {
   if (s.logoUrl) out = out.replace(/<span class="logo-mark(?: logo-mark-sm)?" aria-hidden="true">I<\/span>/g, () => `<img class="logo-img" src="${attr(s.logoUrl)}" alt="" height="40">`);
   return out;
 }
-const logoMark = (logoUrl) => (logoUrl ? `<img class="logo-img" src="${esc(logoUrl)}" alt="" height="32">` : '<span class="logo-mark" aria-hidden="true">I</span>');
+/* Même logo que l'en-tête du site (public/index.html, chrome.js) : logo personnalisé, sinon le logo IKA SÔ par défaut. */
+const logoMark = (logoUrl) => `<img class="logo-img" src="${esc(logoUrl || "/media/logo-ika-so.webp")}" alt="${esc(brand())}" width="165" height="74">`;
 
 export function layout({ base, path, title, description, noindex = false, image, ld = [], body }) {
   const url = `${base}${path}`;
@@ -71,9 +72,9 @@ ${ld.map(jsonLd).join("\n")}
 <body class="seo-page">
 <a class="sr-only" href="#contenu">Aller au contenu</a>
 <header class="site-header"><div class="site-header-inner">
-  <a class="logo" href="/" aria-label="${esc(brand())}, accueil">${logoMark(site.logoUrl)}<span class="logo-word">${esc(brand().toLowerCase())}<i>.</i><small>L'immobilier simplement</small></span></a>
+  <a class="logo" href="/" aria-label="${esc(brand())}, accueil">${logoMark(site.logoUrl)}</a>
   <nav class="site-nav" aria-label="Navigation"><a href="/quartiers">Quartiers</a><a href="/agences">Agences</a><a href="/guides">Guides</a></nav>
-  <div class="site-actions"><a class="btn-lime" href="/#/publier">Déposer<span class="long"> une annonce</span> ↗</a></div>
+  <div class="site-actions"><a class="seo-publish" href="/#/publier"><span aria-hidden="true">+</span> Publier<span class="long"> une annonce</span></a></div>
 </div></header>
 <main id="contenu" tabindex="-1">
 ${body}
