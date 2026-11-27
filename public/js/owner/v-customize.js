@@ -1,7 +1,7 @@
 // Owner Center > Personnalisation du site : coque moderne.
 // Onglets visibles en entier, enregistrement section par section, suivi des modifications non enregistrées,
-// pied de page avec aperçu en direct. Les sections existantes et leurs endpoints (/staff/…) ne changent pas.
-import { api, h, ico, act, toast, panel, initials, confirmDialog } from "./ui.js";
+// pied de page aligné sur la maquette avec aperçu en direct. Les sections existantes et leurs endpoints (/staff/…) ne changent pas.
+import { api, h, ico, act, toast, panel, initials, confirmDialog, s } from "./ui.js";
 import { headerSection, layoutSection } from "./v-header.js";
 import { page, settingsSection, appearanceSection, consentServicesSection, homepageSection, seoSection } from "./v-modules.js";
 import { brand } from "../core/brand.js";
@@ -25,6 +25,10 @@ const labelOf = (id) => TABS.find(([x]) => x === id)?.[1] ?? id;
 const MUTATING = /^(\+|↑|↓|←|→|Supprimer|Retirer|Revenir|Utiliser)/;
 const fill = (el, ...nodes) => el.replaceChildren(...nodes.flat(Infinity).filter(Boolean));
 const okHref = (v) => /^(#|\/|https:\/\/|mailto:|tel:)/.test(v);
+const svgIcon = (...paths) => s("svg", { class: "ic", viewBox: "0 0 24 24", "aria-hidden": "true" }, paths.map((d) => s("path", { d })));
+const PENCIL = () => svgIcon("M4 20h4L19 9l-4-4L4 16z");
+const TRASH = () => svgIcon("M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6");
+const SAVE = () => svgIcon("M5 3h11l3 3v15H5z", "M8 3v6h8V3M8 21v-7h8v7");
 
 export const customizeView = (ctx, initial = "identity") => {
   let current = IDS.includes(initial) ? initial : "identity"; // survit au rechargement qui suit chaque enregistrement
@@ -120,18 +124,39 @@ export const customizeView = (ctx, initial = "identity") => {
   });
 };
 
-/** Pied de page : formulaire à gauche, aperçu en direct à droite (ordinateur / téléphone). Même contenu enregistré qu'avant : { intro, copyright, columns:[{ title, links:[{ label, href }] }] }. */
+/** Pied de page, aligné sur la maquette : présentation, colonnes en cartes (4 max), liens de la colonne choisie, aperçu en direct, barre Annuler / Enregistrer.
+ *  Contenu enregistré inchangé : { intro, copyright, columns:[{ title, links:[{ label, href }] }] }. */
 function footerWorkspace(src, reload) {
   const d = JSON.parse(JSON.stringify(src));
   d.columns ??= [];
   let device = "desktop";
-  const colsBox = h("div", { class: "stack" });
+  let sel = d.columns.length ? 0 : -1;
+  let dragFrom = null;
+  const gridBox = h("div", { class: "cz-cards" });
+  const detailBox = h("div");
   const previewBox = h("div");
   const counter = h("span", { class: "cz-count" });
   const seg = h("div", { class: "cz-seg", role: "group", "aria-label": "Appareil de l’aperçu" });
+  const chip = h("span", { class: "cz-chip", role: "status" });
 
   const swap = (arr, i, dir) => { const j = i + dir; if (j < 0 || j >= arr.length) return false; [arr[i], arr[j]] = [arr[j], arr[i]]; return true; };
-  const redraw = () => { drawCols(); drawPreview(); };
+  // Marque la section comme modifiée (les boutons de réorganisation ne déclenchent pas d'événement « input »).
+  const touch = () => gridBox.dispatchEvent(new Event("input", { bubbles: true }));
+  const prev = h("button", { type: "button", class: "cz-round", "aria-label": "Déplacer la colonne vers la gauche", onClick: () => move(-1) }, "←");
+  const next = h("button", { type: "button", class: "cz-round", "aria-label": "Déplacer la colonne vers la droite", onClick: () => move(1) }, "→");
+  const addBtn = h("button", { type: "button", class: "btn primary", onClick: () => {
+    if (d.columns.length >= 4) { toast("Maximum : 4 colonnes.", true); return; }
+    d.columns.push({ title: "Nouvelle colonne", links: [] }); sel = d.columns.length - 1; touch(); redraw();
+  } }, ico("plus"), "Ajouter une colonne");
+
+  function move(dir) { if (sel >= 0 && swap(d.columns, sel, dir)) { sel += dir; touch(); redraw(); } }
+  function syncNav() {
+    prev.disabled = sel <= 0; next.disabled = sel < 0 || sel >= d.columns.length - 1;
+    addBtn.disabled = d.columns.length >= 4;
+    chip.textContent = `Colonnes configurées : ${d.columns.length} / 4`;
+  }
+  function select(i) { sel = i; [...gridBox.children].forEach((el, k) => el.classList.toggle("sel", k === i)); drawDetail(); syncNav(); }
+  function redraw() { drawCards(); drawDetail(); drawPreview(); syncNav(); }
 
   function drawPreview() {
     const mobile = device === "mobile";
@@ -144,20 +169,46 @@ function footerWorkspace(src, reload) {
         h("div", { class: "fp-cols" }, cols),
         h("div", { class: "fp-bottom" }, h("span", null, `© ${new Date().getFullYear()} ${d.copyright || ""}`.trim()), h("span", null, "Mentions légales · Gérer mes choix")))));
     const len = (d.intro ?? "").length;
-    counter.textContent = `${len} / 400 caractères`;
+    counter.textContent = `${len} / 400`;
     counter.classList.toggle("over", len > 400);
     seg.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.device === device)));
   }
   [["desktop", "Ordinateur"], ["mobile", "Téléphone"]].forEach(([id, label]) => seg.append(h("button", { type: "button", "data-device": id, "aria-pressed": "false", onClick: () => { device = id; drawPreview(); } }, label)));
 
   const bindText = (el, obj, key, after) => { el.addEventListener("input", () => { obj[key] = el.value; after?.(); }); return el; };
-  function drawCols() {
-    fill(colsBox, d.columns.map((c, ci) => h("article", { class: "cz-col" },
-      h("div", { class: "cz-colhead" },
-        h("button", { type: "button", class: "btn cz-ib", "aria-label": "Colonne vers la gauche", disabled: ci === 0, onClick: () => { swap(d.columns, ci, -1) && redraw(); } }, "←"),
-        h("button", { type: "button", class: "btn cz-ib", "aria-label": "Colonne vers la droite", disabled: ci === d.columns.length - 1, onClick: () => { swap(d.columns, ci, 1) && redraw(); } }, "→"),
-        bindText(h("input", { class: "input", maxlength: "30", value: c.title, placeholder: "Titre de la colonne", "aria-label": `Titre de la colonne ${ci + 1}` }), c, "title", drawPreview),
-        h("button", { type: "button", class: "btn", onClick: () => { d.columns.splice(ci, 1); redraw(); } }, "Supprimer la colonne")),
+
+  // Cartes de colonnes (rangée horizontale) : titre modifiable, nombre de liens, crayon, corbeille, poignée de glisser-déposer.
+  function drawCards() {
+    fill(gridBox, d.columns.map((c, ci) => {
+      const grip = h("span", { class: "cz-grip", title: "Glisser pour réordonner", "aria-hidden": "true" }, "⋮⋮");
+      const title = bindText(h("input", { class: "input", maxlength: "30", value: c.title, placeholder: "Titre de la colonne", "aria-label": `Titre de la colonne ${ci + 1}` }), c, "title", () => { drawPreview(); drawDetailHead(); });
+      title.addEventListener("focus", () => { if (sel !== ci) select(ci); });
+      const card = h("article", { class: `cz-card${ci === sel ? " sel" : ""}` },
+        h("div", { class: "cz-cardhead" }, grip, h("b", null, `Colonne ${ci + 1}`),
+          h("button", { type: "button", class: "cz-sq", "aria-label": `Modifier les liens de la colonne ${ci + 1}`, onClick: () => select(ci) }, PENCIL()),
+          h("button", { type: "button", class: "cz-sq danger", "aria-label": `Supprimer la colonne ${ci + 1}`, onClick: () => { d.columns.splice(ci, 1); sel = Math.min(sel, d.columns.length - 1); touch(); redraw(); } }, TRASH())),
+        title,
+        h("span", { class: "cz-links" }, ico("route"), `${c.links.length} lien${c.links.length > 1 ? "s" : ""}`));
+      grip.draggable = true;
+      grip.addEventListener("dragstart", (e) => { dragFrom = ci; e.dataTransfer?.setData("text/plain", String(ci)); e.dataTransfer?.setDragImage?.(card, 20, 20); });
+      card.addEventListener("dragover", (e) => { if (dragFrom !== null) e.preventDefault(); });
+      card.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (dragFrom === null || dragFrom === ci) { dragFrom = null; return; }
+        const [m] = d.columns.splice(dragFrom, 1); d.columns.splice(ci, 0, m); sel = ci; dragFrom = null; touch(); redraw();
+      });
+      return card;
+    }));
+  }
+
+  // Liens de la colonne choisie.
+  const detailTitle = h("h3");
+  function drawDetailHead() { const c = d.columns[sel]; detailTitle.textContent = c ? `Liens de la colonne « ${c.title || "Sans titre"} »` : ""; }
+  function drawDetail() {
+    const c = d.columns[sel];
+    if (!c) { fill(detailBox, h("p", { class: "muted small" }, "Aucune colonne : ajoutez-en une pour définir ses liens.")); return; }
+    drawDetailHead();
+    fill(detailBox, h("div", { class: "cz-detail" }, detailTitle,
       ...c.links.map((l, li) => {
         const warnEl = h("span", { class: "cz-warn cz-href" });
         const href = bindText(h("input", { class: "input cz-href", maxlength: "300", value: l.href, placeholder: "#/page, /page ou https://…", "aria-label": "Adresse du lien" }), l, "href", check);
@@ -165,30 +216,28 @@ function footerWorkspace(src, reload) {
         check();
         return h("div", { class: "stack" },
           h("div", { class: "cz-link" },
-            h("button", { type: "button", class: "btn cz-ib", "aria-label": "Monter", disabled: li === 0, onClick: () => { swap(c.links, li, -1) && redraw(); } }, "↑"),
-            h("button", { type: "button", class: "btn cz-ib", "aria-label": "Descendre", disabled: li === c.links.length - 1, onClick: () => { swap(c.links, li, 1) && redraw(); } }, "↓"),
+            h("button", { type: "button", class: "btn cz-ib", "aria-label": "Monter", disabled: li === 0, onClick: () => { if (swap(c.links, li, -1)) { touch(); redraw(); } } }, "↑"),
+            h("button", { type: "button", class: "btn cz-ib", "aria-label": "Descendre", disabled: li === c.links.length - 1, onClick: () => { if (swap(c.links, li, 1)) { touch(); redraw(); } } }, "↓"),
             bindText(h("input", { class: "input", maxlength: "40", value: l.label, placeholder: "Nom du lien", "aria-label": "Nom du lien" }), l, "label", drawPreview),
             href,
-            h("button", { type: "button", class: "btn", onClick: () => { c.links.splice(li, 1); redraw(); } }, "Retirer")),
+            h("button", { type: "button", class: "btn", onClick: () => { c.links.splice(li, 1); touch(); redraw(); } }, "Retirer")),
           warnEl);
       }),
-      h("div", null, h("button", { type: "button", class: "btn", disabled: c.links.length >= 10, onClick: () => { c.links.push({ label: "Nouveau lien", href: "#/" }); redraw(); } }, c.links.length >= 10 ? "10 liens au maximum" : "+ Ajouter un lien")))));
+      h("div", null, h("button", { type: "button", class: "btn", disabled: c.links.length >= 10, onClick: () => { c.links.push({ label: "Nouveau lien", href: "#/" }); touch(); redraw(); } }, c.links.length >= 10 ? "10 liens au maximum" : "+ Ajouter un lien"))));
   }
 
   const intro = bindText(h("textarea", { class: "input", maxlength: "400", rows: "4", "aria-label": "Texte de présentation" }), d, "intro", drawPreview); intro.value = d.intro ?? "";
   const copy = bindText(h("input", { class: "input", maxlength: "120", value: d.copyright ?? "", "aria-label": "Mention de droits" }), d, "copyright", drawPreview);
-  const addCol = h("button", { type: "button", class: "btn", onClick: () => { if (d.columns.length >= 4) { toast("Maximum : 4 colonnes.", true); return; } d.columns.push({ title: "Nouvelle colonne", links: [] }); redraw(); } }, "+ Ajouter une colonne");
-  drawCols(); drawPreview();
+  redraw();
 
-  return h("div", { class: "cz-split" },
-    h("div", { class: "cz-form" },
-      panel("Présentation", "Texte sous le logo, en bas de page.", h("div", { class: "stack" },
-        h("label", { class: "field" }, h("span", { class: "cz-fieldhead" }, "Texte de présentation", counter), intro),
-        h("label", { class: "field" }, h("span", null, "Mention de droits (après « © année »)"), copy))),
-      panel("Colonnes de liens", "Jusqu’à 4 colonnes de 10 liens. « Mentions légales » et « Gérer mes choix » restent toujours affichés en bas de page.", h("div", { class: "stack" }, colsBox, h("div", null, addCol))),
-      h("div", { class: "cz-foot" },
-        h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/site-footer", { method: "PUT", body: d }), "Pied de page enregistré.", reload) }, "Enregistrer le pied de page"),
-        h("button", { class: "btn", type: "button", onClick: reload }, "Annuler les modifications"))),
-    h("aside", { class: "cz-sticky", "aria-label": "Aperçu du pied de page" },
-      panel("Aperçu en direct", "Rendu approximatif : il se met à jour pendant que vous écrivez.", previewBox, seg)));
+  return h("div", { class: "cz-form" },
+    panel("Présentation", "Texte sous le logo, en bas de page.", h("div", { class: "stack" },
+      h("label", { class: "field" }, h("span", null, "Texte de présentation"), intro, h("div", { class: "cz-counter" }, counter)),
+      h("label", { class: "field" }, h("span", null, "Mention de droits (après « © année »)"), h("div", { class: "cz-prefix" }, h("span", { class: "cz-pre", "aria-hidden": "true" }, "©"), copy)))),
+    panel("Colonnes de liens", "Jusqu’à 4 colonnes de 10 liens. « Mentions légales » et « Gérer mes choix » restent toujours affichés en bas de page.", h("div", null,
+      h("div", { class: "cz-toolbar" }, prev, next, chip, addBtn), gridBox, detailBox)),
+    panel("Aperçu en direct", "Rendu approximatif : il se met à jour pendant que vous écrivez.", previewBox, seg),
+    h("div", { class: "cz-foot" },
+      h("button", { class: "btn primary", type: "button", onClick: () => act(() => api("/staff/site-footer", { method: "PUT", body: d }), "Pied de page enregistré.", reload) }, SAVE(), "Enregistrer les modifications"),
+      h("button", { class: "btn", type: "button", onClick: reload }, ico("x"), "Annuler")));
 }
