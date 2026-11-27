@@ -1,5 +1,10 @@
 # Plan de conformité avant ouverture au public
 
+> **Mise à jour du 27 novembre 2026 — déclaration du propriétaire :**
+> « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
+>
+> **Attention :** les mentions « collecte éteinte » de ce document ne correspondent plus au code, où elle est active par défaut. Voir `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`.
+
 Responsable : propriétaire. Légende : ⬜ à faire · ✅ fait dans le logiciel · ⛔ avis de professionnel.
 
 | # | Action | Base | Qui | État |

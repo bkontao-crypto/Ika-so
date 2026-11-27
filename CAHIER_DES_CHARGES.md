@@ -8,6 +8,18 @@
 
 > Ce document organise les exigences du produit. Il ne constitue pas une preuve que chaque fonctionnalité est déjà livrée. En cas de divergence, une décision ultérieure explicitement validée par le propriétaire prévaut ; toute modification doit être tracée.
 
+## Déclaration du propriétaire — conformité juridique (27 novembre 2026)
+
+> « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
+
+*Formulation mise au propre par l’agent à partir de la déclaration du propriétaire.*
+
+**Comment la comprendre :**
+- les documents juridiques restent **à produire** : ils conditionnent le lancement des fonctionnalités concernées ;
+- cette déclaration n’est ni une validation juridique ni un avis de juriste ;
+- elle ne dit pas que ces fonctionnalités sont aujourd’hui éteintes dans le code. L’état technique constaté pour l’audience figure dans `docs/audit/AUDIT_ANALYTICS_2026-11-27.md` ;
+- elle ne modifie pas le principe non négociable sur l’activation d’une collecte de données personnelles (section 2).
+
 ## 1. Vision et objectifs
 
 IKA SÔ est une plateforme immobilière destinée au marché africain, avec lancement au Mali. Elle doit couvrir un parcours immobilier cohérent : découvrir et comparer des biens, contacter les annonceurs, vérifier les informations, organiser des visites, vendre, louer, gérer et, à terme, investir.

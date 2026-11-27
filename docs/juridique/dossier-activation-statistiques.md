@@ -3,6 +3,11 @@
 > **Statut : PROJET, à faire relire par un juriste malien avant toute activation.** Rédigé le 6 novembre 2026 par l'assistant de développement, qui **n'est pas juriste**. Les articles de loi cités viennent de la note de cadrage `note-cadre-juridique-mali.md` (loi n° 2013-015 du 21 mai 2013, modifiée en 2017). Une vérification en ligne du 6 novembre 2026 confirme l'existence de cette loi, de l'APDP et de ses mises en demeure pour défaut de formalités déclaratives ; ces sources sont des sites d'actualité et de synthèse (fiabilité moyenne), **pas le texte officiel**.
 > Légende : ✅ fait dans le logiciel · ⬜ à faire · ⛔ avis du juriste nécessaire.
 
+> **Mise à jour du 27 novembre 2026 — déclaration du propriétaire :**
+> « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
+>
+> **Attention :** les mentions « collecte éteinte » de ce document ne correspondent plus au code, où elle est active par défaut. Voir `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`.
+
 ## 1. Résumé (10 lignes)
 Ika So veut mesurer l'usage de la plateforme (nombre de vues d'annonces, contacts, inscriptions…) pour piloter l'activité et lutter contre les abus. Le logiciel sait maintenant enregistrer 13 types d'actions, **mais la collecte est éteinte et le restera jusqu'à votre avis**. Il faut décider : (1) si les actions d'un compte connecté peuvent être comptées sans consentement distinct ; (2) comment traiter les visiteurs non connectés (bandeau) ; (3) les durées de conservation ; (4) la formalité auprès de l'APDP ; (5) les textes à publier. Les projets de textes sont aux sections 5 et 6.
 

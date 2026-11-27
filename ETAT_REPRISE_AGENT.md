@@ -1,31 +1,28 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 27 novembre 2026 (UTC) — Observatoire fusionné
-- Branche : `main` (commit de fusion de `feature/observatoire` `f688d9e` sur `3e7a5fa`)
-- Statut : fusionné ; production non vérifiée
+- Mise à jour : 27 novembre 2026 (UTC) — audit de la collecte d’audience
+- Branche : `docs/audit-analytics`, depuis `main` `36ac9f8` (NON fusionnée)
+- Statut : audit terminé ; décisions du propriétaire attendues
+
+## Déclaration du propriétaire
+> « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
+
+Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation juridique ni une preuve que les fonctionnalités sont éteintes.
 
 ## Dernière intervention
-
-Observatoire du site (`/owner.html#/observatory`, Super Administrateur) : agrégats comparés, tendances, filtres de dates, derniers gestes. Lecture seule, sans migration ni collecte nouvelle. La PR documentaire n° 15 est déjà fusionnée.
-
-## Vérifications
-
-- `npm test` sur le code fusionné : 570 réussis, 0 échec ; contrôle Service Worker réussi.
-- Recette navigateur faite sur la branche avant fusion, en local avec données fictives (voir `Important/SUIVI.md`).
-- Non vérifié : production, performance sur gros volumes, vrais téléphones. Détail dans `SUIVI_EXECUTION.md`.
+Audit en lecture seule : `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`. Documents mis à jour. Aucun code modifié ; suite complète 570/570 sur la branche d’audit. Observatoire déjà fusionné (570 tests réussis lors de cette fusion) ; production non vérifiée.
 
 ## Points ouverts prioritaires
-
-1. Harmoniser le comportement Analytics avec la règle « désactivé par défaut » avant toute activation.
-2. Corriger le nettoyage de fichiers du test `test/star-badge-pg.test.js`.
-3. Finaliser et tester la récupération MFA Superadmin.
-4. Prouver sauvegarde chiffrée hors serveur et restauration sur base jetable.
-5. Valider les parcours de paiement et fournisseurs en environnement réel.
-6. Recetter la production séparément des tests CI.
+1. Collecte active par défaut (contraire au principe 8) : décision attendue.
+2. Consentement à l’inscription sans refus distinct : à traiter avec le juriste avant lancement.
+3. Écarts 3 à 7 de l’audit (portée du choix « Statistiques », chemins, purge, chiffres gonflables, documents périmés).
+4. Corriger le nettoyage de fichiers du test `test/star-badge-pg.test.js`.
+5. Finaliser et tester la récupération MFA Superadmin.
+6. Prouver sauvegarde chiffrée hors serveur et restauration sur base jetable.
+7. Valider les paiements et fournisseurs en réel ; recetter la production.
 
 ## Prochaine tâche exacte
-
-Contrôler en ligne (si la fusion est déployée) : ouvrir l'Observatoire, changer de période, comparer un chiffre à son module d'origine, mesurer le temps de réponse. L'audit Analytics (point ouvert 1) précède toute activation de la collecte et toute mesure d'impressions.
+Obtenir la décision sur l’écart 1. Si « éteindre par défaut » : sur une branche dédiée, inverser le défaut (configuration et réglage en base), adapter les tests, sans toucher à la production.
 
 ## Ordre de lecture à la reprise
 
