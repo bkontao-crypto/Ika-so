@@ -1,4 +1,5 @@
-// Habillage commun de l'Owner Center : puces d'icônes sur les cartes, icônes d'onglets, décor du bandeau de page.
+// Habillage commun de l'Owner Center : puces d'icônes sur les cartes, icônes d'onglets, décor du bandeau de page,
+// graphiques de synthèse sur la page Utilisateurs.
 // Chargé comme script séparé (owner.html) : n'altère aucun module existant, observe le DOM et complète ce qui apparaît.
 import { h, ico } from "./ui.js";
 
@@ -21,6 +22,8 @@ function heroArt() {
     h("div", { class: "ha-chip" }, ico("sparkles")));
 }
 
+const currentRoute = () => location.hash.replace(/^#\/?/, "").split("?")[0];
+
 function decorate(scope) {
   scope.querySelectorAll(".card.panel > .panelhead:not([data-m])").forEach((head) => {
     head.dataset.m = "1";
@@ -33,7 +36,15 @@ function decorate(scope) {
     const name = TAB_ICONS[b.dataset.tab];
     if (name) b.prepend(ico(name));
   });
-  scope.querySelectorAll(".welcome:not([data-m])").forEach((w) => { w.dataset.m = "1"; w.append(heroArt()); });
+  scope.querySelectorAll(".welcome:not([data-m])").forEach((w) => {
+    w.dataset.m = "1";
+    w.append(heroArt());
+    // Page Utilisateurs : anneaux de synthèse juste sous les indicateurs.
+    if (currentRoute() === "users" && w.querySelector("h1")?.textContent === "Utilisateurs & comptes") {
+      const slot = w.nextElementSibling;
+      import("./v-users-insights.js").then((m) => slot?.after(m.usersInsights())).catch(() => { /* synthèse facultative */ });
+    }
+  });
 }
 
 function start() {
