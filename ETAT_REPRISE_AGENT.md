@@ -1,9 +1,9 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 27 novembre 2026 (UTC)
+- Mise à jour : 27 novembre 2026 (UTC) — revue documentaire terminée
 - Référence de départ : `main` — `734dd2910da9ccce23112bdc09d960b49512a6c0`
 - Branche documentaire : `docs/referentiels-projet-ika-so`
-- Statut : référentiels créés sur branche dédiée ; aucune modification de `main`, du code métier, de la base ou de la production.
+- Statut : référentiels relus et corrigés sur branche dédiée ; Pull Request préparée pour revue ; aucune fusion dans `main`, aucune modification du code métier, de la base ou de la production.
 
 ## Dernière intervention
 
@@ -21,7 +21,7 @@ Cette intervention est documentaire uniquement. Elle reprend les éléments de l
 - Les quatre fichiers ont été ajoutés sur cette branche.
 - Aucun changement de code, migration, base de données ou déploiement.
 - Les tests applicatifs n'ont pas été relancés : aucun code applicatif n'a été modifié.
-- La revue finale des fichiers et des commits reste à effectuer après leur création.
+- La revue finale a été effectuée : les quatre documents sont présents sur la branche et le diff a été contrôlé. Les corrections documentaires sont consignées dans `SUIVI_EXECUTION.md`.
 
 ## Points ouverts prioritaires
 
@@ -34,7 +34,7 @@ Cette intervention est documentaire uniquement. Elle reprend les éléments de l
 
 ## Prochaine tâche exacte
 
-Relire les quatre fichiers sur cette branche, vérifier leur présence et le contenu des commits, puis présenter le diff au propriétaire. Ne pas fusionner la branche dans `main` sans accord explicite.
+Examiner la Pull Request documentaire et obtenir l'accord explicite du propriétaire avant toute fusion dans `main`. Aucun déploiement n'est requis pour ces changements documentaires.
 
 ## Ordre de lecture à la reprise
 
