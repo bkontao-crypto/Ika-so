@@ -92,6 +92,22 @@ const digestTimer = setInterval(() => {
 }, 15 * 60_000);
 digestTimer.unref();
 
+// Durée de publication : chaque minute (et dès le démarrage, pour rattraper une période d'arrêt), on démarre les annonces programmées,
+// on expire les annonces échues, on envoie les avertissements dus et on archive celles non traitées après le délai réglé par le Superadmin.
+// Aucun état en mémoire : tout se déduit des dates en base, donc un redémarrage ne perd rien. Verrou en base contre les lancements simultanés.
+let expiryRunning = false;
+const runListingExpiry = () => {
+  if (expiryRunning) return;
+  expiryRunning = true;
+  services.listingExpiry.runDue()
+    .then((r) => { if (r.started || r.expired || r.archived || r.warned) logger.info("expirations_traitees", r); })
+    .catch((error) => logger.error("expirations_echec", { error: String(error?.message ?? error) }))
+    .finally(() => { expiryRunning = false; });
+};
+runListingExpiry();
+const expiryTimer = setInterval(runListingExpiry, 60_000);
+expiryTimer.unref();
+
 // Rappel avant la suppression des pièces des demandes annonceur (30 jours avant l'échéance, un seul rappel par échéance).
 // Notification seulement : la suppression des pièces reste la commande manuelle `node scripts/retention.mjs`.
 const docsReminderTimer = setInterval(() => {
@@ -102,11 +118,11 @@ docsReminderTimer.unref();
 
 // Paiements restés en attente : marqués « expirés » après 24 h (une confirmation tardive du fournisseur reste honorée).
 if (services.payments.enabled()) {
-  const expiryTimer = setInterval(() => {
+  const paymentExpiryTimer = setInterval(() => {
     services.payments.expirePending().then((n) => { if (n) logger.info("paiements_expires", { nombre: n }); })
       .catch((error) => logger.error("paiements_expiration_echec", { error: String(error?.message ?? error) }));
   }, 60 * 60_000);
-  expiryTimer.unref();
+  paymentExpiryTimer.unref();
 }
 
 // Une erreur non prévue est journalisée avant l'arrêt ; l'hébergeur relance le processus.
