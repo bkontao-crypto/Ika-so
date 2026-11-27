@@ -543,3 +543,27 @@ textarea:focus {
 :where(body:not(:has(> #root))) :is(.btn-small, .btn.sm, .mp-btn.sm, .wa-btn, .bx-btn) { min-height: 36px; line-height: 1.2; }
 :where(body:not(:has(> #root))) :is(.wa-btn, .bx-btn) { display: inline-flex; align-items: center; }
 
+/* ==========================================================================
+   Lot 3 de l'audit design (27/11/2026) : champs, titres de page, cartes.
+   Même périmètre que le lot 2 (site seulement, pas la console propriétaire).
+   ========================================================================== */
+/* Un seul style de champ : 44 px de haut, rayon 12 px, texte 15 px (16 px sur mobile, lot 1). */
+body:not(:has(> #root)) :is(
+  .input, label.field .input, label.field select, label.field input,
+  .bx-search input, .bx-form input, .bx-sec select,
+  .page-isolee input, .page-isolee select
+):not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]):not([type=color]) {
+  min-height: 44px; height: auto; border-radius: var(--radius-sm, 12px); font-size: 15px;
+}
+body:not(:has(> #root)) :is(.input, .page-isolee textarea, .bx-form textarea):is(textarea) { min-height: 88px; }
+/* Une seule taille de titre de page (hors bandeaux d'accueil, Premium et Centre). */
+body:not(:has(> #root)) :is(h1.title, h1.section-title, .wa-title h1, .bx-h1, .page-isolee h1) {
+  font-family: var(--display, "Outfit", sans-serif); font-size: 1.75rem; font-weight: 800; line-height: 1.2; letter-spacing: -.02em;
+}
+@media (max-width: 760px) {
+  body:not(:has(> #root)) :is(h1.title, h1.section-title, .wa-title h1, .bx-h1, .page-isolee h1) { font-size: 1.45rem; }
+}
+/* Cartes : rayon standard 20 px (le grand panneau de recherche garde le grand rayon 28 px de l'échelle). */
+body:not(:has(> #root)) :is(.pm-keycard, .sponsor-card, .mpt-card) { border-radius: var(--radius, 20px); }
+/* Boîte de réception : police du site au lieu d'Inter. */
+body .bx { --bx-sans: var(--font, "Plus Jakarta Sans", system-ui, sans-serif); }
