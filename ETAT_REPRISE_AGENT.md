@@ -1,31 +1,40 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 27 novembre 2026 (UTC) — Observatoire fusionné
-- Branche : `main` (commit de fusion de `feature/observatoire` `f688d9e` sur `3e7a5fa`)
-- Statut : fusionné ; production non vérifiée
+- Mise à jour : 27 novembre 2026, 23 h (Africa/Bamako)
+- Branche : `main` (fusion directe, règle du propriétaire ; retour arrière possible par `git revert`)
+- Statut : prêt à valider sur le site
 
 ## Dernière intervention
 
-Observatoire du site (`/owner.html#/observatory`, Super Administrateur) : agrégats comparés, tendances, filtres de dates, derniers gestes. Lecture seule, sans migration ni collecte nouvelle. La PR documentaire n° 15 est déjà fusionnée.
+Refonte de la fiche annonce (`#/annonce/:id`) à l'identique de la maquette « Apartment Details » : galerie mosaïque (1 grande + 5 vignettes, « +N », points, signet favori), titre + adresse + chambres/sanitaires/surface, bouton message, onglets segmentés Détails / Localisation / Galerie, tuiles de caractéristiques, barre de prix fixe avec « Programmer une visite » (ouvre la demande de visite existante). Toutes les fonctions existantes conservées (appel, WhatsApp, signalement, annonceur, historique du prix, commentaires, annonces similaires). Carte chargée à l'ouverture de l'onglet Localisation ; sinon quartier affiché.
+
+## Fichiers modifiés
+
+- `public/js/pages/listing.js` — nouvelle mise en page
+- `public/css/fiche-annonce.css` — nouveau style (clair/sombre)
+- `public/index.html`, `public/sw.js` — chargement du style + version du cache
+- `public/js/app.js` — retrait de la classe `in-listing` au changement de page
+- `SUIVI_EXECUTION.md` — entrée du 27/11 soir
 
 ## Vérifications
 
-- `npm test` sur le code fusionné : 570 réussis, 0 échec ; contrôle Service Worker réussi.
-- Recette navigateur faite sur la branche avant fusion, en local avec données fictives (voir `Important/SUIVI.md`).
-- Non vérifié : production, performance sur gros volumes, vrais téléphones. Détail dans `SUIVI_EXECUTION.md`.
+- `npm test` : 540 réussis, 0 échec, 25 ignorés
+- Captures Playwright (API simulée) mobile 390 px et bureau 1280 px : conformes, aucune erreur JS
+- Non vérifié : rendu en production avec vraies données
 
-## Points ouverts prioritaires
+## Intervention précédente
 
-1. Harmoniser le comportement Analytics avec la règle « désactivé par défaut » avant toute activation.
-2. Corriger le nettoyage de fichiers du test `test/star-badge-pg.test.js`.
-3. Finaliser et tester la récupération MFA Superadmin.
-4. Prouver sauvegarde chiffrée hors serveur et restauration sur base jetable.
-5. Valider les parcours de paiement et fournisseurs en environnement réel.
-6. Recetter la production séparément des tests CI.
+Observatoire du site fusionné (`36ac9f8`) : contrôle en ligne toujours à faire (voir `SUIVI_EXECUTION.md`).
+
+## Points ouverts
+
+- Bouton « Retour » de la maquette omis (décision du 16/11, test `no-back-buttons`).
+- Champ « équipements » (Wi-Fi, parking…) inexistant en base : remplacé par les caractéristiques disponibles. Ajout possible sur demande (migration).
+- Points ouverts antérieurs inchangés (Analytics, test star-badge, MFA, sauvegardes, paiements).
 
 ## Prochaine tâche exacte
 
-Contrôler en ligne (si la fusion est déployée) : ouvrir l'Observatoire, changer de période, comparer un chiffre à son module d'origine, mesurer le temps de réponse. L'audit Analytics (point ouvert 1) précède toute activation de la collecte et toute mesure d'impressions.
+Le propriétaire contrôle une fiche annonce sur https://ika-so.onrender.com après déploiement Render ; corriger ou annuler (`git revert`) selon son retour.
 
 ## Ordre de lecture à la reprise
 

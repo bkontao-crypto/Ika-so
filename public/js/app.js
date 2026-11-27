@@ -62,7 +62,7 @@ async function render() {
   const { path } = currentRoute();
   renderChrome();
   trackPageView(path, (pagePath) => api("/e", { method: "POST", body: { pagePath } })); // seulement avec l'accord « Statistiques »
-  document.body.classList.remove("in-chat");
+  document.body.classList.remove("in-chat", "in-listing");
   const mine = ++sequence;
   if (!S.user && !mfaChecked && path !== "/verification") { // session « en attente » du code MFA : on le demande avant tout
     mfaChecked = true;
