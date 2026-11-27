@@ -1,8 +1,10 @@
 // Mouvements du site : journal unifié, volumes, filtres, direct, export, dossier d'un compte ou d'une annonce.
 import { api, h, ico, panel, empty, skeletons, errorBox, openDrawer, closeDrawer, pill, nf, dayLabel, timeOf, dateTime, ago, initials, shortDay, stackChart, CAT_COLORS, CAT_ICONS, fail, toast, statusPill, fcfa } from "./ui.js";
+import { donut } from "./charts-modern.js";
 import { brandSlug } from "../core/brand.js";
 
 const PERIODS = [["1", "24 h"], ["7", "7 jours"], ["30", "30 jours"], ["90", "90 jours"], ["all", "Tout"]];
+const DEVICE_COLORS = ["#087448", "#477eaa", "#c6a35c", "#7b5ea7", "#c94f4f", "#4b5563"];
 let catalogCache = null;
 const state = { period: "7", cats: null, q: "", actor: null };
 
@@ -156,7 +158,7 @@ export function activityView(ctx, { preset } = {}) {
       h("div", { class: "actor-row" }, h("span", null, "Samedi et dimanche"), h("strong", null, `${nf(w.weekend)} · ${avg(w.weekendAvgPerDay)} / jour`)),
       h("div", { class: "actor-row" }, h("span", null, "Jour le plus fréquenté"), h("strong", null, w.busiestDay ?? "—")));
     const dev = Object.entries(c.devices).sort((a, b) => b[1] - a[1]);
-    const devices = dev.length ? h("div", null, dev.map(([k, v]) => h("div", { class: "actor-row" }, h("span", null, k), h("strong", null, nf(v))))) : h("p", { class: "muted small" }, "Aucune connexion sur la période.");
+    const devices = dev.length ? donut({ caption: "connexions", items: dev.map(([k, v], i) => ({ label: k, value: v, color: DEVICE_COLORS[i % DEVICE_COLORS.length] })) }) : h("p", { class: "muted small" }, "Aucune connexion sur la période.");
     connBox.replaceChildren(
       h("div", { class: "mini-stats" },
         mini("Connexions", nf(c.totals.logins), `${c.days} jour(s)`),
@@ -183,11 +185,13 @@ export function activityView(ctx, { preset } = {}) {
     const max = Math.max(1, ...sm.byHour);
     const hours = h("div", { class: "hourbars", role: "img", "aria-label": "Mouvements par heure de la journée (UTC, identique à l'heure du Mali)" }, sm.byHour.map((v, i) => { const b = h("i", { class: i === peak ? "peak" : v ? "on" : "", title: `${String(i).padStart(2, "0")} h : ${v}` }); b.style.height = `${Math.max(4, (v / max) * 100)}%`; return b; }));
     const actors = sm.topActors.length ? sm.topActors.map((a) => h("button", { class: "actor-row", type: "button", onClick: () => ctx.go(`#/trace/user/${encodeURIComponent(a.id)}`) }, h("span", { class: "avatar" }, initials(a.name)), h("span", { class: "grow" }, h("b", null, a.name ?? a.id.slice(0, 10)), h("small", null, `${nf(a.count)} mouvement(s)`)), ico("chevron"))) : [empty("Aucun acteur identifié sur la période.")];
+    const byCat = donut({ caption: "mouvements", items: cats.map((c) => ({ label: c.label, value: sm.byCategory?.[c.key] ?? 0, color: CAT_COLORS[c.key] ?? "#9fb3a8" })) });
     sumBox.replaceChildren(
       h("div", { class: "mini-stats" }, mini("Mouvements (filtres actifs)", nf(total), `${sm.days} jour(s)`), mini("Comptes distincts actifs", nf(sm.totals.actors)), mini("Heure la plus active", peak == null ? "—" : `${String(peak).padStart(2, "0")} h`, "UTC = heure du Mali"), mini("Jour le plus chargé", busiest && sel(busiest) ? shortDay(busiest.day) : "—", busiest && sel(busiest) ? `${nf(sel(busiest))} mouvements` : null)),
       h("div", { class: "split" },
         panel("Volume par jour", "Empilé par catégorie (selon les filtres)", sm.perDay.length ? stackChart({ labels: sm.perDay.map((d) => shortDay(d.day)), stacks: cats.map((c) => ({ key: c.key, name: c.label, color: CAT_COLORS[c.key], values: sm.perDay.map((d) => d.byCategory[c.key] ?? 0) })) }) : empty("Aucune donnée.")),
-        h("div", { class: "sidecol" }, panel("Rythme de la journée", "Mouvements par heure", h("div", null, hours, h("div", { class: "hourlabels" }, h("span", null, "0 h"), h("span", null, "12 h"), h("span", null, "23 h")))),
+        h("div", { class: "sidecol" }, panel("Répartition par catégorie", "Part de chaque catégorie affichée", byCat),
+          panel("Rythme de la journée", "Mouvements par heure", h("div", null, hours, h("div", { class: "hourlabels" }, h("span", null, "0 h"), h("span", null, "12 h"), h("span", null, "23 h")))),
           panel("Comptes les plus actifs", "Hors connexions et fréquentation", h("div", null, actors)))));
   }
 

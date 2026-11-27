@@ -5,33 +5,32 @@
 - Statut général : prêt à valider (RÉALISÉ, NON VÉRIFIÉ dans un navigateur)
 
 ## 1. Dernière tâche
-Fréquentation et Entonnoir Premium modernisés. Graphiques & fréquentation : heures de forte fréquentation en colonnes (pointes en doré) + anneau par moment de la journée (matin / après-midi / soir / nuit, heure du Mali). Entonnoir Premium : vrai entonnoir (clics → paiements lancés → réussis, taux de passage) + anneau des clics par origine ; tableau conservé. Aucune nouvelle donnée : tout vient des mêmes endpoints. Précédemment : synthèse Utilisateurs, pied de page de Personnalisation, habillage commun, Vue générale.
+Mouvements du site (`#/activity`, `#/audit`) modernisé : anneau « Répartition par catégorie » (colonne de droite, suit les filtres de catégories) et anneau des appareils dans Habitudes de connexion (remplace la liste). Reste du module inchangé (journal, direct, exports, dossier d'un compte/annonce). Précédemment : Fréquentation et Entonnoir Premium, synthèse Utilisateurs, pied de page de Personnalisation, habillage commun, Vue générale.
 
 ## 2. Fichiers modifiés
-- `public/js/owner/v-trafic.js` — colonnes, anneaux, entonnoir ; Santé du système inchangée
-- `public/js/owner/charts-modern.js` — ajout de `columnChart` et `funnelChart`
-- `public/css/owner-insights.css` — styles entonnoir et anneaux dans cols2
+- `public/js/owner/v-activity.js` — import `donut`, 2 anneaux (copie fidèle du reste)
+- `public/css/owner-insights.css` — anneaux dans `.sidecol`, barres horaires
 
 ## 3. Vérifications
 - Aucune exécution possible dans cet environnement (pas de navigateur, pas de `node --check`).
-- Non exécuté : ouverture de `#/charts`, `#/premium-funnel`, `#/users`, `#/overview`, `#/customize` (clair/sombre, mobile), tests `test/`.
+- Non exécuté : ouverture de `#/activity`, `#/audit`, `#/trace/user/…`, `#/charts`, `#/premium-funnel`, `#/users`, `#/overview`, `#/customize` (clair/sombre, mobile), tests `test/`.
 
 ## 4. Points ouverts
 - Compteur de présentation du pied de page : « n / 400 » (code existant) ; la maquette affiche 300. À trancher (vérifier la limite serveur).
 - La synthèse Utilisateurs refait un appel à `/staff/owner/users/aggregates` : à mutualiser si besoin.
-- `v-trafic.js` importe `charts-modern.js` : une erreur de syntaxe dans l'un casserait tout l'Owner Center (import statique depuis main.js) → contrôle navigateur prioritaire.
-- Modules `v-modules.js` (146 Ko), `v-activity.js` : habillage global seulement.
+- `main.js` importe statiquement `v-overview.js`, `v-trafic.js`, `v-activity.js` et `charts-modern.js` : une erreur de syntaxe dans l'un d'eux casserait tout l'Owner Center → contrôle navigateur prioritaire avant toute fusion.
+- `v-modules.js` (146 Ko, la plupart des modules : annonces, paiements, CRM, etc.) : habillage global seulement.
 - `Important/SUIVI.md` sans entrée pour ces tâches (397 Ko : ajouter en tête).
 - Ancienne `customizeView` de `v-modules.js` : code mort à supprimer après validation.
 
 ## 5. Prochaine tâche exacte
-Ouvrir `/owner.html` sur la branche et contrôler les 5 pages modernisées (clair/sombre, mobile) ; corriger les défauts. Ensuite moderniser `v-activity.js` (Mouvements du site) avec des cartes d'indicateurs et un anneau par catégorie.
+Contrôle navigateur de toutes les pages modernisées (clair/sombre, mobile), correction des défauts, puis fusion après validation du propriétaire. Ensuite : choisir 1 module de `v-modules.js` (ex. paiements ou annonces & modération) pour y ajouter indicateurs et graphiques.
 
 ## 6. Fichiers à consulter
 1. `ETAT_REPRISE_AGENT.md` — en premier.
-2. `public/js/owner/charts-modern.js`, `public/js/owner/v-trafic.js`
+2. `public/js/owner/charts-modern.js`, `v-activity.js`, `v-trafic.js`, `v-overview.js`
 3. `public/css/owner-modern.css`, `owner-insights.css`, `owner-footer.css`
-4. `public/js/owner/v-activity.js` (prochaine page)
+4. `public/js/owner/modern-shell.js`
 
 ## 7. Instructions au prochain agent
 Ne pas toucher aux endpoints `/staff/…`. Pas de style en ligne (CSP `style-src 'self'`). Ne fusionner dans `main` qu'après validation du propriétaire.

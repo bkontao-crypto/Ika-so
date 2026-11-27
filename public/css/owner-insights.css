@@ -1,4 +1,4 @@
-/* Utilisateurs, Fréquentation, Premium : cartes d'indicateurs modernes, synthèse en anneaux, entonnoir. */
+/* Utilisateurs, Fréquentation, Premium, Mouvements : cartes d'indicateurs modernes, synthèse en anneaux, entonnoir. */
 .mini{position:relative;overflow:hidden;border-radius:18px;padding:16px 18px}
 .mini::after{content:"";position:absolute;right:-20px;top:-20px;width:84px;height:84px;border-radius:50%;background:radial-gradient(circle,color-mix(in srgb,var(--green) 18%,transparent),transparent 70%);pointer-events:none}
 .mini small:first-child{font-weight:600;font-size:12px}
@@ -16,5 +16,10 @@
 .fn-track{height:28px;border-radius:14px;background:var(--soft);overflow:hidden}
 .fn-fill{height:100%;border-radius:14px;transition:width .5s}
 .fn-row small{color:var(--muted);font-size:11.5px}
-.cols2 .donut{grid-template-columns:1fr;justify-items:center;gap:18px}
-.cols2 .dn-legend{width:100%}
+.cols2 .donut,.sidecol .donut{grid-template-columns:1fr;justify-items:center;gap:18px}
+.cols2 .dn-legend,.sidecol .dn-legend{width:100%}
+
+/* Barres horaires plus lisibles (Mouvements du site) */
+.hourbars{height:90px;gap:3px}
+.hourbars i{border-radius:5px 5px 0 0;transition:filter .12s}
+.hourbars i:hover{filter:brightness(.9)}
