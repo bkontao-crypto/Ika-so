@@ -71,7 +71,7 @@ export const customizeView = (ctx, initial = "identity") => {
       const btns = TABS.map(([id, label]) => h("button", { class: "ps-tab", type: "button", role: "tab", "data-tab": id, "aria-selected": "false", onClick: () => select(id) }, label));
       const wrap = h("div", { class: "cz-wrap" });
       const paneOf = (id) => panes.find((p) => p.dataset.pane === id);
-      const primaryOf = (pane) => { const all = [...pane.querySelectorAll("button.btn.primary")]; return all.find((b) => !b.disabled) ?? all[0] ?? null; };
+      const primaryOf = (pane) => { const all = [...pane.querySelectorAll("button.btn.primary:not([data-cz-nosave])")]; return all.find((b) => !b.disabled) ?? all[0] ?? null; };
 
       function paint() {
         btns.forEach((b) => { b.classList.toggle("dirty", dirty.has(b.dataset.tab)); b.setAttribute("aria-selected", b.dataset.tab === current ? "true" : "false"); b.classList.toggle("active", b.dataset.tab === current); b.tabIndex = b.dataset.tab === current ? 0 : -1; });
@@ -96,7 +96,7 @@ export const customizeView = (ctx, initial = "identity") => {
       });
       // Un enregistrement recharge la page : on prévient avant de perdre les brouillons des AUTRES sections.
       wrap.addEventListener("click", async (e) => {
-        const b = e.target.closest?.("button.btn.primary"); if (!b || b.dataset.czOk) return;
+        const b = e.target.closest?.("button.btn.primary:not([data-cz-nosave])"); if (!b || b.dataset.czOk) return;
         const pane = b.closest(".ps-pane"); if (!pane) return;
         const others = [...dirty].filter((id) => id !== pane.dataset.pane);
         if (!others.length) return;
@@ -144,7 +144,7 @@ function footerWorkspace(src, reload) {
   const touch = () => gridBox.dispatchEvent(new Event("input", { bubbles: true }));
   const prev = h("button", { type: "button", class: "cz-round", "aria-label": "Déplacer la colonne vers la gauche", onClick: () => move(-1) }, "←");
   const next = h("button", { type: "button", class: "cz-round", "aria-label": "Déplacer la colonne vers la droite", onClick: () => move(1) }, "→");
-  const addBtn = h("button", { type: "button", class: "btn primary", onClick: () => {
+  const addBtn = h("button", { type: "button", class: "btn primary", "data-cz-nosave": "1", onClick: () => {
     if (d.columns.length >= 4) { toast("Maximum : 4 colonnes.", true); return; }
     d.columns.push({ title: "Nouvelle colonne", links: [] }); sel = d.columns.length - 1; touch(); redraw();
   } }, ico("plus"), "Ajouter une colonne");

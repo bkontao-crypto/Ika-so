@@ -108,3 +108,6 @@ label.field{font-size:13px;color:var(--ink);font-weight:700}
 /* ---------- Mobile ---------- */
 @media (max-width:900px){.content{padding:18px 12px 44px}.welcome{padding:22px 18px 22px 24px}.welcome h1{font-size:25px}.search{width:auto}.top{height:64px}}
 @media (max-width:720px){.ps-tab{padding:10px 12px}.panel{padding:16px}.ph-ico{width:38px;height:38px;margin-right:10px}.cz-foot .btn{min-width:0;flex:1}}
+
+/* La liste « Période » ne doit pas écraser le titre de la carte (components.css impose width:100% aux select). */
+.panelhead>select.select{width:auto;flex:0 0 auto;margin-left:auto}
