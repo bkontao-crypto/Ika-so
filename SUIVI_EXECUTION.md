@@ -120,3 +120,11 @@ Ne pas supprimer les historiques. Les référentiels à la racine deviennent les
 - citer les preuves disponibles ;
 - mettre à jour `ETAT_REPRISE_AGENT.md` ;
 - ne jamais transformer une hypothèse en fait vérifié.
+
+## 9. Feuille de route post-lancement
+
+| Fonctionnalité | Statut | Décision validée / périmètre |
+|---|---|---|
+| Gestion centralisée des contacts des annonces | À FAIRE — POST-LANCEMENT | Le Superadmin pourra choisir un mode flexible : coordonnées du propriétaire, coordonnées centralisées IKA SÔ, ou contact personnalisé pour une annonce. Les boutons « Appeler » et « WhatsApp » utiliseront les coordonnées correspondant au mode appliqué. Le mode et les contacts autorisés seront configurables par le Superadmin. |
+
+**Règle de planification :** cette fonctionnalité est réservée à une phase post-lancement. Aucun développement, changement de code, migration, modification de base de données ou déploiement n'est autorisé par son inscription dans cette feuille de route. Un cahier des charges détaillé et un audit ciblé de l'existant devront précéder toute demande de développement.
