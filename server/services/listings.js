@@ -321,7 +321,7 @@ export function createListings(ctx, accounts, trust, listingCap = async () => 0)
         return { on: false };
       }
       const exists = await db.query(
-        "select id from ika_listings where id = $1 and status = 'PUBLISHED' and visibility <> 'HIDDEN'",
+        "select id from ika_listings where id = $1 and status = 'PUBLISHED' and visibility <> 'HIDDEN' and (expires_at is null or expires_at > now())",
         [id],
       );
       if (!exists[0]) throw notFound("Annonce introuvable.");
@@ -334,6 +334,7 @@ export function createListings(ctx, accounts, trust, listingCap = async () => 0)
       const rows = await db.query(
         `select ${columns} from ika_favorites f join ika_listings l on l.id = f.listing_id
          where f.user_id = $1 and l.status = 'PUBLISHED' and l.visibility <> 'HIDDEN'
+           and (l.expires_at is null or l.expires_at > now())
          order by f.created_at desc`,
         [userId],
       );
@@ -363,7 +364,7 @@ export function createListings(ctx, accounts, trust, listingCap = async () => 0)
       const text = String(body ?? "").trim().slice(0, 1000);
       if (text.length < 2) throw badRequest("Le commentaire est trop court.");
       const target = await db.query(
-        "select id from ika_listings where id = $1 and status = 'PUBLISHED' and visibility <> 'HIDDEN'",
+        "select id from ika_listings where id = $1 and status = 'PUBLISHED' and visibility <> 'HIDDEN' and (expires_at is null or expires_at > now())",
         [id],
       );
       if (!target[0]) throw notFound("Annonce introuvable.");
@@ -401,4 +402,3 @@ export function createListings(ctx, accounts, trust, listingCap = async () => 0)
     },
   };
 }
-
