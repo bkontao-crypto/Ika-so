@@ -95,12 +95,17 @@ export function createModeration(ctx, accounts, engagement) {
       if (action === "APPROVE") {
         // Publication et point d'historique de prix dans une seule instruction : l'un ne va pas sans l'autre.
         // Un point n'est ajouté que si le prix a changé depuis le dernier point.
+        // Durée de publication : si le propriétaire a choisi une date de début future, l'annonce est « Programmée » (invisible jusqu'à cette date) ;
+        // sa date de fin est conservée si elle est future, sinon (aucune date choisie, ou date passée) 45 jours après le début effectif (règle d'origine).
         const updated = await db.query(
           `with upd as (
              update ika_listings
-             set status = 'PUBLISHED', published_at = now(), updated_at = now(),
-                 moderation_note = null, expires_at = now() + interval '45 days'
-             where id = $1 and status = 'PENDING' returning id, price
+             set status = case when starts_at is not null and starts_at > now() then 'SCHEDULED' else 'PUBLISHED' end,
+                 published_at = case when starts_at is not null and starts_at > now() then null else now() end,
+                 updated_at = now(), moderation_note = null,
+                 expires_at = case when expires_at is not null and expires_at > now() then expires_at
+                                   else greatest(starts_at, now()) + interval '45 days' end
+             where id = $1 and status = 'PENDING' returning id, price, status
            ), point as (
              insert into ika_listing_price_history (id, listing_id, price)
              select 'pr-' || gen_random_uuid()::text, upd.id, upd.price from upd
@@ -109,13 +114,17 @@ export function createModeration(ctx, accounts, engagement) {
                order by h.recorded_at desc, h.id desc limit 1)
              returning 1
            )
-           select id from upd`,
+           select id, status from upd`,
           [id],
         );
         if (!updated[0]) throw conflict("Annonce déjà traitée.");
-        await accounts.audit(userId, "APPROVE", id, "");
-        // Alertes immédiates : annonceur prévenu, puis personnes dont une recherche enregistrée correspond.
+        await accounts.audit(userId, "APPROVE", id, updated[0].status === "SCHEDULED" ? "programmée" : "");
+        // Alertes immédiates : annonceur prévenu, puis personnes dont une recherche enregistrée correspond (à la publication effective).
         const owner = await db.query("select owner_id, title from ika_listings where id = $1", [id]);
+        if (updated[0].status === "SCHEDULED") {
+          await engagement.notify(owner[0].owner_id, { kind: "LISTING_APPROVED", title: `Annonce validée, publication programmée : ${owner[0].title}`, link: "#/mes-annonces" });
+          return { ok: true, alertsSent: 0, scheduled: true };
+        }
         await engagement.notify(owner[0].owner_id, { kind: "LISTING_APPROVED", title: `Annonce publiée : ${owner[0].title}`, link: `#/annonce/${id}` });
         const { notified } = await engagement.onPublished(id);
         return { ok: true, alertsSent: notified };
