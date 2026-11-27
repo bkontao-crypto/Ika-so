@@ -79,7 +79,7 @@ Les rôles et permissions doivent être contrôlés côté serveur. L'interface 
 
 ### 4.6 Mes alertes
 - créer une alerte par type de bien et zone/quartier ;
-- un critère de zone vide signifie une portée globale, si cette règle est confirmée par l'implémentation ;
+- un critère de zone/quartier vide signifie une portée globale : l'alerte recherche alors dans toutes les zones couvertes par la plateforme ;
 - définir des prix minimum et maximum cohérents ;
 - programmer, mettre en pause, prolonger et consulter l'historique ;
 - notifier selon les préférences et les règles de fréquence ;
