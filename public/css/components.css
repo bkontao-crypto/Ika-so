@@ -522,3 +522,24 @@ textarea:focus {
   select,
   textarea { font-size: 16px !important; }
 }
+
+/* ==========================================================================
+   Lot 2 de l'audit design (27/11/2026) : une seule forme de bouton sur le site.
+   Décision du propriétaire : rectangle arrondi partout (12 px), deux hauteurs :
+   normale 44 px, petite 36 px. Hors périmètre : la console propriétaire (owner.html,
+   reconnue à son #root), les boutons-icônes ronds, onglets, puces de filtre et badges.
+   `!important` sur le rayon seulement, car certaines feuilles de page
+   (espace.css, whatsapp.css…) se chargent après celle-ci.
+   ========================================================================== */
+:root { --btn-radius: 12px; }
+:where(body:not(:has(> #root))) :is(.btn, .mp-btn, .pc-btn, .wa-btn, .bx-btn, .btn-google, .filter-submit, .btn-cancel, .btn-publish, .sc-btn) {
+  border-radius: var(--btn-radius) !important;
+}
+:where(body:not(:has(> #root))) :is(.btn, .mp-btn, .pc-btn, .btn-google, .btn-cancel, .btn-publish, .filter-submit):not(.btn-small):not(.sm):not(.header-publish):not(.mp-btn-glass) {
+  min-height: 44px;
+}
+:where(body:not(:has(> #root))) :is(.auth-actions .btn, .btn-google, .btn-block, .btn-cancel, .btn-publish):not(.btn-small):not(.sm) { min-height: 44px; }
+:where(body:not(:has(> #root))) .filter-submit { height: auto; }
+:where(body:not(:has(> #root))) :is(.btn-small, .btn.sm, .mp-btn.sm, .wa-btn, .bx-btn) { min-height: 36px; line-height: 1.2; }
+:where(body:not(:has(> #root))) :is(.wa-btn, .bx-btn) { display: inline-flex; align-items: center; }
+
