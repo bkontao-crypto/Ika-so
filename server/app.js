@@ -10,6 +10,7 @@ import { buildRoutes } from "./routes/index.js";
 import { buildMfaRoutes } from "./routes/mfa.js";
 import { buildSeoRoutes } from "./routes/seo.js";
 import { buildWhatsAppInboxRoutes } from "./routes/whatsapp-inbox.js";
+import { buildContactCentralRoutes } from "./routes/contact-central.js";
 import { readFile } from "node:fs/promises";
 import { brand, brandLogoHtml, brandUpper } from "./lib/brand.js";
 
@@ -107,6 +108,8 @@ export function createApp({ services, config, logger = createLogger({ level: "er
     });
     app.use("/api/whatsapp", buildWhatsAppInboxRoutes({ inbox: whatsappInbox, accounts: services.accounts, requireUser, limiter }));
   }
+  // Gestion centralisée des contacts : réglages réservés au Superadmin (contrôle fait par le service, côté serveur).
+  if (services.contactCentral) app.use("/api/contact-central", buildContactCentralRoutes({ contactCentral: services.contactCentral, requireUser, limiter }));
   app.use("/api", buildRoutes({ services, config, limiter, logger, counters, requireUser, setSession, clearSession }));
 
   app.use("/api", (req, res) => res.status(404).json({ error: "Introuvable." }));
