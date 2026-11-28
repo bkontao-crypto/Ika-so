@@ -4,6 +4,7 @@ import { currentRoute, needLogin } from "/js/core/router.js";
 import { field, select } from "/js/components/ui.js";
 import { avatar, clock, dayLabel, listTime, ticks } from "/js/components/chat.js";
 import { icon } from "/js/icons.js";
+import { moduleNotice } from "/js/components/module-notice.js";
 
 const KIND = { SEARCH_MATCH: "Alerte", SEARCH_DIGEST: "Résumé", MESSAGE: "Message", VISIT_REQUEST: "Visite", VISIT_ANSWER: "Visite", LISTING_APPROVED: "Annonce", LISTING_REJECTED: "Annonce", ADVERTISER_APPLICATION: "Demande annonceur", LISTING_PENDING: "Annonce à valider", FEATURED_REQUEST: "Mise à la une", PREMIUM_REQUEST: "Demande Premium", PREMIUM: "Premium", TEAM_REQUEST: "Équipe" };
 const FILTER = { transaction: "Transaction", category: "Type", zone: "Quartier", maxPrice: "Prix max", minPrice: "Prix min", minSurface: "Surface min (m²)", bedrooms: "Chambres min.", q: "Mots" };
@@ -189,7 +190,8 @@ export async function inboxPage() {
             h("a", { class: "bx-ghost", href: `#/boite/${encodeURIComponent(cur.id)}` }, icon("sliders"), h("span", null, "Options")))),
         area,
         cur.blockedByMe ? h("p", { class: "bx-blocked" }, "Vous avez bloqué cette personne. Débloquez-la depuis « Options » pour lui écrire.")
-          : h("form", { class: "bx-form", onSubmit: send }, input, h("button", { type: "submit", class: "bx-send" }, h("span", null, "Envoyer"), icon("send")))))];
+          : h("form", { class: "bx-form", "data-module": "messaging", onSubmit: send }, input, h("button", { type: "submit", class: "bx-send" }, h("span", null, "Envoyer"), icon("send"))),
+        moduleNotice("messaging")))];
   };
 
   // ---- Visites ----
@@ -311,8 +313,9 @@ export async function threadPage(id) {
       list,
       t.blockedByMe
         ? h("p", { class: "notice chat-blocked" }, "Vous avez bloqué cette personne. Débloquez-la pour lui écrire.")
-        : h("form", { class: "chat-composer", onSubmit: (e) => { e.preventDefault(); send(); } }, body,
-            h("button", { class: "chat-send", type: "submit", "aria-label": "Envoyer le message" }, icon("send")))),
+        : h("form", { class: "chat-composer", "data-module": "messaging", onSubmit: (e) => { e.preventDefault(); send(); } }, body,
+            h("button", { class: "chat-send", type: "submit", "aria-label": "Envoyer le message" }, icon("send"))),
+      moduleNotice("messaging")),
     dialog);
   count = t.messages.length;
   drawMessages(t.messages, true);

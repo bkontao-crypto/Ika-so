@@ -3,6 +3,7 @@ import { api, fail, h, toast } from "/js/dom.js";
 import { S } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
+import { moduleNotice } from "/js/components/module-notice.js";
 
 let cssDone = false;
 export function loadSocialCss() {
@@ -83,7 +84,7 @@ export function commentsPanel(type, id, { onCount } = {}) {
   } }, "Publier");
   input.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); send.click(); } });
   load();
-  return h("div", { class: "sc-panel" }, list, h("div", { class: "sc-write" }, input, send));
+  return h("div", { class: "sc-panel" }, list, h("div", { class: "sc-write", "data-module": "comments" }, input, send), moduleNotice("comments"));
 }
 
 /** Barre « J'aime · Commenter · Partager » avec compteurs. `inline` : ouvre les commentaires sous la barre ; sinon `onComments` est appelé. */

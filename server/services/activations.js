@@ -10,7 +10,7 @@ const CUSTOMIZE = "#/customize";
 const RULES = "#/rules";
 const iso = (d) => (d instanceof Date ? d.toISOString() : d ?? null);
 
-export const WITHOUT_SWITCH = Object.freeze(["Inscription (et sa fenêtre d’acceptation globale)", "Publication d’annonces", "Messagerie", "Commentaires", "Avis", "Favoris", "Visites",
+export const WITHOUT_SWITCH = Object.freeze(["Inscription (et sa fenêtre d’acceptation globale)", "Publication d’annonces", "Favoris", "Visites",
   "Abonnements aux annonceurs", "Réclamations", "Partenaires", "Import d’annonces", "Demandes de mise à la une", "Sauvegarde automatique et contrôle des incidents"]);
 export const WITHOUT_EFFECT = Object.freeze(["Modules « carte » et « WhatsApp » du réglage d’apparence : non reliés au site", "Langues et catégories : non lues par le site public"]);
 
@@ -32,6 +32,12 @@ export function createActivations({ db, config, accounts, superadminSettings, ru
       off: "Les leads et les fonctions WhatsApp du CRM sont refusés. Les données sont conservées." },
     { key: "premium", group: "Modules", label: "Premium", scope: "server", read: (s) => moduleOn(s.main, "premium"), write: setModule("premium"),
       off: "Nouvelles demandes, achats et centre de contrôle fermés. La durée des abonnements en cours continue de courir." },
+    { key: "comments", group: "Communauté et annonces", label: "Commentaires", scope: "server", read: (s) => moduleOn(s.main, "comments"), write: setModule("comments"),
+      off: "Aucun nouveau commentaire (annonces et publications). Les commentaires existants restent visibles ; signalement et modération restent ouverts." },
+    { key: "reviews", group: "Communauté et annonces", label: "Avis sur les annonceurs", scope: "server", read: (s) => moduleOn(s.main, "reviews"), write: setModule("reviews"),
+      off: "Aucun nouvel avis, modification ou réponse. Les avis existants restent visibles ; suppression, signalement et modération restent ouverts." },
+    { key: "messaging", group: "Communauté et annonces", label: "Messagerie", scope: "server", read: (s) => moduleOn(s.main, "messaging"), write: setModule("messaging"),
+      off: "Aucun envoi de message, y compris « Contacter » dans Découvrir. Les conversations restent lisibles ; blocage et signalement restent ouverts." },
     { key: "discover", group: "Communauté et annonces", label: "Découvrir", scope: "server", read: (s) => s.rules.discoverEnabled, write: setRule("discoverEnabled"), screen: RULES,
       off: "La liste est vide et les publications sont refusées." },
     { key: "videoLinks", group: "Communauté et annonces", label: "Liens vidéo dans Découvrir", scope: "server", read: (s) => s.rules.discoverVideoLinks, write: setRule("discoverVideoLinks"), screen: RULES,

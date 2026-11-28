@@ -7,6 +7,7 @@ import { initials } from "/js/components/espace.js";
 import { openFullscreen, socialBar } from "/js/components/social.js";
 import { brand } from "../core/brand.js";
 import { icon } from "/js/icons.js";
+import { moduleNotice } from "/js/components/module-notice.js";
 
 export async function listingPage(id) {
   const [item, comments, similar] = await Promise.all([api(`/listings/${encodeURIComponent(id)}`), api(`/listings/${encodeURIComponent(id)}/comments`), api(`/listings/${encodeURIComponent(id)}/similar`).catch(() => [])]);
@@ -107,10 +108,10 @@ export async function listingPage(id) {
 
   const msg = h("textarea", { class: "input", rows: "3", maxlength: "1000", "aria-label": "Votre message", placeholder: "Bonjour, ce bien est-il toujours disponible ?" });
   const msgDialog = h("dialog", { "aria-labelledby": "msg-title" }, h("form", { class: "pad stack", method: "dialog" },
-    h("h2", { id: "msg-title" }, "Écrire à l'annonceur"), msg,
+    h("h2", { id: "msg-title" }, "Écrire à l'annonceur"), h("div", { "data-module": "messaging" }, msg), moduleNotice("messaging"),
     h("p", { class: "small muted" }, "Ne versez aucun acompte avant la visite et le contrôle du document."),
     h("div", { class: "row" }, h("button", { class: "btn btn-quiet", value: "cancel" }, "Annuler"),
-      h("button", { class: "btn btn-primary", type: "button", onClick: async () => {
+      h("button", { class: "btn btn-primary", type: "button", "data-module": "messaging", onClick: async () => {
         try { const r = await api(`/listings/${encodeURIComponent(id)}/messages`, { method: "POST", body: { body: msg.value } }); msgDialog.close(); toast("Message envoyé."); location.hash = `#/boite/${r.threadId}`; } catch (error) { fail(error); }
       } }, "Envoyer"))));
   const when = h("input", { class: "input", type: "datetime-local", "aria-label": "Date et heure proposées" });

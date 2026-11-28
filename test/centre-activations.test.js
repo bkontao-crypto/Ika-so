@@ -59,7 +59,7 @@ test("Centre des activations : droits, lecture sans écriture, effets, garde-fou
     const first = await get();
     assert.deepEqual(await state(), before);
     assert.deepEqual(first.history, []);
-    for (const [key, enabled] of Object.entries({ crm: true, premium: true, discover: true, alerts: true, videoLinks: false, advertiserApplication: true, onlinePayment: false, starBadge: false, whatsappDecision: false, analytics: true, securityLog: true, preferences: false })) {
+    for (const [key, enabled] of Object.entries({ crm: true, premium: true, discover: true, alerts: true, videoLinks: false, advertiserApplication: true, onlinePayment: false, starBadge: false, whatsappDecision: false, analytics: true, securityLog: true, preferences: false, comments: true, reviews: true, messaging: true })) {
       assert.equal(find(first, key).enabled, enabled, key);
     }
 
@@ -74,7 +74,7 @@ test("Centre des activations : droits, lecture sans écriture, effets, garde-fou
     assert.deepEqual(await state(), before);
 
     // Chaque interrupteur disponible : aller, vérification, retour.
-    for (const key of ["crm", "premium", "discover", "alerts", "videoLinks", "advertiserApplication", "starBadge", "analytics", "securityLog", "preferences"]) {
+    for (const key of ["crm", "premium", "discover", "alerts", "videoLinks", "advertiserApplication", "starBadge", "analytics", "securityLog", "preferences", "comments", "reviews", "messaging"]) {
       const initial = find(first, key).enabled;
       for (const value of [!initial, initial]) {
         const r = await flip(key, value);
@@ -105,7 +105,7 @@ test("Centre des activations : droits, lecture sans écriture, effets, garde-fou
     assert.equal(history[0].key, "premium");
     assert.equal(history[0].enabled, false);
     assert.equal(history[0].by, "Essai patron");
-    assert.equal((await db.query("select count(*)::int as n from ika_moderation_audit where action = 'ACTIVATION_CHANGE'"))[0].n, 24);
+    assert.equal((await db.query("select count(*)::int as n from ika_moderation_audit where action = 'ACTIVATION_CHANGE'"))[0].n, 30);
 
     // Variable d'hébergeur prioritaire ; fournisseur présent → le paiement peut s'ouvrir ; aucune clé exposée.
     const other = await start({ ANALYTICS_ENABLED: "false", PAYMENT_PROVIDER: "fake", PAYMENT_WEBHOOK_SECRET: "secret-a-ne-pas-montrer" });

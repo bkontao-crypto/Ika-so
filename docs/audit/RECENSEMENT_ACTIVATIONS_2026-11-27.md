@@ -54,3 +54,6 @@ La suite automatisée (570/570 lors de l’audit) couvre une partie des parcours
 2. Rendre réelles les coupures CRM et Premium (contrôle côté serveur).
 3. Créer un « centre des activations » (Super Admin) : état, coupure côté serveur, journal des changements, dernière vérification.
 4. Ajouter progressivement les coupures manquantes, en laissant activé par défaut ce qui l’est aujourd’hui. La sauvegarde automatique ne devrait pas être traitée comme une fonctionnalité à couper.
+
+## Mise à jour du 28 novembre 2026
+Messagerie, commentaires et avis ont désormais un interrupteur au Centre des activations (activés par défaut ; branche `feature/interrupteurs-communaute`). La liste « sans interrupteur » ci-dessus est à lire sans ces trois éléments.

@@ -1,7 +1,7 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 28 novembre 2026 (UTC) — fusion du centre des activations
-- Branche : `main` (fusion de `feature/centre-activations` sur accord du propriétaire ; retour arrière : `git revert -m 1 <commit de fusion>`)
+- Mise à jour : 28 novembre 2026 (UTC) — interrupteurs commentaires, avis, messagerie
+- Branche : `main` (fusion de `feature/interrupteurs-communaute` sur accord du propriétaire ; retour arrière : `git revert -m 1 <commit de fusion>`)
 - Statut : fusionné ; contrôle en ligne à faire
 
 ## Déclaration du propriétaire
@@ -10,19 +10,26 @@
 Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation juridique ni une preuve que les fonctionnalités sont éteintes.
 
 ## Dernière intervention
-Owner Center → Paramètres du site → **Centre des activations** (Super Admin).
-- Fichiers : `server/services/activations.js`, `public/js/owner/v-activations.js`, `test/centre-activations.test.js`, routes `GET /staff/owner/activations` et `PUT …/:key`, menu, style, matrice des droits (46 segments), `analytics.setSetting`.
-- 12 bascules via les services existants, avec confirmation. Couper reste possible ; allumer est refusé sans configuration (paiement en ligne, WhatsApp) ou si `ANALYTICS_ENABLED=false`.
-- Consultation seule : offres, boosts, pixels, double authentification obligatoire, présence des fournisseurs (aucune clé affichée).
-- Historique : changements faits depuis le centre uniquement (30 derniers).
+Trois interrupteurs ajoutés au Centre des activations (15 au total), activés par défaut, bloqués par le serveur (403), sans suppression de données ni migration. Clés : `main.modules.comments|reviews|messaging`.
+
+| Coupé | Bloqué | Reste ouvert |
+|---|---|---|
+| Commentaires | publier (annonces, publications) | lire, signaler, modérer |
+| Avis | publier, modifier, répondre | lire, supprimer son avis ou sa réponse, signaler, modérer |
+| Messagerie | écrire depuis une annonce, répondre, « Contacter » de Découvrir | lire, bloquer, débloquer, signaler |
+
+- La coupure vaut aussi pour le Super Admin. Non concernés : réclamations, réponses aux demandes annonceur, boîte WhatsApp, formulaire d’accueil.
+- Écrans : saisie remplacée par un message. Les boutons « Écrire » et « Donner mon avis » restent et mènent à ce message.
+- Le serveur coupe immédiatement ; l’écran public suit après rechargement de la page (réglages en cache 60 s).
 
 ### Vérifications
-- Suite complète 572/572, relancée après la dernière retouche de l’écran.
-- Chromium, base jetable : confirmation, annulation, coupure et réactivation CRM, historique, 1366 px et 390 px sans débordement ni erreur.
-- Non vérifié : production, fournisseurs réels, autres bascules cliquées au navigateur (couvertes par le test API).
+- Suite complète 573/573 ; nouveau test `test/interrupteurs-communaute.test.js`, qui échoue si un blocage est retiré.
+- Chromium, base jetable : activé, coupé (1366 px et 390 px), réactivé (390 px), sans débordement. Seule erreur : image d’essai absente (404).
+- Après fusion : 573/573 ; marge du message revue au navigateur (boîte et conversation).
+- Non vérifié : production.
 
 ## Intervention précédente
-Coupures CRM et Premium et audit fusionnés dans `main` (`8bbaf6f`). Refonte de la fiche annonce (`aad948f`, autre agent). Contrôle en ligne non confirmé.
+Centre des activations fusionné dans `main` (`50bec85`). Coupures CRM et Premium fusionnées (`8bbaf6f`). Contrôle en ligne non confirmé.
 
 ## Points ouverts prioritaires
 1. Avant lancement : désactiver ce qui n’est pas autorisé (principe 8). Tout n’a pas encore d’interrupteur confirmé ; aucun recensement complet fait.

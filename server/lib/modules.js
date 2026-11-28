@@ -6,6 +6,9 @@ import { forbidden } from "./errors.js";
 export const MODULE_CLOSED = Object.freeze({
   crm: "Le module CRM est désactivé pour le moment.",
   premium: "L'offre Premium est désactivée pour le moment.",
+  comments: "Les nouveaux commentaires sont désactivés pour le moment.",
+  reviews: "Les nouveaux avis et réponses sont désactivés pour le moment.",
+  messaging: "L'envoi de messages est désactivé pour le moment.",
 });
 
 export function createModules(superadminSettings) {
