@@ -1,15 +1,22 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 28 novembre 2026 (UTC) — interrupteurs commentaires, avis, messagerie
-- Branche : `main` (fusion de `feature/interrupteurs-communaute` sur accord du propriétaire ; retour arrière : `git revert -m 1 <commit de fusion>`)
-- Statut : fusionné ; contrôle en ligne à faire
+- Mise à jour : 28 novembre 2026 (UTC) — Phase 0 du système économique (audit)
+- Branche : `feature/systeme-economique-ika-so`, créée depuis `main` `eff3d40` (non fusionnée)
+- Statut : audit terminé ; Phase 1 en attente des décisions A à D
+
+## Mission en cours : système économique (cahier d'ordonnance v1.0 du 28/11/2026)
+- Livrable Phase 0 : `AUDIT_SYSTEME_ECONOMIQUE.md` (cartographie des 12 modules, risques, architecture cible, migrations 096+).
+- Aucun code modifié. Tests de référence : 544 réussis, 0 échec, 29 ignorés (PostgreSQL absent).
+- Règle absolue : toute monétisation fermée par défaut ; mécanisme distinct de `server/lib/modules.js` (ouvert par défaut).
+- Décisions attendues : A (Premium/mise à la une payants soumis à l'interrupteur général), B (« propriétaire professionnel »), C (fusion par phase), D (démarrer par la Phase 1).
+- Prochaine tâche exacte : après décisions, Phase 1 — `server/lib/monetization-policy.js` (règle pure + tests), migration 096 (configuration à `false`, permissions économiques), correction du repli permissif `payments.js:21`, écran « Gestion économique » minimal.
 
 ## Déclaration du propriétaire
 > « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
 
 Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation juridique ni une preuve que les fonctionnalités sont éteintes.
 
-## Dernière intervention
+## Intervention précédente (interrupteurs communauté)
 Trois interrupteurs ajoutés au Centre des activations (15 au total), activés par défaut, bloqués par le serveur (403), sans suppression de données ni migration. Clés : `main.modules.comments|reviews|messaging`.
 
 | Coupé | Bloqué | Reste ouvert |

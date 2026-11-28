@@ -139,3 +139,12 @@ Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et
 - citer les preuves disponibles ;
 - mettre à jour `ETAT_REPRISE_AGENT.md` ;
 - ne jamais transformer une hypothèse en fait vérifié.
+
+
+## Système économique (cahier d'ordonnance v1.0, 28/11/2026)
+
+| Phase | Statut | Preuve / limite |
+|---|---|---|
+| 0 — Audit | TERMINÉ ET VÉRIFIÉ | `AUDIT_SYSTEME_ECONOMIQUE.md` ; lecture du code sur `eff3d40` ; `npm test` 544/0/29 ignorés |
+| 1 — Architecture (Monetization Manager, configuration OFF) | BLOQUÉ | Décisions A à D du propriétaire (§6 de l'audit) |
+| 2 à 7 | À FAIRE | — |
