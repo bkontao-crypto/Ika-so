@@ -8,6 +8,7 @@ import { stars } from "/js/components/stars.js";
 import { KIND_LABELS, loadDiscoverCss, photoGrid, videoCard } from "/js/components/post-composer.js";
 import { socialBar } from "/js/components/social.js";
 import { brand } from "../core/brand.js";
+import { moduleNotice } from "/js/components/module-notice.js";
 
 const REVIEW_REASONS = ["Insulte ou propos haineux", "Avis faux ou sans échange réel", "Information privée (numéro, adresse)", "Autre"];
 const REPORT_REASONS = ["Arnaque ou demande d'acompte", "Annonce trompeuse ou bien inexistant", "Faux profil ou usurpation d'identité", "Harcèlement ou insultes", "Autre"];
@@ -59,7 +60,7 @@ export async function advertiserPage(id) {
     h("p", { class: "pa-about" }, r.body),
     r.reply ? h("div", { class: "pa-reply" }, h("small", null, h("strong", null, "Réponse de l'annonceur"), ` · ${formatDate(r.reply.at)}`), h("p", { class: "pa-about" }, r.reply.body)) : null,
     p.viewer.self ? h("div", { class: "pa-row" },
-      h("button", { class: "btn", type: "button", onClick: () => replyTo(r) }, r.reply ? "Modifier ma réponse" : "Répondre"),
+      h("button", { class: "btn", type: "button", "data-module": "reviews", onClick: () => replyTo(r) }, r.reply ? "Modifier ma réponse" : "Répondre"),
       r.reply ? h("button", { class: "btn", type: "button", onClick: () => run(async () => { await api(`/reviews/${encodeURIComponent(r.id)}/reply/delete`, { method: "POST", body: {} }); await reload(); }) }, "Retirer ma réponse") : null) : null,
     h("div", { class: "pa-review-foot" }, h("small", null, formatDate(r.createdAt)),
       S.user && !p.viewer.self ? h("button", { class: "pa-link", type: "button", "aria-label": `Signaler l'avis de ${r.author}`, onClick: () => reportReview(r.id) }, "Signaler") : null));
@@ -192,8 +193,9 @@ export async function advertiserPage(id) {
       } }, String(n))));
       form = h("form", { class: "pa-stack", onSubmit: (e) => { e.preventDefault(); if (!rating) return toast("Choisissez une note de 1 à 5.", true); run(async () => { await api(`/advertisers/${encodeURIComponent(p.id)}/reviews`, { method: "POST", body: { rating, body: body.value } }); await reload(); }, "Avis enregistré."); } },
         p.viewer.mine?.hidden ? h("p", { class: "pa-banner" }, "Votre avis a été masqué par la modération.") : null,
-        h("p", { class: "pa-muted" }, "Votre note (1 = très mauvais, 5 = excellent)"), picker, field("Votre avis", body),
-        h("div", { class: "pa-row" }, h("button", { class: "btn btn-primary", type: "submit" }, p.viewer.mine ? "Modifier mon avis" : "Publier mon avis"),
+        h("div", { class: "pa-stack", "data-module": "reviews" }, h("p", { class: "pa-muted" }, "Votre note (1 = très mauvais, 5 = excellent)"), picker, field("Votre avis", body)),
+        moduleNotice("reviews"),
+        h("div", { class: "pa-row" }, h("button", { class: "btn btn-primary", type: "submit", "data-module": "reviews" }, p.viewer.mine ? "Modifier mon avis" : "Publier mon avis"),
           p.viewer.mine ? h("button", { class: "btn", type: "button", onClick: () => run(async () => { await api(`/advertisers/${encodeURIComponent(p.id)}/reviews/delete`, { method: "POST", body: {} }); await reload(); }, "Avis supprimé.") }, "Supprimer mon avis") : null));
     }
     const list = h("div", { class: "pa-stack" });

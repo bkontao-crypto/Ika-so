@@ -21,7 +21,7 @@ export function applySettings(s) {
   }
 }
 
-// Masque les éléments portant data-module="crm|map|premium|whatsapp" désactivés, ainsi que les liens vers ces modules.
+// Masque les éléments portant data-module="<clé>" quand la clé est désactivée, ainsi que les liens vers ces modules.
 // Simple confort d'affichage : la vraie coupure (CRM, Premium) est faite par le serveur.
 const MODULE_LINKS = {
   crm: 'a[href^="/crm-leads"]',
@@ -37,6 +37,8 @@ export function applyModuleFlags(modules) {
     if (!wanted.has(el)) { el.removeAttribute("data-module-off"); el.hidden = false; el.style.display = ""; }
   });
   wanted.forEach((el) => { el.setAttribute("data-module-off", ""); el.hidden = true; el.style.display = "none"; });
+  // Messages « fonction désactivée » : cachés par défaut, montrés seulement quand le module est coupé.
+  document.querySelectorAll("[data-module-closed]").forEach((el) => { const show = modules[el.getAttribute("data-module-closed")] === false; if (el.hidden === show) el.hidden = !show; });
 }
 
 let currentModules = null;

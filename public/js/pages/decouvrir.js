@@ -3,6 +3,7 @@ import { CATEGORIES, api, fail, h, mount, toast } from "/js/dom.js";
 import { app } from "/js/core/state.js";
 import { needLogin } from "/js/core/router.js";
 import { icon } from "/js/icons.js";
+import { moduleNotice } from "/js/components/module-notice.js";
 import { ago, avatar } from "/js/components/espace.js";
 import { KIND_LABELS, loadDiscoverCss, photoGrid, postComposer, sharedCard, videoCard } from "/js/components/post-composer.js";
 import { openLightbox, socialBar } from "/js/components/social.js";
@@ -14,10 +15,10 @@ const REASONS = ["Annonce déguisée ou publicité", "Arnaque ou demande d'argen
 function contactDialog(item) {
   const msg = h("textarea", { class: "input", rows: "4", maxlength: "1000", "aria-label": "Votre message", placeholder: item.kind === "RECHERCHE" ? "Bonjour, j'ai un bien qui pourrait vous convenir…" : "Bonjour, je suis intéressé(e) par votre publication…" });
   const dialog = h("dialog", { "aria-labelledby": "dc-msg-title" }, h("form", { class: "pad stack", method: "dialog" },
-    h("h2", { id: "dc-msg-title" }, `Écrire à ${item.author.name}`), msg,
+    h("h2", { id: "dc-msg-title" }, `Écrire à ${item.author.name}`), h("div", { "data-module": "messaging" }, msg), moduleNotice("messaging"),
     h("p", { class: "small muted" }, "Échangez par la messagerie du site. Ne versez jamais d'argent avant d'avoir vu le bien et contrôlé les documents."),
     h("div", { class: "row" }, h("button", { class: "btn btn-quiet", value: "cancel" }, "Annuler"),
-      h("button", { class: "btn btn-primary", type: "button", onClick: async () => {
+      h("button", { class: "btn btn-primary", type: "button", "data-module": "messaging", onClick: async () => {
         try { const r = await api(`/discover/${encodeURIComponent(item.id)}/contact`, { method: "POST", body: { body: msg.value } }); dialog.close(); toast("Message envoyé."); location.hash = `#/boite/${r.threadId}`; } catch (error) { fail(error); }
       } }, "Envoyer"))));
   return dialog;

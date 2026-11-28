@@ -9,7 +9,7 @@ export function publicView(main) {
   if (typeof m.welcome_subtitle === "string") out.welcome_subtitle = m.welcome_subtitle.slice(0, 300);
   if (m.modules && typeof m.modules === "object") {
     out.modules = {};
-    for (const k of ["crm", "map", "premium", "whatsapp"]) if (typeof m.modules[k] === "boolean") out.modules[k] = m.modules[k];
+    for (const k of ["crm", "map", "premium", "whatsapp", "comments", "reviews", "messaging"]) if (typeof m.modules[k] === "boolean") out.modules[k] = m.modules[k];
   }
   if (m.colors && typeof m.colors === "object") {
     out.colors = {};

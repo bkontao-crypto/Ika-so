@@ -41,6 +41,10 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   const moduleGate = (key) => async (_req, _res, next) => { await services.modules.assertOpen(key); next(); };
   router.use(["/me/crm", "/me/whatsapp"], moduleGate("crm"));
   const premiumGate = moduleGate("premium"); // placé sur chaque route concernée
+  // Commentaires, avis, messagerie : seuls la publication et l'envoi sont fermés. Lecture, suppression, signalement, blocage et modération restent ouverts.
+  const commentsGate = moduleGate("comments");
+  const reviewsGate = moduleGate("reviews");
+  const messagingGate = moduleGate("messaging");
   // Restent ouverts quand Premium est coupé : historique, factures, retrait d'une demande, webhook du fournisseur, traitement par l'équipe.
 
   // Images publiques stockées durablement dans PostgreSQL/Neon, jamais sur le disque éphémère Render.
@@ -631,7 +635,7 @@ router.get("/listings/:id", async (req, res) => {
     res.json(out);
   });
 
-  router.post("/listings/:id/comments", async (req, res) => {
+  router.post("/listings/:id/comments", commentsGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`comment:${userId}`, 10, 10 * 60_000);
     const comment = await listings.addComment(userId, id(req), clean(req.body?.body, 1000));
@@ -744,7 +748,7 @@ router.get("/listings/:id", async (req, res) => {
     res.json(await services.social.toggleLike(userId, String(req.params.type).toUpperCase(), id(req)));
   });
   router.get("/social/:type/:id/comments", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.social.listComments(req.user?.id ?? null, String(req.params.type).toUpperCase(), id(req))); });
-  router.post("/social/:type/:id/comments", async (req, res) => {
+  router.post("/social/:type/:id/comments", commentsGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`comment:${userId}`, 10, 10 * 60_000);
     res.status(201).json(await services.social.addComment(userId, String(req.params.type).toUpperCase(), id(req), clean(req.body?.body, 1000)));
@@ -760,7 +764,7 @@ router.get("/listings/:id", async (req, res) => {
     const photos = Array.isArray(req.body?.photos) ? req.body.photos.slice(0, 7).map((x) => String(x)) : [];
     res.status(201).json(await services.discover.create(userId, { content: clean(req.body?.content, 2000), kind: clean(req.body?.kind, 20), category: clean(req.body?.category, 40), zone: clean(req.body?.zone, 80), photos, videoUrl: clean(req.body?.videoUrl, 300) }));
   });
-  router.post("/discover/:id/contact", async (req, res) => {
+  router.post("/discover/:id/contact", messagingGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`disccontact:${userId}`, 30, 60 * 60_000);
     res.status(201).json(await services.discover.contact(userId, id(req), clean(req.body?.body, 1000)));
@@ -800,7 +804,7 @@ router.get("/listings/:id", async (req, res) => {
   router.post("/me/services/:id/delete", async (req, res) => res.json(await reviews.deleteService(requireUser(req), id(req))));
   router.get("/advertisers/:id/reviews", async (req, res) =>
     res.json(await reviews.listReviews(id(req), clean(req.query?.kind, 10), { limit: Number(req.query?.limit), offset: Number(req.query?.offset) })));
-  router.post("/advertisers/:id/reviews", async (req, res) => {
+  router.post("/advertisers/:id/reviews", reviewsGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`review:${userId}`, 10, 60 * 60_000);
     res.status(201).json(await reviews.submitReview(userId, id(req), { rating: req.body?.rating, body: req.body?.body }));
@@ -845,7 +849,7 @@ router.get("/listings/:id", async (req, res) => {
     res.status(201).json(out);
   });
   router.post("/advertisers/:id/reviews/delete", async (req, res) => res.json(await reviews.deleteMyReview(requireUser(req), id(req))));
-  router.post("/reviews/:id/reply", async (req, res) => {
+  router.post("/reviews/:id/reply", reviewsGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`rvreply:${userId}`, 20, 60 * 60_000);
     res.json(await reviews.replyToReview(userId, id(req), req.body?.body));
@@ -935,7 +939,7 @@ router.get("/listings/:id", async (req, res) => {
   router.get("/me/notifications", async (req, res) => res.json(await engagement.notifications(requireUser(req))));
   router.get("/me/unread", async (req, res) => res.json(await engagement.unreadCounts(requireUser(req))));
   router.post("/me/notifications/read", async (req, res) => res.json(await engagement.markRead(requireUser(req), clean(req.body?.id, 80))));
-  router.post("/listings/:id/messages", async (req, res) => {
+  router.post("/listings/:id/messages", messagingGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`msg:${userId}`, 30, 60 * 60_000);
     const sent = await engagement.sendToListing(userId, id(req), clean(req.body?.body, 1000));
@@ -945,7 +949,7 @@ router.get("/listings/:id", async (req, res) => {
   });
   router.get("/me/threads", async (req, res) => res.json(await engagement.threads(requireUser(req))));
   router.get("/me/threads/:id", async (req, res) => res.json(await engagement.thread(requireUser(req), id(req))));
-  router.post("/me/threads/:id/messages", async (req, res) => {
+  router.post("/me/threads/:id/messages", messagingGate, async (req, res) => {
     const userId = requireUser(req);
     limiter.hit(`msg:${userId}`, 30, 60 * 60_000);
     const sent = await engagement.reply(userId, id(req), clean(req.body?.body, 1000));

@@ -125,6 +125,8 @@ Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et
 
 - 28 novembre 2026 : fusion de `feature/centre-activations` (`942a4ca`) dans `main` (base `8bbaf6f`), sans conflit, sur accord du propriétaire. Sans migration. Production non vérifiée.
 
+- 28 novembre 2026 : interrupteurs commentaires, avis, messagerie (branche `feature/interrupteurs-communaute`, depuis `main` `50bec85`, non fusionnée). Activés par défaut ; seules la publication et l’envoi sont bloqués côté serveur ; aucune migration ni suppression. Fichiers : `server/lib/modules.js`, `server/routes/index.js`, `server/services/{activations,superadmin-settings}.js`, `public/js/bootstrap-settings.js`, `public/js/components/{module-notice,social}.js`, `public/js/pages/{listing,advertiser,inbox,decouvrir}.js`, `public/css/ika.css`, tests. `npm test` 573/573 et `stamp-sw:check` ; recette Chromium des deux états. Production non vérifiée.
+
 ## 8. Règles de mise à jour
 
 À chaque intervention significative :
