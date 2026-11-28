@@ -31,6 +31,9 @@ Trois interrupteurs ajoutés au Centre des activations (15 au total), activés p
 ## Intervention précédente
 Centre des activations fusionné dans `main` (`50bec85`). Coupures CRM et Premium fusionnées (`8bbaf6f`). Contrôle en ligne non confirmé.
 
+## Décision attendue : consentement à l’inscription
+Note : `docs/audit/OPTIONS_CONSENTEMENT_2026-11-28.md` (branche `docs/options-consentement`, documents seuls). Options A à D ; proposition : B maintenant (conserver un choix existant), puis C ou D après avis du juriste. Ne rien coder sans accord.
+
 ## Points ouverts prioritaires
 1. Avant lancement : désactiver ce qui n’est pas autorisé (principe 8). Tout n’a pas encore d’interrupteur confirmé ; aucun recensement complet fait.
 2. Consentement à l’inscription sans refus distinct : à traiter avec le juriste avant lancement.

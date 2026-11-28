@@ -129,6 +129,8 @@ Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et
 
 - 28 novembre 2026 : fusion de `feature/interrupteurs-communaute` (`5f8fca2`) dans `main` (base `50bec85`), sans conflit, sur accord du propriétaire. Sans migration. Production non vérifiée.
 
+- 28 novembre 2026 : note `docs/audit/OPTIONS_CONSENTEMENT_2026-11-28.md` (branche `docs/options-consentement`, depuis `main` `eff3d40`). Documents seuls, aucun code modifié. Défaut relevé : « Continuer » et « Continuer avec Google » (même en connexion) remplacent un refus enregistré sur l’appareil. Décision attendue.
+
 ## 8. Règles de mise à jour
 
 À chaque intervention significative :
