@@ -7,7 +7,15 @@ import { linkBar } from "/js/components/profile-tabs.js";
 import { mfaSecurityCard } from "/js/components/mfa-security.js";
 import { brand, brandSlug } from "../core/brand.js";
 
-const STATUS_LABEL = { PENDING: "En attente", PUBLISHED: "En ligne", REJECTED: "Refusée", SOLD: "Vendue", RENTED: "Louée", ARCHIVED: "Archivée", EXPIRED: "Expirée", DRAFT: "Brouillon" };
+const STATUS_LABEL = { PENDING: "En attente", SCHEDULED: "Programmée", PUBLISHED: "En ligne", REJECTED: "Refusée", SOLD: "Vendue", RENTED: "Louée", ARCHIVED: "Archivée", EXPIRED: "Expirée", DRAFT: "Brouillon" };
+const DAY = 86_400_000;
+const dayStr = (ms) => new Date(ms).toISOString().slice(0, 10); // jours UTC = jours du Mali (UTC+0)
+const CONFIRM = {
+  SOLD: "Confirmez-vous que ce bien a été vendu ?",
+  RENTED: "Confirmez-vous que ce bien a été loué ?",
+  ARCHIVED: "Archiver cette annonce ? Elle ne sera plus visible publiquement et restera dans vos archives.",
+  RENEW: "Confirmez-vous la nouvelle date d'expiration ?",
+};
 
 /** Consentement explicite à la newsletter (facultatif, non précoché, retirable à tout moment). */
 function newsletterCard() {
@@ -38,12 +46,29 @@ function centreCard(access) {
 
 export async function minePage() {
   if (needLogin()) return;
-  async function act(id, outcome) {
-    try { await api(`/listings/${encodeURIComponent(id)}/outcome`, { method: "POST", body: { outcome } }); toast("Annonce mise à jour."); minePage(); } catch (error) { fail(error); }
+  // Vendu / Louée / Archiver / Prolonger : confirmation avant validation ; les règles (30 jours au plus…) sont revérifiées par le serveur.
+  async function act(id, outcome, extra = {}) {
+    if (CONFIRM[outcome] && !window.confirm(CONFIRM[outcome])) return;
+    try { await api(`/listings/${encodeURIComponent(id)}/outcome`, { method: "POST", body: { outcome, ...extra } }); toast("Annonce mise à jour."); minePage(); } catch (error) { fail(error); }
   }
   const items = await api("/me/listings");
+  const maxExt = Math.min(Number((await api("/me/expiry-alerts").catch(() => ({}))).maxExtensionDays) || 30, 30);
   const proofs = await api("/me/proofs").catch(() => []);
   const featured = await api("/me/featured-requests").catch(() => []);
+  // Prolongation : le propriétaire choisit une nouvelle date de fin, 30 jours au plus à partir d'aujourd'hui.
+  function extendParts(item) {
+    if (!["PUBLISHED", "EXPIRED"].includes(item.status)) return [];
+    const date = h("input", { class: "input", type: "date", "aria-label": "Nouvelle date de fin", min: dayStr(Date.now() + DAY), max: dayStr(Date.now() + maxExt * DAY), value: dayStr(Date.now() + maxExt * DAY) });
+    const box = h("div", { class: "card pad stack", style: "width:100%" },
+      h("strong", null, "Prolonger la publication"),
+      h("p", { class: "small muted" }, `Choisissez la nouvelle date de fin : ${maxExt} jours au maximum à partir d'aujourd'hui.`),
+      date,
+      h("div", { class: "row" },
+        h("button", { class: "btn btn-primary", type: "button", onClick: () => act(item.id, "RENEW", { until: date.value }) }, "Valider la nouvelle date"),
+        h("button", { class: "btn", type: "button", onClick: () => { box.hidden = true; } }, "Annuler")));
+    box.hidden = true;
+    return [h("button", { class: "btn btn-small", type: "button", onClick: () => { box.hidden = !box.hidden; } }, "Prolonger"), box];
+  }
   // Mise à la une sans formule payante : demande gratuite envoyée directement à l'équipe (aucun paiement).
   function featuredParts(item) {
     if (item.status !== "PUBLISHED" || offers.length) return [];
@@ -99,7 +124,8 @@ export async function minePage() {
     items.length ? null : h("p", { class: "card pad muted" }, "Vous n'avez pas encore déposé d'annonce."),
     h("ul", { class: "stack" }, items.map((item) => {
       const left = item.expiresAt ? daysLeft(item.expiresAt) : null;
-      const expired = item.status === "PUBLISHED" && left != null && left <= 0;
+      const expired = item.status === "EXPIRED" || (item.status === "PUBLISHED" && left != null && left <= 0);
+      const markable = ["PUBLISHED", "EXPIRED"].includes(item.status);
       const btn = (label, onClick, cls = "") => h("button", { class: `btn btn-small ${cls}`, type: "button", onClick }, label);
       return h("li", { class: "card list-item" },
         h("img", { src: item.imageUrl, alt: "" }),
@@ -107,8 +133,9 @@ export async function minePage() {
           h("span", { class: "pill pill-gold" }, expired ? "Expirée" : STATUS_LABEL[item.status] ?? item.status),
           h("h2", null, item.title),
           h("p", { class: "small muted" }, `${formatPrice(item.price, item.transactionType)} · ${item.neighborhood}`),
-          item.status === "PUBLISHED" && left != null
-            ? h("p", { class: "small" }, left <= 0 ? "Plus visible : les 45 jours sont passés. Prolongez pour la remettre en ligne." : left <= 7 ? `Visible encore ${left} jour(s).` : null) : null,
+          expired ? h("p", { class: "small" }, "Plus visible : la date de fin de publication est passée. Prolongez (30 jours au plus), marquez-la ou archivez-la ; sans action, elle sera archivée automatiquement.")
+            : item.status === "PUBLISHED" && left != null && left <= 7 ? h("p", { class: "small" }, `Visible encore ${left} jour(s).`) : null,
+          item.status === "SCHEDULED" ? h("p", { class: "small" }, "Validée : elle sera visible à sa date de début.") : null,
           item.moderationNote ? h("p", { class: "small" }, `Motif : ${item.moderationNote}`) : null,
           item.documentVerified ? h("p", { class: "small" }, "Titre foncier contrôlé par l'équipe") : null,
           proofs.filter((p) => p.listingId === item.id).slice(0, 1).map((p) => h("p", { class: "small" }, `Justificatif : ${PROOF[p.status]}${p.note ? ` — ${p.note}` : ""}`))),
@@ -118,8 +145,8 @@ export async function minePage() {
           ["PUBLISHED", "REJECTED", "EXPIRED", "PENDING"].includes(item.status) ? h("a", { class: "btn btn-small", href: `#/modifier/${encodeURIComponent(item.id)}` }, "Modifier") : null,
           item.status === "PUBLISHED" && offers.length ? btn("Mettre à la une", () => boost(item.id), "btn-gold") : null,
           ...featuredParts(item),
-          item.status === "PUBLISHED" ? btn("Prolonger 45 jours", () => act(item.id, "RENEW")) : null,
-          item.status === "PUBLISHED" ? btn(item.transactionType === "Location" ? "Marquer loué" : "Marquer vendu", () => act(item.id, item.transactionType === "Location" ? "RENTED" : "SOLD")) : null,
+          ...extendParts(item),
+          markable ? btn(item.transactionType === "Location" ? "Marquer loué" : "Marquer vendu", () => act(item.id, item.transactionType === "Location" ? "RENTED" : "SOLD")) : null,
           item.status === "REJECTED" || item.status === "EXPIRED" ? btn("Renvoyer", () => act(item.id, "RESUBMIT"), "btn-primary") : null,
           ["PUBLISHED", "PENDING"].includes(item.status) && !item.documentVerified
             ? h("label", { class: "btn btn-small" }, "Joindre un justificatif", h("input", { class: "sr-only", type: "file", accept: "image/*,application/pdf", "aria-label": `Justificatif pour ${item.title}`, onChange: (e) => sendProof("DOCUMENT_FONCIER", item.id, e.target.files?.[0]) })) : null,
@@ -245,4 +272,3 @@ export async function accountSettings(refresh = () => {}, { embedded = false } =
       { label: "Se déconnecter", danger: true, onClick: async () => { await api("/auth/logout", { method: "POST", body: {} }); clearSession(); toast("Déconnecté."); go("/"); } },
     ] }).node);
 }
-
