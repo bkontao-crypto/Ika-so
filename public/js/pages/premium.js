@@ -41,6 +41,13 @@ export async function premiumPage() {
   const from = currentRoute().params.get("from") || "";
   if (from && from !== "page-premium") api("/premium/click", { method: "POST", body: { from } }).catch(() => {});
   const access = S.user ? await api("/me/center/access").catch(() => null) : null;
+  const closed = access?.moduleOpen === false || (!access && (await api("/superadmin-settings/public").catch(() => null))?.modules?.premium === false);
+  if (closed) {
+    mount(app, h("section", { class: "card pad stack" }, h("h1", { class: "title" }, "Premium indisponible"),
+      h("p", null, "L'offre Premium est désactivée pour le moment."),
+      h("a", { class: "btn", href: "#/annonces" }, "Voir les annonces")));
+    return;
+  }
   const phoneOk = Boolean(access?.phoneVerified); const premium = Boolean(access?.premium);
   // Formules Premium payables en ligne (vide si les paiements ne sont pas ouverts ou si aucun prix n'est fixé).
   const offers = S.user ? ((await api("/offers").catch(() => ({ offers: [] }))).offers ?? []).filter((o) => o.kind === "PREMIUM") : [];

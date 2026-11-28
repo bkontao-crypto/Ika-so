@@ -1,40 +1,42 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 27 novembre 2026, 23 h (Africa/Bamako)
-- Branche : `main` (fusion directe, règle du propriétaire ; retour arrière possible par `git revert`)
-- Statut : prêt à valider sur le site
+- Mise à jour : 28 novembre 2026 (UTC) — fusion des coupures CRM et Premium et de l’audit
+- Branche : `main` (fusion de `fix/modules-crm-premium` sur accord du propriétaire ; retour arrière : `git revert -m 1 <commit de fusion>`)
+- Statut : fusionné ; contrôle en ligne à faire
+
+## Déclaration du propriétaire
+> « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
+
+Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation juridique ni une preuve que les fonctionnalités sont éteintes.
 
 ## Dernière intervention
+- `server/lib/modules.js` : coupure lue à chaque requête dans le réglage superadmin `main` ; seul `false` coupe.
+- CRM coupé : `/me/crm/*` et `/me/whatsapp/*` refusés (403), Super Administrateur compris.
+- Premium coupé : `/me/center`, `/me/center/map`, nouvelle demande, achat Premium refusés ; formules retirées de `/offers` ; clic non compté. Mise à la une inchangée.
+- Restent ouverts : espace standard, historique, factures, retrait, webhook, traitement par l’équipe ; dossier d’un client déjà payé. Droits non modifiés (leur durée continue de courir).
+- Non coupés : vues CRM et pipeline internes de l’Owner Center, WhatsApp Business (boîte), attribution manuelle de Premium et approbations par l’équipe, autres avantages hors centre.
+- Si un réglage existant avait déjà `premium` ou `crm` à `false` (ancien masquage), la fusion fermera réellement l’accès : le vérifier avant déploiement.
 
-Refonte de la fiche annonce (`#/annonce/:id`) à l'identique de la maquette « Apartment Details » : galerie mosaïque (1 grande + 5 vignettes, « +N », points, signet favori), titre + adresse + chambres/sanitaires/surface, bouton message, onglets segmentés Détails / Localisation / Galerie, tuiles de caractéristiques, barre de prix fixe avec « Programmer une visite » (ouvre la demande de visite existante). Toutes les fonctions existantes conservées (appel, WhatsApp, signalement, annonceur, historique du prix, commentaires, annonces similaires). Carte chargée à l'ouverture de l'onglet Localisation ; sinon quartier affiché.
+### Vérifications de la branche avant fusion
+- Suite complète : 571/571, cinq passages consécutifs après correction d’un nettoyage instable du nouveau test ; à relancer si le code change.
+- Contrôle négatif : le nouveau test échoue quand le refus est retiré.
+- Chromium (base jetable) : ouvert, coupé par les cases de l’Owner Center, rouvert ; aucune erreur JavaScript relevée.
+- Non vérifié : production, fournisseur de paiement réel, WhatsApp réel, mobile.
 
-## Fichiers modifiés
+## Intervention précédente (autre agent, 27/11 au soir)
+Refonte de la fiche annonce (`#/annonce/:id`, commit `aad948f`) : `public/js/pages/listing.js`, `public/css/fiche-annonce.css`. Rendu en production non vérifié. Bouton « Retour » de la maquette volontairement omis ; champ « équipements » absent de la base (ajout possible sur demande, migration). Détail : `SUIVI_EXECUTION.md`.
 
-- `public/js/pages/listing.js` — nouvelle mise en page
-- `public/css/fiche-annonce.css` — nouveau style (clair/sombre)
-- `public/index.html`, `public/sw.js` — chargement du style + version du cache
-- `public/js/app.js` — retrait de la classe `in-listing` au changement de page
-- `SUIVI_EXECUTION.md` — entrée du 27/11 soir
-
-## Vérifications
-
-- `npm test` : 540 réussis, 0 échec, 25 ignorés
-- Captures Playwright (API simulée) mobile 390 px et bureau 1280 px : conformes, aucune erreur JS
-- Non vérifié : rendu en production avec vraies données
-
-## Intervention précédente
-
-Observatoire du site fusionné (`36ac9f8`) : contrôle en ligne toujours à faire (voir `SUIVI_EXECUTION.md`).
-
-## Points ouverts
-
-- Bouton « Retour » de la maquette omis (décision du 16/11, test `no-back-buttons`).
-- Champ « équipements » (Wi-Fi, parking…) inexistant en base : remplacé par les caractéristiques disponibles. Ajout possible sur demande (migration).
-- Points ouverts antérieurs inchangés (Analytics, test star-badge, MFA, sauvegardes, paiements).
+## Points ouverts prioritaires
+1. Avant lancement : désactiver ce qui n’est pas autorisé (principe 8). Tout n’a pas encore d’interrupteur confirmé ; aucun recensement complet fait.
+2. Consentement à l’inscription sans refus distinct : à traiter avec le juriste avant lancement.
+3. Écarts 3 à 7 de l’audit (portée du choix « Statistiques », chemins, purge, chiffres gonflables, documents périmés).
+4. Corriger le nettoyage de fichiers du test `test/star-badge-pg.test.js`.
+5. Finaliser et tester la récupération MFA Superadmin.
+6. Prouver sauvegarde chiffrée hors serveur et restauration sur base jetable.
+7. Valider les paiements et fournisseurs en réel ; recetter la production.
 
 ## Prochaine tâche exacte
-
-Le propriétaire contrôle une fiche annonce sur https://ika-so.onrender.com après déploiement Render ; corriger ou annuler (`git revert`) selon son retour.
+Après le déploiement, le propriétaire contrôle sur le site : les cases CRM et Premium (Owner Center → Personnalisation du site → Apparence & modules), une fiche annonce et l’Observatoire. Ensuite, à autoriser : centre des activations.
 
 ## Ordre de lecture à la reprise
 

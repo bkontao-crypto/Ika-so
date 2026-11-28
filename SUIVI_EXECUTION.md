@@ -45,7 +45,7 @@ Ne pas attribuer le statut TERMINÉ ET VÉRIFIÉ à partir d'une simple présenc
 
 | Priorité | Constat | Action attendue |
 |---|---|---|
-| Critique avant activation Analytics | Valeur par défaut de collecte possiblement différente entre code et documentation | Comparer le code actuel, corriger l'interrupteur et aligner consentement/documents avant activation |
+| Critique avant lancement | Fonctionnalités activées par défaut pendant le développement (décision du 27/11/2026) ; consentement à l’inscription sans refus distinct (audit) | Vérifier que chaque fonctionnalité est désactivable ; avant lancement, désactiver ce qui n’est pas autorisé |
 | Haute | Récupération MFA Superadmin inachevée | Définir et tester récupération, codes de secours, verrouillage et journalisation |
 | Haute | Sauvegardes hors serveur/restauration non prouvées | Exécuter sauvegarde chiffrée et restauration sur base jetable ; consigner les preuves |
 | Moyenne | Test de nettoyage `stored_files` : `content_type` au lieu de `mime_type`, erreur absorbée | Corriger le nettoyage et ajouter une assertion garantissant l'absence de fichiers résiduels |
@@ -110,6 +110,16 @@ Ne pas supprimer les historiques. Les référentiels à la racine deviennent les
 - 27 novembre 2026 (soir) : **RÉALISÉ, NON VÉRIFIÉ EN PRODUCTION** — refonte de la fiche annonce selon la maquette fournie (galerie mosaïque + signet favori, onglets Détails / Localisation / Galerie, tuiles de caractéristiques, barre fixe « Prix / Programmer une visite »). Fichiers : `public/js/pages/listing.js`, `public/css/fiche-annonce.css` (nouveau), `public/index.html`, `public/sw.js`, `public/js/app.js`. Bouton « Retour » de la maquette volontairement omis (décision du 16/11). Vérifs : `npm test` 540 réussis / 0 échec ; captures Playwright mobile 390 px et bureau 1280 px avec API simulée, aucune erreur JS. Reste : contrôle visuel sur https://ika-so.onrender.com.
 
 - 27 novembre 2026 : fusion de `feature/observatoire` (`f688d9e`) dans `main` (base `3e7a5fa`), sur accord du propriétaire, sans conflit ni migration. Fichiers : `server/services/observatory.js`, `public/js/owner/v-observatory.js`, `public/css/owner-observatory.css`, `test/observatory.test.js`, routes, services, menu, matrice des droits (45 segments). `npm test` : 570 réussis, 0 échec sur le code fusionné ; contrôle Service Worker réussi. Recette Chromium sur la branche (données fictives) : détail dans `Important/SUIVI.md`. Non vérifiés : production, performance sur gros volumes, vrais téléphones. Aucun réglage de collecte modifié. Retour arrière : `git revert -m 1 <commit de fusion>`.
+
+- 27 novembre 2026 : audit de la collecte d’audience (`docs/audit/AUDIT_ANALYTICS_2026-11-27.md`), branche `docs/audit-analytics` depuis `36ac9f8`. Essais HTTP sur base jetable ; aucun code, réglage ou migration modifié ; suite complète : 570/570 réussis. Constat principal : collecte active par défaut. Déclaration du propriétaire sur la conformité juridique ajoutée au cahier des charges.
+
+Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et désactivable pendant le développement ; désactivation avant lancement de ce qui n’est pas autorisé. Principe 8 réécrit. Documents seuls.
+
+- 27 novembre 2026 : recensement des activations (`docs/audit/RECENSEMENT_ACTIVATIONS_2026-11-27.md`) ; essais d’API sur base jetable, aucun code modifié. Constat : plusieurs fonctions éteintes par défaut ; les coupures « Module CRM / Premium » ne ferment pas les API.
+
+- 28 novembre 2026 : coupures CRM et Premium rendues réelles côté serveur (branche `fix/modules-crm-premium`, depuis `docs/audit-analytics`, non fusionnée). Activées par défaut ; aucune migration ni donnée modifiée. Premium coupé : bloque nouvelles demandes, achats et centre ; conserve historique, factures, retrait, webhook, traitement par l’équipe, droits acquis et dossier d’un client ayant déjà payé. Test `test/modules-coupure.test.js` ; suite 571/571 ; recette navigateur Chromium des deux états. Production non touchée.
+
+- 28 novembre 2026 : fusion de `fix/modules-crm-premium` (`4dbe64f`, documents d’audit inclus) dans `main` (base `aad948f`, refonte de la fiche annonce conservée), sur accord du propriétaire. Conflits : fiche de reprise (réunie) et version du Service Worker (régénérée). Sans migration. Production non vérifiée.
 
 ## 8. Règles de mise à jour
 

@@ -99,6 +99,8 @@ export async function crmLeadsPage() {
       }
       listEl.replaceChildren(...sorted.map(leadCard));
     } catch (e) {
+      // Module coupé : on retire la saisie et les filtres au lieu de laisser un écran qui échoue à chaque action.
+      if (e.status === 403 && /CRM est désactivé/.test(e.message)) { root.replaceChildren(root.firstChild, h("p", { class: "notice", role: "status" }, e.message)); return; }
       fail(e);
       statsEl.replaceChildren(h("p", { class: "notice" }, e.message || "Erreur"));
     }

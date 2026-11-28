@@ -137,6 +137,19 @@ export async function devenirPremiumPage() {
       send);
   }
 
+  if (access?.moduleOpen === false) {
+    // Offre coupée : aucune vente ni nouvelle demande ; le suivi de l'existant reste accessible.
+    const owed = premium && request?.status !== "PENDING" && !(request?.status === "APPROVED" && request.paid) && (await api("/me/payments").catch(() => [])).some((p) => p.status === "PAID" && p.kind === "PREMIUM");
+    mount(app, h("section", { class: "dp" },
+      h("header", { class: "dp-hero" }, h("p", { class: "eyebrow" }, "Premium certifié"), h("h1", null, "Premium indisponible"),
+        h("p", { class: "dp-lead" }, "L'offre Premium est désactivée pour le moment. Vos paiements et vos demandes sont conservés.")),
+      request?.status === "PENDING" ? h("section", { class: "card pad stack dp-block" }, h("h2", null, "Ma demande en cours"), pendingBlock(request)) : null,
+      owed ? dossier("Mon dossier de certification", "Votre paiement est enregistré. Si ce n'est pas déjà fait, complétez votre dossier.") : null,
+      historyBlock ? h("section", { class: "card pad stack dp-block" }, historyBlock) : null,
+      h("a", { class: "btn", href: "#/paiements" }, "Mes paiements")));
+    return;
+  }
+
   mount(app,
     h("section", { class: "dp" },
       h("header", { class: "dp-hero" },
