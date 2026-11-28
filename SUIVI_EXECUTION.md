@@ -121,6 +121,8 @@ Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et
 
 - 28 novembre 2026 : fusion de `fix/modules-crm-premium` (`4dbe64f`, documents d’audit inclus) dans `main` (base `aad948f`, refonte de la fiche annonce conservée), sur accord du propriétaire. Conflits : fiche de reprise (réunie) et version du Service Worker (régénérée). Sans migration. Production non vérifiée.
 
+- 28 novembre 2026 : centre des activations (branche `feature/centre-activations`, depuis `main` `8bbaf6f`, non fusionnée). Super Admin seul ; 12 interrupteurs existants repris sans nouvelle règle, ajout d’un bouton pour la collecte d’audience ; historique des changements faits depuis le centre (journal existant) ; aucune migration ; aucune valeur par défaut modifiée. `npm test` 572/572 ; recette Chromium ordinateur et mobile sur base jetable. Production non vérifiée.
+
 ## 8. Règles de mise à jour
 
 À chaque intervention significative :

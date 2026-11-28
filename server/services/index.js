@@ -26,6 +26,7 @@ import { createSuperadminSettings } from "./superadmin-settings.js";
 import { createConsentServicesReader } from "../lib/consent-services.js";
 import { createPayments } from "./payments.js";
 import { createModules } from "../lib/modules.js";
+import { createActivations } from "./activations.js";
 import { createPremiumRequests } from "./premium-requests.js";
 import { createStarBadge } from "./star-badge.js";
 import { createRuleExceptions } from "./rule-exceptions.js";
@@ -103,7 +104,8 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, modules, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  const activations = createActivations({ db, config, accounts, superadminSettings, ruleExceptions, ownerCenter, starBadge, analytics, consentServices, moderationAudit });
+  return { activations, social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, modules, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

@@ -1,8 +1,8 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 28 novembre 2026 (UTC) — fusion des coupures CRM et Premium et de l’audit
-- Branche : `main` (fusion de `fix/modules-crm-premium` sur accord du propriétaire ; retour arrière : `git revert -m 1 <commit de fusion>`)
-- Statut : fusionné ; contrôle en ligne à faire
+- Mise à jour : 28 novembre 2026 (UTC) — centre des activations
+- Branche : `feature/centre-activations`, depuis `main` `8bbaf6f` ; NON fusionnée
+- Statut : terminé et testé ; validation du propriétaire attendue
 
 ## Déclaration du propriétaire
 > « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
@@ -10,21 +10,19 @@
 Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation juridique ni une preuve que les fonctionnalités sont éteintes.
 
 ## Dernière intervention
-- `server/lib/modules.js` : coupure lue à chaque requête dans le réglage superadmin `main` ; seul `false` coupe.
-- CRM coupé : `/me/crm/*` et `/me/whatsapp/*` refusés (403), Super Administrateur compris.
-- Premium coupé : `/me/center`, `/me/center/map`, nouvelle demande, achat Premium refusés ; formules retirées de `/offers` ; clic non compté. Mise à la une inchangée.
-- Restent ouverts : espace standard, historique, factures, retrait, webhook, traitement par l’équipe ; dossier d’un client déjà payé. Droits non modifiés (leur durée continue de courir).
-- Non coupés : vues CRM et pipeline internes de l’Owner Center, WhatsApp Business (boîte), attribution manuelle de Premium et approbations par l’équipe, autres avantages hors centre.
-- Si un réglage existant avait déjà `premium` ou `crm` à `false` (ancien masquage), la fusion fermera réellement l’accès : le vérifier avant déploiement.
+Owner Center → Paramètres du site → **Centre des activations** (Super Admin).
+- Fichiers : `server/services/activations.js`, `public/js/owner/v-activations.js`, `test/centre-activations.test.js`, routes `GET /staff/owner/activations` et `PUT …/:key`, menu, style, matrice des droits (46 segments), `analytics.setSetting`.
+- 12 bascules via les services existants, avec confirmation. Couper reste possible ; allumer est refusé sans configuration (paiement en ligne, WhatsApp) ou si `ANALYTICS_ENABLED=false`.
+- Consultation seule : offres, boosts, pixels, double authentification obligatoire, présence des fournisseurs (aucune clé affichée).
+- Historique : changements faits depuis le centre uniquement (30 derniers).
 
-### Vérifications de la branche avant fusion
-- Suite complète : 571/571, cinq passages consécutifs après correction d’un nettoyage instable du nouveau test ; à relancer si le code change.
-- Contrôle négatif : le nouveau test échoue quand le refus est retiré.
-- Chromium (base jetable) : ouvert, coupé par les cases de l’Owner Center, rouvert ; aucune erreur JavaScript relevée.
-- Non vérifié : production, fournisseur de paiement réel, WhatsApp réel, mobile.
+### Vérifications
+- Suite complète 572/572, relancée après la dernière retouche de l’écran.
+- Chromium, base jetable : confirmation, annulation, coupure et réactivation CRM, historique, 1366 px et 390 px sans débordement ni erreur.
+- Non vérifié : production, fournisseurs réels, autres bascules cliquées au navigateur (couvertes par le test API).
 
-## Intervention précédente (autre agent, 27/11 au soir)
-Refonte de la fiche annonce (`#/annonce/:id`, commit `aad948f`) : `public/js/pages/listing.js`, `public/css/fiche-annonce.css`. Rendu en production non vérifié. Bouton « Retour » de la maquette volontairement omis ; champ « équipements » absent de la base (ajout possible sur demande, migration). Détail : `SUIVI_EXECUTION.md`.
+## Intervention précédente
+Coupures CRM et Premium et audit fusionnés dans `main` (`8bbaf6f`). Refonte de la fiche annonce (`aad948f`, autre agent). Contrôle en ligne non confirmé.
 
 ## Points ouverts prioritaires
 1. Avant lancement : désactiver ce qui n’est pas autorisé (principe 8). Tout n’a pas encore d’interrupteur confirmé ; aucun recensement complet fait.
@@ -36,7 +34,7 @@ Refonte de la fiche annonce (`#/annonce/:id`, commit `aad948f`) : `public/js/pag
 7. Valider les paiements et fournisseurs en réel ; recetter la production.
 
 ## Prochaine tâche exacte
-Après le déploiement, le propriétaire contrôle sur le site : les cases CRM et Premium (Owner Center → Personnalisation du site → Apparence & modules), une fiche annonce et l’Observatoire. Ensuite, à autoriser : centre des activations.
+Après accord (« Fusionne »), fusionner `feature/centre-activations` dans `main`. Contrôler ensuite sur le site le centre, les cases CRM/Premium, une fiche annonce et l’Observatoire. Puis, à autoriser : ajouter les interrupteurs manquants.
 
 ## Ordre de lecture à la reprise
 

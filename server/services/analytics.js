@@ -92,6 +92,11 @@ export function createAnalytics({ db, config, logger = null, clock = () => new D
       const rows = await db.query("select value from ika_settings where key = 'analytics_enabled'");
       return { environment: Boolean(config?.analytics?.enabled), setting: rows[0]?.value !== "false" };
     },
+    /** Interrupteur en base (centre des activations). La mémoire courte de cette instance est vidée : effet immédiat ici. */
+    async setSetting(on) {
+      await db.query("insert into ika_settings (key, value) values ('analytics_enabled', $1) on conflict (key) do update set value = $1", [on === true ? "true" : "false"]);
+      cache = null;
+    },
     /** Compteurs de contrôle (jamais de contenu d'événement). */
     stats: () => ({ ...stats, enabledByEnvironment: Boolean(config?.analytics?.enabled) }),
   };

@@ -111,3 +111,11 @@ label.field{font-size:13px;color:var(--ink);font-weight:700}
 
 /* La liste « Période » ne doit pas écraser le titre de la carte (components.css impose width:100% aux select). */
 .panelhead>select.select{width:auto;flex:0 0 auto;margin-left:auto}
+
+/* Centre des activations */
+.av-list{display:grid}
+.av-row{display:flex;gap:16px;align-items:center;padding:14px 0;border-top:1px solid var(--line)}
+.av-row:first-child{border-top:0;padding-top:0}
+.av-row p{margin:5px 0 0}
+.av-row>.btn{flex:0 0 112px;justify-content:center}
+@media(max-width:620px){.av-row{flex-direction:column;align-items:stretch}.av-row>.btn{flex:0 0 auto}}
