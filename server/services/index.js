@@ -78,11 +78,15 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const ruleExceptions = createRuleExceptions({ db, superadminSettings, accounts, moderationAudit });
   // Numéro confirmé exigé pour le Premium : condition officielle du superadmin, sauf exception tracée sur le compte.
   accounts.setAdvertiserPolicy(async () => (await ruleExceptions.official()).advertiserApplicationRequired);
-  // Gestion centralisée des contacts (désactivée par défaut) : décide quel numéro sort par « Appeler » et « WhatsApp ».
-  // Réglage éteint ou illisible = comportement d'origine, le numéro du propriétaire.
+  // Gestion centralisée des contacts (désactivée par défaut) : décide quel numéro sort par « Appeler » et « WhatsApp »,
+  // sur les annonces et sur le profil public. Réglage éteint ou illisible = comportement d'origine, le numéro du propriétaire.
   const contactCentral = createContactCentral({ db, superadminSettings, accounts, moderationAudit, logger });
   const recordContactBase = listings.recordContact.bind(listings);
   listings.recordContact = (userId, id, kind) => contactCentral.wrapContact(recordContactBase, userId, id, kind);
+  const profileContactBase = advertiserProfiles.recordContact.bind(advertiserProfiles);
+  advertiserProfiles.recordContact = (userId, advertiserId, kind) => contactCentral.wrapProfileContact(profileContactBase, userId, advertiserId, kind);
+  const profileBlockBase = advertiserProfiles.publicBlock.bind(advertiserProfiles);
+  advertiserProfiles.publicBlock = (advertiserId, opts) => contactCentral.wrapProfileBlock(profileBlockBase, advertiserId, opts);
   const phoneRequired = async (userId) => (await ruleExceptions.official()).phoneConfirmedForPremium && !(await ruleExceptions.activeKeys(userId)).has("phone");
   const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
   const ownerDelegations = createOwnerDelegations({ db, accounts });
