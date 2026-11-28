@@ -7,6 +7,7 @@ import { startDecorating } from "/js/decorate.js";
 import { openConsentPanel } from "/js/components/consent-panel.js";
 import { trackPageView } from "/js/core/analytics.js";
 import { loadConsentServices } from "/js/core/services.js";
+import { showExpiryAlert } from "/js/components/expiry-alert.js";
 import "/js/bootstrap-settings.js";
 import { brand, brandUpper, setBrand } from "./core/brand.js";
 
@@ -137,7 +138,8 @@ document.getElementById("quickSearch")?.addEventListener("submit", (e) => {
   if (q) location.hash = "#/annonces?q=" + encodeURIComponent(q);
 });
  // icônes devant les libellés (voir decorate.js)
-onSession(renderChrome);
+// Fenêtre « Gestion de vos annonces » : à chaque connexion (et au chargement d'une session déjà ouverte), tant que des annonces sont à traiter.
+onSession(() => { renderChrome(); showExpiryAlert(); });
 window.addEventListener("hashchange", render);
 // Mémoire de 30 secondes : si l'utilisateur quitte le site plus de 30 s, il retrouve l'accueil en haut ; sinon il reprend où il était.
 const MEMORY_MS = 30_000;
@@ -150,4 +152,5 @@ document.addEventListener("visibilitychange", () => {
   if (currentRoute().path !== "/") location.hash = "#/"; else window.scrollTo(0, 0);
 });
 // Les listes de quartiers et de pays sont lues avant le premier affichage (les formulaires et filtres en dépendent).
-Promise.all([loadPlaces(), refreshSession().then(refreshUnread).catch(() => undefined), loadConsentServices()]).finally(render);
+Promise.all([loadPlaces(), refreshSession().then(refreshUnread).catch(() => undefined), loadConsentServices()]).finally(render)
+  .then(() => showExpiryAlert()).catch(() => undefined);
