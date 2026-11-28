@@ -16,6 +16,8 @@
 | 8 | La version de texte enregistrée est `stats-2026-11-06-provisoire`. Elle ne correspond pas à une version identifiée de la fenêtre actuelle, ce qui affaiblit la trace. | `analytics.js` |
 | 9 | Existant et fonctionnel dans le code : « Gérer mes choix » (dont « Tout refuser ») et l'interrupteur « Collecte de mes données » dans le profil. | `consent-panel.js`, `mon-profil.js` |
 
+**Précision du propriétaire (28/11) : le bouton « Refuser » de l'inscription a été enlevé.** L'historique le confirme : la fenêtre précédente avait « Refuser » ; le commit `78e7e79` du 23/11 l'a remplacée par le seul bouton « Continuer ». Le « Tout refuser » cité au constat 4 est un autre bouton, toujours présent dans « Gérer mes choix » (lien en pied de page et profil ; vu sur mobile, base locale). Les options C et D réintroduiraient un choix que le propriétaire a retiré : l'écran d'inscription reste tel quel sauf nouvelle décision. L'option B n'ajoute aucun bouton.
+
 Le code cite une décision du propriétaire pour l'écran unique (23/11) et l'acceptation de toutes les catégories (24/11). Toute option qui la change exige son accord.
 
 ## Repères légaux à faire vérifier
@@ -36,7 +38,7 @@ Questions au juriste : un bouton unique suffit-il ? Faut-il un accord distinct p
 | C. Deux boutons | « Tout accepter » et « Continuer sans les options », de même importance ; les deux créent le compte. Texte et version de texte à jour. | Refus réel ; reste un seul écran ; serveur déjà prêt | Texte à valider ; règle à fixer pour les connexions Google (reprendre B) |
 | D. Cases distinctes | Une case non cochée par finalité, conditions à part | Choix le plus détaillé | Écran plus long ; moins de fonctions activées pendant les essais |
 
-**Proposition technique :** B maintenant, puis C ou D avant le lancement selon le juriste. B ne rend pas à lui seul le parcours conforme.
+**Proposition technique :** B maintenant, sans toucher à la fenêtre d'inscription ; son contenu sera réexaminé avec le juriste avant le lancement. B ne rend pas à lui seul le parcours conforme.
 
 **Limite de B :** il protège un choix encore enregistré dans ce navigateur (six mois). Un autre appareil, un stockage effacé ou un choix expiré sont traités comme une première visite.
 
