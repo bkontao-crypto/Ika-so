@@ -15,7 +15,8 @@ export function buildExpirationRoutes({ expiry, accounts, analytics = null, requ
     const userId = requireUser(req);
     hit(userId);
     res.setHeader("Cache-Control", "no-store");
-    res.json({ items: await expiry.ownerAlerts(userId) });
+    const [items, settings] = await Promise.all([expiry.ownerAlerts(userId), expiry.getSettings()]);
+    res.json({ items, maxExtensionDays: settings.maxExtensionDays });
   });
 
   router.post("/listings/:id/outcome", async (req, res, next) => {
