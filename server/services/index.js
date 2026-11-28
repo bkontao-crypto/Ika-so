@@ -42,6 +42,7 @@ import { createHomepageSettings } from "./homepage-settings.js";
 import { createPartners } from "./partners.js";
 import { createPlaces } from "./places.js";
 import { createBackupRunner } from "../lib/backup.js";
+import { createContactCentral } from "./contact-central.js";
 
 /**
  * Assemble les services métier. `db` doit offrir query(texte, paramètres) -> lignes.
@@ -77,6 +78,11 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const ruleExceptions = createRuleExceptions({ db, superadminSettings, accounts, moderationAudit });
   // Numéro confirmé exigé pour le Premium : condition officielle du superadmin, sauf exception tracée sur le compte.
   accounts.setAdvertiserPolicy(async () => (await ruleExceptions.official()).advertiserApplicationRequired);
+  // Gestion centralisée des contacts (désactivée par défaut) : décide quel numéro sort par « Appeler » et « WhatsApp ».
+  // Réglage éteint ou illisible = comportement d'origine, le numéro du propriétaire.
+  const contactCentral = createContactCentral({ db, superadminSettings, accounts, moderationAudit, logger });
+  const recordContactBase = listings.recordContact.bind(listings);
+  listings.recordContact = (userId, id, kind) => contactCentral.wrapContact(recordContactBase, userId, id, kind);
   const phoneRequired = async (userId) => (await ruleExceptions.official()).phoneConfirmedForPremium && !(await ruleExceptions.activeKeys(userId)).has("phone");
   const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
   const ownerDelegations = createOwnerDelegations({ db, accounts });
@@ -101,7 +107,7 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications, contactCentral };
 }
 
 export { createTwilioSender } from "../lib/sms.js";
