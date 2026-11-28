@@ -21,13 +21,22 @@ export function applySettings(s) {
   }
 }
 
-// Masque les éléments portant data-module="crm|map|premium|whatsapp" désactivés.
+// Masque les éléments portant data-module="crm|map|premium|whatsapp" désactivés, ainsi que les liens vers ces modules.
+// Simple confort d'affichage : la vraie coupure (CRM, Premium) est faite par le serveur.
+const MODULE_LINKS = {
+  crm: 'a[href^="/crm-leads"]',
+  premium: 'a[href^="#/premium"], a[href^="#/devenir-premium"], a[href*="next=%2Fdevenir-premium"]',
+};
+
 export function applyModuleFlags(modules) {
-  document.querySelectorAll("[data-module]").forEach((el) => {
-    const hidden = modules[el.getAttribute("data-module")] === false;
-    el.hidden = hidden;
-    el.style.display = hidden ? "none" : "";
+  const off = Object.keys(MODULE_LINKS).filter((k) => modules[k] === false).map((k) => MODULE_LINKS[k]);
+  const wanted = new Set(off.length ? document.querySelectorAll(off.join(", ")) : []);
+  document.querySelectorAll("[data-module]").forEach((el) => { if (modules[el.getAttribute("data-module")] === false) wanted.add(el); });
+  // On ne réaffiche que ce que cette fonction a elle-même masqué.
+  document.querySelectorAll("[data-module-off]").forEach((el) => {
+    if (!wanted.has(el)) { el.removeAttribute("data-module-off"); el.hidden = false; el.style.display = ""; }
   });
+  wanted.forEach((el) => { el.setAttribute("data-module-off", ""); el.hidden = true; el.style.display = "none"; });
 }
 
 let currentModules = null;

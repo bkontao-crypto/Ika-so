@@ -116,6 +116,8 @@ Décision du 27 novembre 2026 (après audit) : tout reste activé par défaut et
 
 - 27 novembre 2026 : recensement des activations (`docs/audit/RECENSEMENT_ACTIVATIONS_2026-11-27.md`) ; essais d’API sur base jetable, aucun code modifié. Constat : plusieurs fonctions éteintes par défaut ; les coupures « Module CRM / Premium » ne ferment pas les API.
 
+- 28 novembre 2026 : coupures CRM et Premium rendues réelles côté serveur (branche `fix/modules-crm-premium`, depuis `docs/audit-analytics`, non fusionnée). Activées par défaut ; aucune migration ni donnée modifiée. Premium coupé : bloque nouvelles demandes, achats et centre ; conserve historique, factures, retrait, webhook, traitement par l’équipe, droits acquis et dossier d’un client ayant déjà payé. Test `test/modules-coupure.test.js` ; suite 571/571 ; recette navigateur Chromium des deux états. Production non touchée.
+
 ## 8. Règles de mise à jour
 
 À chaque intervention significative :

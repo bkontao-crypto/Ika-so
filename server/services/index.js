@@ -25,6 +25,7 @@ import { createWhatsApp } from "./whatsapp.js";
 import { createSuperadminSettings } from "./superadmin-settings.js";
 import { createConsentServicesReader } from "../lib/consent-services.js";
 import { createPayments } from "./payments.js";
+import { createModules } from "../lib/modules.js";
 import { createPremiumRequests } from "./premium-requests.js";
 import { createStarBadge } from "./star-badge.js";
 import { createRuleExceptions } from "./rule-exceptions.js";
@@ -67,6 +68,7 @@ const crm = createCrm(ctx);
 const whatsapp = createWhatsApp(ctx);
 const superadminSettings = createSuperadminSettings(ctx);
 const consentServices = createConsentServicesReader(superadminSettings);
+  const modules = createModules(superadminSettings);
   const seo = createSeo(ctx, listings);
   const rights = createRights(ctx, accounts);
   const notifier = givenNotifier ?? createNotifier({ db, config });
@@ -78,13 +80,13 @@ const consentServices = createConsentServicesReader(superadminSettings);
   // Numéro confirmé exigé pour le Premium : condition officielle du superadmin, sauf exception tracée sur le compte.
   accounts.setAdvertiserPolicy(async () => (await ruleExceptions.official()).advertiserApplicationRequired);
   const phoneRequired = async (userId) => (await ruleExceptions.official()).phoneConfirmedForPremium && !(await ruleExceptions.activeKeys(userId)).has("phone");
-  const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired);
+  const payments = createPayments(ctx, accounts, ctx.paymentProvider !== undefined ? ctx.paymentProvider : selectProvider(config), (fields) => analytics.emit("payment_completed", fields), () => superadminSettings.get(POLICY_KEY), phoneRequired, () => modules.isOpen("premium"));
   const ownerDelegations = createOwnerDelegations({ db, accounts });
   const requestsHub = createRequestsHub({ db, ownerDelegations, notify: (userId, note) => engagement.notify(userId, note) });
   const social = createSocial({ db, accounts, notify: engagement.notify });
   const alerts = createAlerts({ db, accounts, rules: ruleExceptions, moderationAudit, engagement });
   const discover = createDiscover({ db, accounts, rules: ruleExceptions, engagement, moderationAudit, requestsHub });
-  const premiumRequests = createPremiumRequests({ requestsHub, db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments, rules: ruleExceptions });
+  const premiumRequests = createPremiumRequests({ requestsHub, db, accounts, notify: (userId, note) => engagement.notify(userId, note), superadminSettings, moderationAudit, payments, rules: ruleExceptions, modules });
   const starBadge = createStarBadge({ db, accounts, superadminSettings, requestsHub, moderationAudit, notify: (userId, note) => engagement.notify(userId, note) });
   // Sauvegarde réelle (pg_dump) : injectable dans les tests ; absente sans DATABASE_URL (le journal indique alors « non configurée »).
   const backup = givenBackup !== undefined ? givenBackup : (config?.databaseUrl ? createBackupRunner({ databaseUrl: config.databaseUrl, dir: config.backup?.dir, keep: config.backup?.keep }) : null);
@@ -101,7 +103,7 @@ const consentServices = createConsentServicesReader(superadminSettings);
   const advertiserCenter = createAdvertiserCenter({ db, accounts, ruleExceptions });
   const advertiserApplications = createAdvertiserApplications({ db, accounts, notify: (userId, note) => engagement.notify(userId, note) });
   const featuredRequests = createFeaturedRequests({ db, accounts, moderation, notify: (userId, note) => engagement.notify(userId, note), getPolicy: () => superadminSettings.get(POLICY_KEY) });
-  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
+  return { social, alerts, discover, ruleExceptions, userCenter, requestsHub, featuredRequests, premiumRequests, starBadge, superadminSettings, consentServices, modules, db, whatsapp, crm, moderationAudit, accounts, listings, properties, moderation, trust, engagement, imports, seo, payments, rights, reviews, notifier, geo, advertiserProfiles, analytics, stats, homepageSettings, siteHeader, homeForms, partners, places, ownerCenter, observatory, ownerDelegations, permissionGrants, advertiserCenter, advertiserApplications };
 }
 
 export { createTwilioSender } from "../lib/sms.js";

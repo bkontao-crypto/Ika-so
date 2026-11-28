@@ -73,6 +73,7 @@ function growthSvg() {
 }
 /** `access` : réponse de /me/center/access (ou null). Mène à la page des avantages (#/premium) ; `from` : emplacement suivi pour la mesure de conversion. */
 export function premiumCard(access, from = "espace-card") {
+  if (access?.moduleOpen === false) return null; // offre coupée par le Super Administrateur
   const active = Boolean(access?.premium);
   const left = access?.daysLeft ?? 0;
   const until = access?.premiumUntil ? new Date(access.premiumUntil).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }) : "";

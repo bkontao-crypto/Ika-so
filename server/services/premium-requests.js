@@ -15,7 +15,7 @@ const refundStepNo = (v) => { const n = Math.floor(Number(v)); if (!REFUND_STEPS
 const stepNo = (v) => { const n = Math.floor(Number(v)); if (!STEPS[n]) throw badRequest("Étape inconnue (1 étude, 2 vérification, 3 confirmation)."); return n; };
 const cleanPhone = (v) => String(v ?? "").replace(/[^\d+]/g, "").slice(0, 20);
 
-export function createPremiumRequests({ requestsHub, db, accounts, notify, superadminSettings, moderationAudit, payments, rules = null }) {
+export function createPremiumRequests({ requestsHub, db, accounts, notify, superadminSettings, moderationAudit, payments, rules = null, modules = null }) {
   /** Conditions applicables à UN compte : conditions officielles du superadmin moins les exceptions actives tracées sur ce compte. */
   async function conditions(userId, q = db) {
     const official = rules ? await rules.official() : normalizeRules(null);
@@ -25,6 +25,17 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
   }
   async function policy() {
     return normalizePolicy((await superadminSettings?.get(POLICY_KEY)) ?? DEFAULT_POLICY);
+  }
+  /**
+   * Module Premium coupé : plus de nouvelle demande. Exception : un client qui a DÉJÀ payé en ligne (Premium en cours, non remboursé)
+   * doit pouvoir déposer son dossier. Renvoie true dans ce seul cas, false quand le module est ouvert.
+   */
+  async function closedModuleDossier(userId) {
+    if (!modules || (await modules.isOpen("premium"))) return false;
+    const owed = await db.query(
+      "select 1 from ika_payments y join ika_profiles p on p.user_id = y.user_id where y.user_id = $1 and y.kind = 'PREMIUM' and y.applied_at is not null and y.refunded_at is null and p.premium_until > now() limit 1", [userId]);
+    if (!owed[0]) await modules.assertOpen("premium");
+    return true;
   }
   const view = (r) => ({ id: r.id, userId: r.user_id, months: r.months, status: r.status, grantedMonths: r.granted_months, decidedAt: iso(r.decided_at), decidedNote: r.decided_note, createdAt: iso(r.created_at), name: r.name, email: r.email, accountType: r.account_type, phone: r.phone, message: r.message, acceptedTermsAt: iso(r.accepted_terms_at), cancelledAt: iso(r.cancelled_at), certified: r.certified === undefined ? undefined : Boolean(r.certified), paid: Boolean(r.paid), reviewDueAt: iso(r.review_due_at) });
   /** Vue annonceur : l'avancement seulement (jamais le nom des personnes qui étudient le dossier). */
@@ -47,13 +58,14 @@ export function createPremiumRequests({ requestsHub, db, accounts, notify, super
     /** L'annonceur demande le Premium pour 1 à maxMois mois. Refusé si le paiement en ligne est ouvert (il doit payer). */
     async create(userId, { months, accountType, phone, message, acceptTerms } = {}) {
       await accounts.requireActive(userId);
+      const owedDossier = await closedModuleDossier(userId);
       const cond = await conditions(userId);
       if (cond.official.phoneConfirmedForPremium && !cond.waived.has("phone")) await accounts.requireVerifiedPhone(userId);
       const p = await policy();
       // Paiement en ligne ouvert : on paie d'abord, le dossier est étudié ensuite. Fermé : dossier d'abord, activation à la main après les 3 étapes.
       const online = await payments.onlineOpen();
-      let paid = false;
-      if (online) {
+      let paid = owedDossier;
+      if (online && !owedDossier) {
         const prem = (await db.query("select premium_until from ika_profiles where user_id = $1", [userId]))[0];
         if (!(prem?.premium_until && new Date(prem.premium_until) > new Date())) throw forbidden("Le paiement Premium est activé : payez d'abord, votre dossier sera étudié après le paiement.");
         paid = true;

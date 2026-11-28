@@ -34,7 +34,7 @@ export async function centrePage() {
     fail(error);
     return;
   }
-  if (!acc.eligible) { const { standardCentre } = await import("/js/pages/centre-standard.js"); return standardCentre(acc); }
+  if (!acc.eligible || acc.moduleOpen === false) { const { standardCentre } = await import("/js/pages/centre-standard.js"); return standardCentre(acc); }
   let days = 7;
   const host = h("div", { class: "esp-dash" });
   mount(app, host);

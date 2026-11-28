@@ -4,6 +4,8 @@ Code de `docs/audit-analytics` (identique à `main` `36ac9f8` hors documents). A
 
 **Limites :** recensement centré sur les interrupteurs, établi à partir des routes, réglages, configuration et recherches ciblées. Les boutons n’ont pas été cliqués dans un navigateur. « Essayé » = appel à l’API sur une base PostgreSQL neuve et jetable. « Code » = lecture seulement. Un interrupteur qui agit ne prouve pas que toute la fonctionnalité marche.
 
+> **Mise à jour du 28 novembre 2026 :** sur la branche `fix/modules-crm-premium` (non fusionnée), « Module CRM » et « Module Premium » ferment désormais l’accès côté serveur, activés par défaut. La première ligne du tableau D décrit l’état antérieur, encore valable sur `main`.
+
 ## A. Interrupteurs dont l’effet a été essayé
 | Fonctionnalité | Défaut (base neuve) | Commande | Constat une fois coupée |
 |---|---|---|---|

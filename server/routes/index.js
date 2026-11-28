@@ -37,6 +37,12 @@ export function buildRoutes({ services, config, limiter, logger, counters, requi
   const router = Router();
   const id = (req) => clean(req.params.id, 80);
 
+  // Coupures de modules (CRM, Premium) : contrôle côté serveur, pour tous les comptes, Super Administrateur compris.
+  const moduleGate = (key) => async (_req, _res, next) => { await services.modules.assertOpen(key); next(); };
+  router.use(["/me/crm", "/me/whatsapp"], moduleGate("crm"));
+  const premiumGate = moduleGate("premium"); // placé sur chaque route concernée
+  // Restent ouverts quand Premium est coupé : historique, factures, retrait d'une demande, webhook du fournisseur, traitement par l'équipe.
+
   // Images publiques stockées durablement dans PostgreSQL/Neon, jamais sur le disque éphémère Render.
   router.get("/media/:id", async (req, res) => {
     const fileId = id(req);
@@ -661,8 +667,8 @@ router.get("/listings/:id", async (req, res) => {
     limiter.hit(`identity:${userId}`, 10, 60 * 60_000);
     res.json(await accounts.updateName(userId, req.body?.fullName));
   });
-  router.get("/me/center/access", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.access(requireUser(req))); });
-  router.get("/me/center", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.overview(requireUser(req), { days: Number(req.query.days) || 7 })); });
+  router.get("/me/center/access", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json({ ...(await advertiserCenter.access(requireUser(req))), moduleOpen: await services.modules.isOpen("premium") }); });
+  router.get("/me/center", premiumGate, async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.overview(requireUser(req), { days: Number(req.query.days) || 7 })); });
   router.get("/me/center/standard", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.standardOverview(requireUser(req))); });
 
   // Demandes pour devenir annonceur
@@ -689,7 +695,7 @@ router.get("/listings/:id", async (req, res) => {
   });
   router.get("/staff/advertiser-applications", async (req, res) => res.json(await advertiserApplications.listForStaff(await requireOwnerGate(req, "agencies"), { status: req.query.status || "PENDING" })));
   router.post("/staff/advertiser-applications/:id/decide", async (req, res) => res.json(await advertiserApplications.decide(await requireOwnerGate(req, "agencies"), req.params.id, req.body ?? {})));
-  router.get("/me/center/map", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.mapPins(requireUser(req))); });
+  router.get("/me/center/map", premiumGate, async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await advertiserCenter.mapPins(requireUser(req))); });
   router.post("/staff/premium/:id", async (req, res) => res.json(await advertiserCenter.grantPremium(requireUser(req), id(req), { days: req.body?.days, reason: clean(req.body?.reason, 300) })));
 
   router.get("/advertisers/:id", async (req, res) => res.json(await reviews.publicProfile(id(req), req.user?.id ?? null)));
@@ -1086,7 +1092,7 @@ router.get("/listings/:id", async (req, res) => {
   // Clic sur une invitation Premium (visiteur connecté ou non). Meilleur effort : ne renvoie jamais d'erreur au navigateur.
   router.post("/premium/click", async (req, res) => {
     limiter.hit(`pclick:${req.user?.id ?? req.ip}`, 60, 10 * 60_000);
-    track(req, "premium_cta_clicked", { userId: req.user?.id, metadata: { from: premiumOrigin(clean(req.body?.from, 40)) } });
+    if (await services.modules.isOpen("premium")) track(req, "premium_cta_clicked", { userId: req.user?.id, metadata: { from: premiumOrigin(clean(req.body?.from, 40)) } });
     res.status(204).end();
   });
   router.get("/me/payments", async (req, res) => res.json(await payments.mine(requireUser(req))));

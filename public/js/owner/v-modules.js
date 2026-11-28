@@ -1042,10 +1042,11 @@ export function appearanceSection({ main }, reload) {
     return h("label", { class: "field" }, i, " ", l);
   };
   const save = () => act(() => api("/staff/superadmin-settings/main", { method: "PUT", body: { value: { ...base, colors: { ...C }, modules: { ...M } } } }), "Apparence enregistrée.", reload);
-  return [panel("Apparence & modules", "Couleurs appliquées au site public (uniquement si vous les modifiez). Les modules masquent les liens correspondants.",
+  return [panel("Apparence & modules", "Couleurs appliquées au site public (uniquement si vous les modifiez). CRM et Premium activés par défaut ; les désactiver ferme l’accès côté serveur.",
     h("div", { class: "stack" },
       h("div", { class: "form two" }, color("primary", "Couleur principale"), color("accent", "Couleur d’accent")),
       h("div", { class: "stack" }, check("crm", "Module CRM (espace agence)"), check("premium", "Module Premium")),
+      h("p", { class: "note" }, "Couper CRM ferme les leads (données conservées). Couper Premium ferme les nouvelles demandes, les achats et le centre de contrôle ; restent ouverts : historique, factures, retrait d’une demande, confirmation des paiements en cours et traitement par l’équipe. Les droits acquis ne sont pas modifiés, mais leur durée continue de courir. La mise à la une n’est pas concernée."),
       h("p", { class: "note" }, "Carte et WhatsApp Business ne sont pas encore reliés au site : ils n’ont pas d’effet pour l’instant. Les textes d’accueil se règlent dans « Page d’accueil »."),
       h("div", null, h("button", { class: "btn primary", type: "button", onClick: save }, "Enregistrer"))))];
 }

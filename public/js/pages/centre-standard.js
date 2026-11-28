@@ -50,7 +50,8 @@ export async function standardCentre(acc) {
     return;
   }
   const first = (d.access.name || S.user?.name || "").split(/\s+/)[0] || "";
-  const needsPhone = d.access.premium && d.access.phoneVerified === false; // Premium actif mais numéro non confirmé par SMS : passe avant la certification
+  const needsPhone = acc?.moduleOpen !== false && d.access.premium && d.access.phoneVerified === false; // Premium actif mais numéro non confirmé par SMS : passe avant la certification
+  const open = acc?.moduleOpen !== false; // module Premium coupé : aucune invitation ni bloc verrouillé
   const needsCert = false; // la certification agence / titre n'est plus une condition : c'est le numéro confirmé qui ouvre le centre
   const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 
@@ -71,8 +72,8 @@ export async function standardCentre(acc) {
     nav("Mon profil", "user", { href: "#/profil" }),
     nav("Mes paiements", "card", { href: "#/paiements" }),
     nav("Paramètres", "settings", { href: "#/profil" }),
-    locked("Statistiques"), locked("Carte"), locked("Alertes"), locked("Échéances"),
-    h("div", { class: "esp-prem" }, h("strong", null, "Compte standard"), h("small", null, needsPhone ? "Votre Premium attend la confirmation de votre numéro." : needsCert ? "Votre Premium attend la certification de votre profil." : "Passez Premium pour débloquer le centre de contrôle."),
+    open ? [locked("Statistiques"), locked("Carte"), locked("Alertes"), locked("Échéances")] : null,
+    !open ? null : h("div", { class: "esp-prem" }, h("strong", null, "Compte standard"), h("small", null, needsPhone ? "Votre Premium attend la confirmation de votre numéro." : needsCert ? "Votre Premium attend la certification de votre profil." : "Passez Premium pour débloquer le centre de contrôle."),
       h("a", { class: "btn btn-gold btn-small", href: needsPhone ? "#/devenir-premium" : needsCert ? "#/profil" : up("espace-sidebar") }, needsPhone ? "Confirmer mon numéro" : needsCert ? "Faire certifier mon profil" : "Voir les avantages")));
 
   const burger = h("button", { class: "esp-burger", type: "button", "aria-label": "Menu", onClick: () => {
@@ -107,7 +108,7 @@ export async function standardCentre(acc) {
   const p = d.profile;
   const prof = sec("esp-profil", "Complétez votre profil", h("span", { class: "pill pill-green" }, `${p.percent} %`),
     h("div", { class: "std-bar", role: "progressbar", "aria-valuenow": String(p.percent), "aria-valuemin": "0", "aria-valuemax": "100", "aria-label": "Profil complété" }, h("i", { style: { width: `${p.percent}%` } })),
-    h("p", { class: "small muted" }, "Un profil complet et certifié inspire confiance, remonte dans l'annuaire des annonceurs et prépare l'accès à Premium."),
+    h("p", { class: "small muted" }, open ? "Un profil complet et certifié inspire confiance, remonte dans l'annuaire des annonceurs et prépare l'accès à Premium." : "Un profil complet et certifié inspire confiance et remonte dans l'annuaire des annonceurs."),
     h("ul", { class: "std-steps" }, p.steps.map((s) => h("li", { class: s.done ? "done" : "" }, h("span", { class: "std-check", "aria-hidden": "true" }, s.done ? icon("check") : null), h("span", { class: "grow" }, s.label), s.done ? h("small", { class: "muted" }, "Fait") : h("a", { class: "btn btn-small", href: s.href }, "Faire")))));
 
   // ----- Blocs verrouillés : on voit ce que Premium apporte, sans rien montrer de réel -----
@@ -120,6 +121,7 @@ export async function standardCentre(acc) {
     d.notifications.length ? d.notifications.map((n) => item(n.title, n.body ? `${n.body} · ${ago(n.createdAt)}` : ago(n.createdAt), n.read ? null : h("i", { class: "esp-dot" }), n.link?.startsWith("#/") ? n.link : "#/boite")) : empty("Aucune notification."));
   const cta = h("section", { class: "card pad esp-cta" }, icon("plus"), h("div", { class: "grow" }, h("strong", null, "Publier une annonce"), h("small", { class: "muted" }, "Touchez plus de monde et trouvez le bon client plus vite.")), h("a", { class: "btn btn-primary btn-small", href: "#/publier" }, "Créer"));
 
-  mount(host, burger, side, h("div", { class: "esp-main" }, h("div", { class: "esp-left" }, hero, teaser, kpis, ann, prof, more), h("div", { class: "esp-right" }, premiumCard({ premium: false }, "espace-card"), msgs, notes, cta),
+  if (!open) for (const el of [teaser, more, ...ann.querySelectorAll(".std-lockline"), ...hero.querySelectorAll(".esp-ghost")]) el.remove();
+  mount(host, burger, side, h("div", { class: "esp-main" }, h("div", { class: "esp-left" }, hero, open ? teaser : null, kpis, ann, prof, open ? more : null), h("div", { class: "esp-right" }, open ? premiumCard({ premium: false }, "espace-card") : null, msgs, notes, cta),
     needsPhone ? h("section", { class: "card pad esp-cta", role: "status", style: "grid-column:1/-1" }, icon("lock"), h("div", { class: "grow" }, h("strong", null, "Vérifiez votre numéro pour ouvrir votre Premium"), h("small", { class: "muted" }, "Votre abonnement est actif, mais ses avantages s'ouvrent dès que votre numéro de téléphone est confirmé. C'est une protection pour tous les utilisateurs.")), h("a", { class: "btn btn-primary btn-small", href: "#/devenir-premium" }, "Vérifier mon numéro")) : null));
 }

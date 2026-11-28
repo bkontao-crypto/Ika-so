@@ -1,8 +1,8 @@
 # ÉTAT DE REPRISE AGENT — IKA SÔ
 
-- Mise à jour : 27 novembre 2026 (UTC) — audit de la collecte d’audience
-- Branche : `docs/audit-analytics`, depuis `main` `36ac9f8` (NON fusionnée)
-- Statut : audit terminé ; décision prise : tout activé et désactivable pendant le développement
+- Mise à jour : 28 novembre 2026 (UTC) — coupures CRM et Premium
+- Branche : `fix/modules-crm-premium` (contient aussi les documents de `docs/audit-analytics`) ; NON fusionnée
+- Statut : correction terminée et testée ; validation du propriétaire attendue
 
 ## Déclaration du propriétaire
 > « Le site IKA SÔ est en cours de développement. À ce stade, je n’apporte aucune garantie sur sa conformité juridique ou réglementaire. Une fois le développement terminé et avant le lancement, je produirai les différents documents juridiques nécessaires à l’activation de toutes les fonctionnalités soumises à une loi ou à une obligation juridique. »
@@ -10,7 +10,18 @@
 Texte de référence : `CAHIER_DES_CHARGES.md`. Ce n’est ni une validation juridique ni une preuve que les fonctionnalités sont éteintes.
 
 ## Dernière intervention
-Audit en lecture seule : `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`. Documents mis à jour. Aucun code modifié ; suite complète 570/570 sur la branche d’audit. Observatoire déjà fusionné (570 tests réussis lors de cette fusion) ; production non vérifiée.
+- `server/lib/modules.js` : coupure lue à chaque requête dans le réglage superadmin `main` ; seul `false` coupe.
+- CRM coupé : `/me/crm/*` et `/me/whatsapp/*` refusés (403), Super Administrateur compris.
+- Premium coupé : `/me/center`, `/me/center/map`, nouvelle demande, achat Premium refusés ; formules retirées de `/offers` ; clic non compté. Mise à la une inchangée.
+- Restent ouverts : espace standard, historique, factures, retrait, webhook, traitement par l’équipe ; dossier d’un client déjà payé. Droits non modifiés (leur durée continue de courir).
+- Non coupés : vues CRM et pipeline internes de l’Owner Center, WhatsApp Business (boîte), attribution manuelle de Premium et approbations par l’équipe, autres avantages hors centre.
+- Si un réglage existant avait déjà `premium` ou `crm` à `false` (ancien masquage), la fusion fermera réellement l’accès : le vérifier avant déploiement.
+
+## Vérifications
+- Suite complète : 571/571, cinq passages consécutifs après correction d’un nettoyage instable du nouveau test ; à relancer si le code change.
+- Contrôle négatif : le nouveau test échoue quand le refus est retiré.
+- Chromium (base jetable) : ouvert, coupé par les cases de l’Owner Center, rouvert ; aucune erreur JavaScript relevée.
+- Non vérifié : production, fournisseur de paiement réel, WhatsApp réel, mobile.
 
 ## Points ouverts prioritaires
 1. Avant lancement : désactiver ce qui n’est pas autorisé (principe 8). Tout n’a pas encore d’interrupteur confirmé ; aucun recensement complet fait.
@@ -22,7 +33,7 @@ Audit en lecture seule : `docs/audit/AUDIT_ANALYTICS_2026-11-27.md`. Documents m
 7. Valider les paiements et fournisseurs en réel ; recetter la production.
 
 ## Prochaine tâche exacte
-Recensement terminé : `docs/audit/RECENSEMENT_ACTIVATIONS_2026-11-27.md`. Attendre l’autorisation pour la suite proposée ; commencer par rendre réelles les coupures CRM et Premium, sur branche dédiée.
+Après accord (« Fusionne »), fusionner `fix/modules-crm-premium` dans `main` (documents d’audit inclus). Ensuite, à autoriser : centre des activations.
 
 ## Ordre de lecture à la reprise
 
