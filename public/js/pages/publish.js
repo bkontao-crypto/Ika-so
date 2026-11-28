@@ -3,6 +3,37 @@ import { S, app } from "/js/core/state.js";
 import { claimLegacyDraft, discardLegacyDraft, draftKey, legacyDraftInfo } from "/js/core/draft.js";
 import { go, needLogin } from "/js/core/router.js";
 import { emptyForm, formToBody, listingForm } from "/js/components/listing-form.js";
+import { field } from "/js/components/ui.js";
+
+const DAY = 86_400_000;
+const dayStr = (ms) => new Date(ms).toISOString().slice(0, 10); // jours UTC = jours du Mali (UTC+0)
+
+/**
+ * Durée de publication : date de début (facultative) et date de fin (facultative). Le serveur revérifie tout (dates, plafonds, propriétaire).
+ * `initial` : dates déjà enregistrées (modification). `lockStart` : le début d'une annonce déjà en ligne ne change plus.
+ */
+function datesCard(initial = {}, { lockStart = false } = {}) {
+  const start = h("input", { class: "input", type: "date", min: dayStr(Date.now()), value: initial.startsAt ? initial.startsAt.slice(0, 10) : "", "aria-label": "Date de début de publication" });
+  const end = h("input", { class: "input", type: "date", min: dayStr(Date.now() + DAY), value: initial.expiresAt ? initial.expiresAt.slice(0, 10) : "", "aria-label": "Date de fin de publication" });
+  if (lockStart) start.disabled = true;
+  const node = h("article", { class: "card pad stack" },
+    h("h2", null, "Durée de publication"),
+    h("p", { class: "small muted" }, "Facultatif. Une fois validée par la modération, l'annonce devient visible à la date de début et disparaît automatiquement à la date de fin ; vous serez prévenu avant. Sans date de fin, la publication dure 45 jours après la validation."),
+    h("div", { class: "grid" },
+      field("Visible à partir du", start),
+      field("Fin de publication", end)));
+  return {
+    node,
+    /** Dates saisies ; lève une erreur lisible si elles sont incohérentes. `changed` : différent des dates déjà enregistrées. */
+    read() {
+      const s = start.value, e = end.value;
+      if (e && s && e <= s) throw new Error("La date de fin doit être postérieure à la date de début.");
+      if (e && e <= dayStr(Date.now())) throw new Error("La date de fin doit être dans le futur.");
+      const changed = s !== (initial.startsAt ? initial.startsAt.slice(0, 10) : "") || e !== (initial.expiresAt ? initial.expiresAt.slice(0, 10) : "");
+      return { startsAt: s ? `${s}T00:00:00.000Z` : null, expiresAt: e ? `${e}T23:59:59.999Z` : null, any: Boolean(s || e), changed };
+    },
+  };
+}
 
 export async function publishPage() {
   if (needLogin()) return;
@@ -43,9 +74,12 @@ export async function publishPage() {
   };
   if (pushLocal) pushRemote(f);
 
-  mount(app, h("div", null, legacyNotice(KEY), listingForm({
+  const dates = datesCard();
+  mount(app, h("div", null, legacyNotice(KEY), dates.node, listingForm({
     f, title: "Publier une annonce", submitLabel: "Publier", withPhone: !S.meta?.phoneVerified, saveDraft,
     onSubmit: async () => {
+      let picked;
+      try { picked = dates.read(); } catch (error) { toast(error.message, true); return; } // dates incohérentes : rien n'est envoyé
       // Plus aucun enregistrement automatique après l'envoi : le serveur supprime lui-même le brouillon à la création.
       clearTimeout(timer);
       await inflight;
@@ -63,7 +97,12 @@ export async function publishPage() {
       }
       submitted = true;
       localStorage.removeItem(KEY);
-      toast(r.similarCount ? "Annonce envoyée. Une annonce très proche existe déjà : la modération la comparera." : "Annonce envoyée. Elle attend la modération.");
+      let datesNote = "";
+      if (picked.any && r?.id) {
+        try { await api(`/listings/${encodeURIComponent(r.id)}/dates`, { method: "PUT", body: { startsAt: picked.startsAt, expiresAt: picked.expiresAt } }); }
+        catch (error) { datesNote = ` Les dates n'ont pas pu être enregistrées (${error.message}) : modifiez l'annonce pour les définir.`; }
+      }
+      toast((r.similarCount ? "Annonce envoyée. Une annonce très proche existe déjà : la modération la comparera." : "Annonce envoyée. Elle attend la modération.") + datesNote);
       go("/mes-annonces");
     },
   })));
@@ -79,11 +118,20 @@ export async function editPage(id) {
     bathrooms: item.bathrooms == null ? "" : String(item.bathrooms), furnished: item.furnished ? "oui" : "non",
     declaredDocument: item.declaredDocument ?? DOCUMENTS[0], description: item.description, photos: item.photos,
   };
+  // Une annonce expirée se remet en ligne par « Prolonger » (30 jours au plus) : ses dates ne se changent pas ici.
+  const datable = item.status !== "EXPIRED";
+  const current = datable ? await api(`/listings/${encodeURIComponent(id)}/dates`).catch(() => ({})) : {};
+  const dates = datable ? datesCard(current, { lockStart: item.status === "PUBLISHED" }) : null;
   mount(app, h("div", null,
     item.status === "PUBLISHED" ? h("p", { class: "notice" }, "Une annonce publiée repasse en modération après toute modification.") : null,
+    dates?.node ?? null,
     listingForm({
       f, title: "Modifier l'annonce", submitLabel: "Enregistrer", withPhone: false,
       onSubmit: async () => {
+        let picked = null;
+        try { picked = dates ? dates.read() : null; } catch (error) { toast(error.message, true); return; }
+        // Les dates sont enregistrées avant la modification : tant que l'annonce est en ligne, la règle des 30 jours s'applique à la date de fin.
+        if (picked?.changed) await api(`/listings/${encodeURIComponent(id)}/dates`, { method: "PUT", body: { startsAt: picked.startsAt, expiresAt: picked.expiresAt } });
         const r = await api(`/listings/${encodeURIComponent(id)}`, { method: "PUT", body: formToBody(f, item.ownerRole, S.user.name) });
         toast(r.status === "PENDING" ? "Modification envoyée à la modération." : "Annonce enregistrée.");
         go("/mes-annonces");
