@@ -9,6 +9,7 @@ import { usersView, userCenterView } from "./v-users.js";
 import { chartsView, healthView, premiumFunnelView } from "./v-trafic.js";
 import { mfaView } from "./v-mfa.js";
 import { observatoryView } from "./v-observatory.js";
+import { expirationsView } from "./v-expirations.js";
 import { brand, brandUpper } from "../core/brand.js";
 
 // Menu rangé par fonction : chaque groupe se replie (celui de la page en cours reste ouvert). Les adresses « #/… » ne changent pas.
@@ -20,7 +21,7 @@ const NAV = [
   ["Paiements & Premium", "wallet", [
     ["requests", "list", "Demandes & validations", { count: "pendingRequests" }], ["payments", "wallet", "Paiements & finances", { count: "pendingPayments" }], ["subscriptions", "clock", "Abonnements & formules"], ["premium-funnel", "funnel", "Entonnoir Premium"], ["payment-settings", "gear", "Réglages paiement"], ["star-requests", "shield", "Demandes Étoile"], ["star-settings", "shield", "Badge Étoile"]]],
   ["Annonces & modération", "list", [
-    ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["discover", "flag", "Publications Découvrir"], ["alerts", "bell", "Alertes programmées"], ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }]]],
+    ["listings", "list", "Annonces & modération", { count: "pendingListings" }], ["expirations", "clock", "Durées & expirations", { tag: "NOUVEAU" }], ["discover", "flag", "Publications Découvrir"], ["alerts", "bell", "Alertes programmées"], ["complaints", "flag", "Signalements & réclamations", { count: "openComplaints" }]]],
   ["Clients & croissance", "funnel", [
     ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"], ["whatsapp", "mail", "WhatsApp"]]],
   ["Paramètres du site", "gear", [
@@ -36,7 +37,7 @@ const whatsappView = () => h("div", { class: "view" }, panel("WhatsApp", "Messag
     h("p", null, "Ouvrez la boîte WhatsApp pour lire les messages reçus, répondre et écrire à un numéro. L'adresse du webhook et le jeton à saisir chez Meta s'y trouvent aussi (bloc « Configuration Meta »)."),
     h("div", null, h("a", { class: "btn primary", href: "/#/whatsapp" }, "Ouvrir la boîte WhatsApp")))));
 
-const VIEWS = { observatory: observatoryView, whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { observatory: observatoryView, whatsapp: whatsappView, expirations: expirationsView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => customizeView(c, "identity"), settings: (c) => customizeView(c, "identity"), homepage: (c) => customizeView(c, "homepage"), seo: (c) => customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView, mfa: mfaView };
 
