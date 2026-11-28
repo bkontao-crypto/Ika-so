@@ -32,5 +32,5 @@
 
 ## 4. Autres décisions de l'étape
 - **D-E1-03 Parcours public :** consultation sans compte, compte requis pour publier, contacter et répondre (pratique du marché, déjà en place).
-- **D-E1-04 Matrice Owner Center :** 32 modules délégables, 13 réservés au Superadmin (voir `MATRICE_DROITS.md`) → **DEC-003**, par défaut appliquée si vous ne répondez pas.
+- **D-E1-04 Matrice Owner Center :** 32 modules délégables, 14 réservés au Superadmin (voir `MATRICE_DROITS.md`) → **DEC-003**, par défaut appliquée si vous ne répondez pas.
 - **D-E1-05 Modèle « Mes biens » :** introduire une entité « bien » distincte de « l'annonce » (un bien peut avoir plusieurs annonces successives), liée en option aux annonces existantes pour ne rien casser → **DEC-004**, par défaut appliquée à l'étape 3.

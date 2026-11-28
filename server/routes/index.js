@@ -1315,6 +1315,9 @@ router.get("/staff/owner/places", async (req, res) => { res.setHeader("Cache-Con
   router.get("/staff/owner/activity", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await ownerCenter.feed(await requireOwnerModule(req, "activity"), feedQuery(req.query ?? {}))); });
   router.get("/staff/owner/security-log", async (req, res) => res.json(await ownerCenter.securityLogStatus(requireUser(req))));
   router.put("/staff/owner/security-log", async (req, res) => res.json(await ownerCenter.setSecurityLog(requireUser(req), req.body?.enabled === true)));
+  // Centre des activations : réservé au Superadmin (contrôle dans le service).
+  router.get("/staff/owner/activations", async (req, res) => { res.setHeader("Cache-Control", "no-store"); res.json(await services.activations.overview(requireUser(req))); });
+  router.put("/staff/owner/activations/:key", async (req, res) => res.json(await services.activations.set(requireUser(req), clean(req.params.key, 40), req.body?.enabled)));
   router.get("/staff/owner/observatory", async (req, res) => { res.setHeader("Cache-Control", "no-store"); await requireOwnerModule(req, "observatory"); res.json(await observatory.report({ from: clean(req.query.from, 10), to: clean(req.query.to, 10) })); });
   router.get("/staff/owner/overview", async (req, res) => res.json(await stats.ownerOverview(await requireOwnerModule(req, "overview"))));
   router.get("/staff/owner/crm", async (req, res) => res.json(await stats.crmOverview(await requireOwnerModule(req, "crm"), { limit: Number(req.query.limit) || 50 })));

@@ -38,6 +38,7 @@ Un admin n'accède à un module « delegable » que si le Superadmin le lui a at
 | `regions` | Régions (lecture) | Délégable à un admin | Lecture de chiffres ; aucune action sensible. |
 | `report` | Rapports | Délégable à un admin | Lecture de chiffres ; aucune action sensible. |
 | `report.pdf` | Rapport PDF | Délégable à un admin | Lecture de chiffres ; aucune action sensible. |
+| `activations` | Centre des activations | Réservé au Superadmin | Allume ou coupe des fonctions du site (paiement, collecte, modules) ; réservé au Superadmin. |
 | `observatory` | Observatoire du site (lecture) | Réservé au Superadmin | Réunit audience, sécurité et revenus sur une seule page ; réservé au Superadmin. |
 | `premium-funnel` | Entonnoir Premium (lecture) | Délégable à un admin | Lecture de chiffres ; aucune action sensible. |
 | `subscriptions` | Abonnements (lecture) | Délégable à un admin | Lecture de chiffres ; aucune action sensible. |
@@ -73,7 +74,7 @@ Un admin n'accède à un module « delegable » que si le Superadmin le lui a at
 | `security-log` | Journal de sécurité | **Superadmin seul** | Contient des traces de sécurité sensibles. |
 | `countries` | Pays | **Superadmin seul** | Active un pays entier de la plateforme. |
 
-**32 modules délégables, 13 réservés au Superadmin** (total 45 = tous les segments de `/staff/owner/*` du code ; vérifié par test).
+**32 modules délégables, 14 réservés au Superadmin** (total 46 = tous les segments de `/staff/owner/*` du code ; vérifié par test).
 
 ## 3. Tests exigés à l'étape 3
 Pour chaque route `/staff/*` et `/staff/owner/*` : refus (403) pour un utilisateur ordinaire, un modérateur (Owner Center), et un admin sans attribution ; accès accepté pour le rôle prévu ; action journalisée.

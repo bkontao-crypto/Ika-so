@@ -59,6 +59,12 @@
       "why": "Lecture de chiffres ; aucune action sensible."
     },
     {
+      "segment": "activations",
+      "label": "Centre des activations",
+      "access": "superadmin",
+      "why": "Allume ou coupe des fonctions du site (paiement, collecte, modules) ; réservé au Superadmin."
+    },
+    {
       "segment": "observatory",
       "label": "Observatoire du site (lecture)",
       "access": "superadmin",

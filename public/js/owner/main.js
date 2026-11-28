@@ -9,6 +9,7 @@ import { usersView, userCenterView } from "./v-users.js";
 import { chartsView, healthView, premiumFunnelView } from "./v-trafic.js";
 import { mfaView } from "./v-mfa.js";
 import { observatoryView } from "./v-observatory.js";
+import { activationsView } from "./v-activations.js";
 import { brand, brandUpper } from "../core/brand.js";
 
 // Menu rangé par fonction : chaque groupe se replie (celui de la page en cours reste ouvert). Les adresses « #/… » ne changent pas.
@@ -24,7 +25,7 @@ const NAV = [
   ["Clients & croissance", "funnel", [
     ["crm", "funnel", "CRM & pipeline"], ["contacts", "mail", "Contacts & visites"], ["marketing", "megaphone", "Marketing & campagnes"], ["newsletters", "news", "Newsletters"], ["whatsapp", "mail", "WhatsApp"]]],
   ["Paramètres du site", "gear", [
-    ["rules", "gear", "Conditions & exceptions"], ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["ai", "sparkles", "Assistance IA"]]],
+    ["activations", "gear", "Centre des activations", { tag: "NOUVEAU" }], ["rules", "gear", "Conditions & exceptions"], ["customize", "gear", "Personnalisation du site"], ["places", "pin", "Quartiers & pays"], ["i18n", "swap", "Langues, catégories & redirections"], ["ai", "sparkles", "Assistance IA"]]],
   ["Système & sécurité", "database", [
     ["monitoring", "flag", "Surveillance & incidents", { count: "openIncidents" }], ["health", "database", "Santé du système"], ["mfa", "lock", "Double authentification"], ["backups", "database", "Sauvegardes & restaurations"], ["audit", "scroll", "Journal d'audit"]]],
 ];
@@ -36,7 +37,7 @@ const whatsappView = () => h("div", { class: "view" }, panel("WhatsApp", "Messag
     h("p", null, "Ouvrez la boîte WhatsApp pour lire les messages reçus, répondre et écrire à un numéro. L'adresse du webhook et le jeton à saisir chez Meta s'y trouvent aussi (bloc « Configuration Meta »)."),
     h("div", null, h("a", { class: "btn primary", href: "/#/whatsapp" }, "Ouvrir la boîte WhatsApp")))));
 
-const VIEWS = { observatory: observatoryView, whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
+const VIEWS = { activations: activationsView, observatory: observatoryView, whatsapp: whatsappView, charts: chartsView, health: healthView, "premium-funnel": premiumFunnelView, overview: overviewView, requests: M.requestsView, activity: (c) => activityView(c), audit: (c) => activityView(c, { preset: "audit" }), "payment-settings": M.paymentSettingsView, "star-settings": M.starBadgeSettingsView, "star-requests": M.starBadgeRequestsView, rules: M.rulesView, discover: M.discoverView, alerts: M.alertsView, listings: M.listingsView, users: usersView, permissions: M.permissionsView, delegations: M.delegationsView, agencies: M.agenciesView, trust: M.trustView, complaints: M.complaintsView, payments: M.paymentsView,
   stats: M.statsView, subscriptions: M.subscriptionsView, crm: M.crmView, contacts: M.contactsView, marketing: M.marketingView, newsletters: M.newslettersView, regions: M.regionsView, ai: M.aiView, reports: M.reportsView, monitoring: M.monitoringView,
   backups: M.backupsView, customize: (c) => customizeView(c, "identity"), settings: (c) => customizeView(c, "identity"), homepage: (c) => customizeView(c, "homepage"), seo: (c) => customizeView(c, "seo"), i18n: M.i18nView, places: M.placesView, mfa: mfaView };
 
