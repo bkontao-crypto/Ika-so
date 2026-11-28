@@ -22,6 +22,7 @@ Ne pas attribuer le statut TERMINÉ ET VÉRIFIÉ à partir d'une simple présenc
 | Installation CI et contrôle Service Worker | TERMINÉ ET VÉRIFIÉ | Étapes correspondantes du workflow du commit |
 | Architecture serveur/API et migrations | TERMINÉ ET VÉRIFIÉ | Inspection du dépôt : Express 5, PostgreSQL, 95 migrations, routes et services |
 | Market / annonces | RÉALISÉ NON VÉRIFIÉ | Annonces, recherche, filtres, brouillons, photos, favoris, modération, historique des prix et SEO identifiés ; parcours production non vérifié |
+| Durées de publication / expirations d'annonces | RÉALISÉ NON VÉRIFIÉ | Branche `feature/expiration-annonces` (non fusionnée) : migration 096, service, tâche, routes, interfaces ; 21 tests ciblés réussis en local, suite complète et PostgreSQL non exécutés (voir journal) |
 | Map | RÉALISÉ NON VÉRIFIÉ | Mapbox et solution de secours identifiés ; couverture, quotas et usage réel à valider |
 | Trust / vérification | RÉALISÉ NON VÉRIFIÉ | Justificatifs, demandes, historique et signalements présents ; audit complet des parcours et accès à poursuivre |
 | Comptes et profils | RÉALISÉ NON VÉRIFIÉ | E-mail/mot de passe, Google, vérification téléphone et demandes annonceurs identifiés ; Facebook/X et connexion autonome par téléphone non confirmés |
@@ -48,6 +49,7 @@ Ne pas attribuer le statut TERMINÉ ET VÉRIFIÉ à partir d'une simple présenc
 | Critique avant activation Analytics | Valeur par défaut de collecte possiblement différente entre code et documentation | Comparer le code actuel, corriger l'interrupteur et aligner consentement/documents avant activation |
 | Haute | Récupération MFA Superadmin inachevée | Définir et tester récupération, codes de secours, verrouillage et journalisation |
 | Haute | Sauvegardes hors serveur/restauration non prouvées | Exécuter sauvegarde chiffrée et restauration sur base jetable ; consigner les preuves |
+| Haute (avant fusion des expirations) | Contrôle Service Worker : des fichiers de `public/` ont changé sans `npm run stamp-sw` ; `server/lib/retention.js` purge encore les annonces expirées/archivées après 12 mois | Lancer `npm run stamp-sw` ; décider du sort de `retention.js` (décision du propriétaire) |
 | Moyenne | Test de nettoyage `stored_files` : `content_type` au lieu de `mime_type`, erreur absorbée | Corriger le nettoyage et ajouter une assertion garantissant l'absence de fichiers résiduels |
 | Moyenne | Documents historiques périmés ou contradictoires | Conserver les historiques, dater les en-têtes et pointer vers les référentiels canoniques |
 | Moyenne | Facebook/X et pièces jointes/vocaux de messagerie non confirmés | Confirmer exigences, puis implémenter/tester seulement si validé |
@@ -91,21 +93,24 @@ Ces preuves sont des comptes rendus consignés dans le dépôt ; elles ne rempla
 - Ancien suivi détaillé : `Important/SUIVI.md` (historique conservé ; son en-tête doit être harmonisé avec les entrées récentes).
 - Architecture Analytics : `Important/ARCHITECTURE_ANALYTICS.md`.
 - Exploitation : `docs/exploitation.md`.
+- Expirations d'annonces : `docs/EXPIRATIONS_ANNONCES.md` (périmètre, décisions, retour arrière, tests).
 - Ancienne fiche de reprise : `Dossier_Suivi/ETAT_REPRISE_AGENT.md`.
 
 Ne pas supprimer les historiques. Les référentiels à la racine deviennent les documents actifs de pilotage.
 
 ## 6. Prochaines tâches recommandées
 
-1. **AUDITER** le code Analytics ciblé : variable d'activation, middleware, routes, consentement et tests. Aucun changement avant rapport et autorisation.
-2. **CORRIGER** le test de nettoyage des fichiers, après confirmation du schéma exact et sur branche dédiée.
-3. **VALIDER** le parcours MFA Superadmin et documenter le mécanisme de récupération.
-4. **VALIDER** la sauvegarde chiffrée hors serveur et une restauration sur base jetable.
-5. **RECETTER** les parcours prioritaires de bout en bout sur un environnement de préproduction.
-6. **PRÉPARER** la vérification Render/Neon avec le propriétaire, sans exposer de secrets dans les documents.
+1. **VALIDER** les expirations d'annonces : lancer `npm run stamp-sw`, `npm test` (CI avec PostgreSQL 16), puis recette locale (voir `docs/EXPIRATIONS_ANNONCES.md` §7), avant toute fusion.
+2. **AUDITER** le code Analytics ciblé : variable d'activation, middleware, routes, consentement et tests. Aucun changement avant rapport et autorisation.
+3. **CORRIGER** le test de nettoyage des fichiers, après confirmation du schéma exact et sur branche dédiée.
+4. **VALIDER** le parcours MFA Superadmin et documenter le mécanisme de récupération.
+5. **VALIDER** la sauvegarde chiffrée hors serveur et une restauration sur base jetable.
+6. **RECETTER** les parcours prioritaires de bout en bout sur un environnement de préproduction.
+7. **PRÉPARER** la vérification Render/Neon avec le propriétaire, sans exposer de secrets dans les documents.
 
 ## 7. Journal des mises à jour documentaires
 
+- 28 novembre 2026 : **RÉALISÉ, NON VÉRIFIÉ (suite complète, PostgreSQL, navigateur)** — durées de publication et expirations d'annonces, sur la branche `feature/expiration-annonces` (non fusionnée, autorisation de développement donnée par le propriétaire le 28/11). Migration `096_expiration_annonces.sql` (additive : `starts_at`, `expired_at`, `archived_at`, `archived_mode`, statut `SCHEDULED`, tables `ika_listing_events` et `ika_expiry_warnings`) ; `server/lib/expiry.js`, `server/services/listing-expiry.js`, `server/routes/expirations.js` (montées dans `server/app.js`), tâche chaque minute dans `server/index.js` ; `moderation.js` (début programmé, date de fin conservée) ; `listings.js` (favoris et commentaires refusent une annonce échue) ; interfaces : `public/js/components/expiry-alert.js`, `public/js/pages/account.js`, `public/js/pages/publish.js`, `public/js/app.js`, `public/js/owner/v-expirations.js`, `public/js/owner/main.js`. Tests exécutés en local : `test/expiry-rules.test.js` 10/10 sur le fichier exact ; `test/listing-expiry.test.js` 11/11 sur une copie allégée du service (SQL abrégé, même logique), non rejoué sur le fichier exact. Non exécutés : `npm test` complet, `npm run stamp-sw:check`, migration sur PostgreSQL, parcours navigateur mobile/ordinateur, redémarrage serveur réel. Risques : voir `docs/EXPIRATIONS_ANNONCES.md` §6. `CAHIER_DES_CHARGES.md` et `ARCHITECTURE_TECHNIQUE.md` pas encore mis à jour.
 - 27 novembre 2026 : revue finale des quatre référentiels sur la branche `docs/referentiels-projet-ika-so`. Correction de la règle métier des alertes à portée globale lorsque la zone est vide ; clarification du niveau de preuve de l'architecture ; actualisation de la fiche de reprise. Modifications documentaires uniquement. Aucun test applicatif relancé, aucun code métier, migration, base de données ou déploiement modifié.
 - 27 novembre 2026 (soir) : **RÉALISÉ, NON VÉRIFIÉ EN PRODUCTION** — refonte de la fiche annonce selon la maquette fournie (galerie mosaïque + signet favori, onglets Détails / Localisation / Galerie, tuiles de caractéristiques, barre fixe « Prix / Programmer une visite »). Fichiers : `public/js/pages/listing.js`, `public/css/fiche-annonce.css` (nouveau), `public/index.html`, `public/sw.js`, `public/js/app.js`. Bouton « Retour » de la maquette volontairement omis (décision du 16/11). Vérifs : `npm test` 540 réussis / 0 échec ; captures Playwright mobile 390 px et bureau 1280 px avec API simulée, aucune erreur JS. Reste : contrôle visuel sur https://ika-so.onrender.com.
 
